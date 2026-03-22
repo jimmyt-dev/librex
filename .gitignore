@@ -1,0 +1,14 @@
+.env
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+bin/
+*.exe
+*.test
+*.out
+tmp/
+.DS_Store
+dist/
+tmp/
