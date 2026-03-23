@@ -26,7 +26,7 @@
   } = $props();
 </script>
 
-<Collapsible.Root {open} class="group/collapsible" onclick={() => (userOpen = !userOpen)}>
+<Collapsible.Root {open} class="group/collapsible" onOpenChange={(value) => (userOpen = value)}>
   <Sidebar.Group>
     <Sidebar.GroupLabel class="flex w-full items-center justify-between text-sm text-foreground">
       Libraries
