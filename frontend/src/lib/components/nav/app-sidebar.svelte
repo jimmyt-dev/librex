@@ -218,7 +218,7 @@
     }
   }
 
-  async function createLibrary(name: string, icon?: string) {
+  async function createLibrary(name: string, icon?: string, folder?: string) {
     const token = localStorage.getItem('bearer_token') || '';
     const res = await fetch('/api/libraries', {
       method: 'POST',
@@ -226,7 +226,7 @@
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ name, icon: icon ?? null })
+      body: JSON.stringify({ name, icon: icon ?? null, folder: folder ?? null })
     });
     if (!res.ok) throw new Error('Failed to create library');
     await fetchLibraries();

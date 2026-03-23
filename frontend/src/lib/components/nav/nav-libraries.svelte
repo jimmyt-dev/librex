@@ -22,7 +22,7 @@
       icon?: string;
       books: number;
     }[];
-    onAdd?: (name: string, icon?: string) => Promise<void>;
+    onAdd?: (name: string, icon?: string, folder?: string) => Promise<void>;
   } = $props();
 </script>
 

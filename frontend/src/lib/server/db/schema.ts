@@ -1,11 +1,16 @@
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { user } from './auth.schema';
 
-export const task = sqliteTable('task', {
+export const library = sqliteTable('libraries', {
   id: text('id')
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
-  title: text('title').notNull(),
-  priority: integer('priority').notNull().default(1)
+  name: text('name').notNull(),
+  icon: text('icon'),
+  folder: text('folder').unique(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' })
 });
 
 export * from './auth.schema';

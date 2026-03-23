@@ -3,23 +3,34 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
+  import IconPicker from '$lib/components/ui/icon-picker.svelte';
+  import FolderPicker from '$lib/components/ui/folder-picker.svelte';
   import PlusIcon from '@lucide/svelte/icons/plus';
+  import FolderOpenIcon from '@lucide/svelte/icons/folder-open';
+  import FolderIcon from '@lucide/svelte/icons/folder';
+  import XIcon from '@lucide/svelte/icons/x';
 
-  let { onAdd }: { onAdd: (name: string, icon?: string) => Promise<void> } = $props();
+  let {
+    onAdd
+  }: {
+    onAdd: (name: string, icon?: string, folder?: string) => Promise<void>;
+  } = $props();
 
   let open = $state(false);
+  let folderDialogOpen = $state(false);
   let name = $state('');
   let icon = $state('');
-  let booksFolder = $state('');
+  let folder = $state('');
   let loading = $state(false);
 
   async function handleSubmit() {
     if (!name.trim()) return;
     loading = true;
     try {
-      await onAdd(name.trim(), icon.trim() || undefined);
+      await onAdd(name.trim(), icon || undefined, folder || undefined);
       name = '';
       icon = '';
+      folder = '';
       open = false;
     } finally {
       loading = false;
@@ -51,12 +62,35 @@
         <Input id="library-name" bind:value={name} placeholder="My Library" required />
       </div>
       <div class="grid gap-3">
-        <Label for="library-icon">Icon (optional)</Label>
-        <Input id="library-icon" bind:value={icon} placeholder="book-open" />
+        <Label>Icon (optional)</Label>
+        <IconPicker bind:value={icon} />
       </div>
       <div class="col-span-2 grid gap-3">
-        <Label for="books-folder">Books Folder</Label>
-        <Input id="books-folder" bind:value={booksFolder} placeholder="" />
+        <Label>Books Folder</Label>
+        <Button
+          type="button"
+          variant="outline"
+          class="w-full justify-start gap-2 font-normal {!folder ? 'text-muted-foreground' : ''}"
+          onclick={() => (folderDialogOpen = true)}
+        >
+          {#if folder}
+            <FolderOpenIcon class="size-4 shrink-0" />
+            <span class="truncate">{folder}</span>
+            <button
+              type="button"
+              class="ml-auto text-muted-foreground hover:text-foreground"
+              onclick={(e) => {
+                e.stopPropagation();
+                folder = '';
+              }}
+            >
+              <XIcon class="size-3" />
+            </button>
+          {:else}
+            <FolderIcon class="size-4 shrink-0" />
+            Select folder...
+          {/if}
+        </Button>
       </div>
       <Dialog.Footer class="col-span-2">
         <Dialog.Close type="button" class={buttonVariants({ variant: 'outline' })}>
@@ -67,5 +101,24 @@
         </Button>
       </Dialog.Footer>
     </form>
+  </Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={folderDialogOpen}>
+  <Dialog.Content class="sm:max-w-2xl">
+    <Dialog.Header>
+      <Dialog.Title>Select Directory</Dialog.Title>
+      <Dialog.Description>
+        Choose a directory from your file system to store books in.
+      </Dialog.Description>
+    </Dialog.Header>
+    <FolderPicker bind:value={folder} />
+    <Dialog.Footer>
+      <Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cancel</Dialog.Close>
+      <Button onclick={() => (folderDialogOpen = false)} disabled={!folder}>
+        <FolderOpenIcon class="size-4" />
+        Select Directory
+      </Button>
+    </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
