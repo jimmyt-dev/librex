@@ -13,8 +13,7 @@
   } = $props();
 
   // Removed commented useSidebar
-
-  </script>
+</script>
 
 <Sidebar.Group>
   <Sidebar.GroupLabel class="text-sm text-foreground">Home</Sidebar.GroupLabel>
