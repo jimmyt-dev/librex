@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 
 	"reliquary/internal/db"
 	"reliquary/internal/middleware"
@@ -19,7 +18,7 @@ type shelfBody struct {
 
 func ListShelves(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
-	rows, err := db.DB.QueryContext(r.Context(), "SELECT id, name, icon, user_id FROM shelves WHERE user_id = ?", userID)
+	rows, err := db.DB.Query(r.Context(), "SELECT id, name, icon, user_id FROM shelves WHERE user_id = $1", userID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
@@ -45,7 +44,7 @@ func GetShelf(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	var s models.Shelf
-	err := db.DB.QueryRowContext(r.Context(), "SELECT id, name, icon, user_id FROM shelves WHERE id = ? AND user_id = ?", id, userID).
+	err := db.DB.QueryRow(r.Context(), "SELECT id, name, icon, user_id FROM shelves WHERE id = $1 AND user_id = $2", id, userID).
 		Scan(&s.ID, &s.Name, &s.Icon, &s.UserID)
 	if err != nil {
 		http.Error(w, "shelf not found", http.StatusNotFound)
@@ -65,8 +64,10 @@ func CreateShelf(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := uuid.New().String()
-	_, err := db.DB.ExecContext(r.Context(), "INSERT INTO shelves (id, name, icon, user_id) VALUES (?, ?, ?, ?)", id, body.Name, body.Icon, userID)
+	var id string
+	err := db.DB.QueryRow(r.Context(),
+		"INSERT INTO shelves (name, icon, user_id) VALUES ($1, $2, $3) RETURNING id",
+		body.Name, body.Icon, userID).Scan(&id)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
@@ -82,7 +83,7 @@ func UpdateShelf(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	var existing models.Shelf
-	err := db.DB.QueryRowContext(r.Context(), "SELECT id, name, icon, user_id FROM shelves WHERE id = ? AND user_id = ?", id, userID).
+	err := db.DB.QueryRow(r.Context(), "SELECT id, name, icon, user_id FROM shelves WHERE id = $1 AND user_id = $2", id, userID).
 		Scan(&existing.ID, &existing.Name, &existing.Icon, &existing.UserID)
 	if err != nil {
 		http.Error(w, "shelf not found", http.StatusNotFound)
@@ -95,7 +96,7 @@ func UpdateShelf(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, execErr := db.DB.ExecContext(r.Context(), "UPDATE shelves SET name = ?, icon = ? WHERE id = ? AND user_id = ?", body.Name, body.Icon, id, userID)
+	_, execErr := db.DB.Exec(r.Context(), "UPDATE shelves SET name = $1, icon = $2 WHERE id = $3 AND user_id = $4", body.Name, body.Icon, id, userID)
 	if execErr != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
@@ -109,14 +110,13 @@ func DeleteShelf(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	id := chi.URLParam(r, "id")
 
-	result, err := db.DB.ExecContext(r.Context(), "DELETE FROM shelves WHERE id = ? AND user_id = ?", id, userID)
+	result, err := db.DB.Exec(r.Context(), "DELETE FROM shelves WHERE id = $1 AND user_id = $2", id, userID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
 	}
 
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
+	if result.RowsAffected() == 0 {
 		http.Error(w, "shelf not found", http.StatusNotFound)
 		return
 	}

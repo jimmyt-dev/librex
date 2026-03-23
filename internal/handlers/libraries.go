@@ -2,12 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 
 	"reliquary/internal/db"
 	"reliquary/internal/middleware"
@@ -22,7 +22,7 @@ type libraryBody struct {
 
 func ListLibraries(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
-	rows, err := db.DB.QueryContext(r.Context(), "SELECT id, name, icon, folder, user_id FROM libraries WHERE user_id = ?", userID)
+	rows, err := db.DB.Query(r.Context(), "SELECT id, name, icon, folder, user_id FROM libraries WHERE user_id = $1", userID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
@@ -48,7 +48,7 @@ func GetLibrary(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	var l models.Library
-	err := db.DB.QueryRowContext(r.Context(), "SELECT id, name, icon, folder, user_id FROM libraries WHERE id = ? AND user_id = ?", id, userID).
+	err := db.DB.QueryRow(r.Context(), "SELECT id, name, icon, folder, user_id FROM libraries WHERE id = $1 AND user_id = $2", id, userID).
 		Scan(&l.ID, &l.Name, &l.Icon, &l.Folder, &l.UserID)
 	if err != nil {
 		http.Error(w, "library not found", http.StatusNotFound)
@@ -77,8 +77,10 @@ func CreateLibrary(w http.ResponseWriter, r *http.Request) {
 		body.Folder = &cleaned
 	}
 
-	id := uuid.New().String()
-	_, err := db.DB.ExecContext(r.Context(), "INSERT INTO libraries (id, name, icon, folder, user_id) VALUES (?, ?, ?, ?, ?)", id, body.Name, body.Icon, body.Folder, userID)
+	var id string
+	err := db.DB.QueryRow(r.Context(),
+		"INSERT INTO libraries (name, icon, folder, user_id) VALUES ($1, $2, $3, $4) RETURNING id",
+		body.Name, body.Icon, body.Folder, userID).Scan(&id)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
@@ -93,9 +95,8 @@ func UpdateLibrary(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	id := chi.URLParam(r, "id")
 
-	// Verify ownership
 	var existing models.Library
-	err := db.DB.QueryRowContext(r.Context(), "SELECT id, name, icon, folder, user_id FROM libraries WHERE id = ? AND user_id = ?", id, userID).
+	err := db.DB.QueryRow(r.Context(), "SELECT id, name, icon, folder, user_id FROM libraries WHERE id = $1 AND user_id = $2", id, userID).
 		Scan(&existing.ID, &existing.Name, &existing.Icon, &existing.Folder, &existing.UserID)
 	if err != nil {
 		http.Error(w, "library not found", http.StatusNotFound)
@@ -117,7 +118,9 @@ func UpdateLibrary(w http.ResponseWriter, r *http.Request) {
 		body.Folder = &cleaned
 	}
 
-	_, execErr := db.DB.ExecContext(r.Context(), "UPDATE libraries SET name = ?, icon = ?, folder = ? WHERE id = ? AND user_id = ?", body.Name, body.Icon, body.Folder, id, userID)
+	_, execErr := db.DB.Exec(r.Context(),
+		"UPDATE libraries SET name = $1, icon = $2, folder = $3 WHERE id = $4 AND user_id = $5",
+		body.Name, body.Icon, body.Folder, id, userID)
 	if execErr != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
@@ -131,14 +134,13 @@ func DeleteLibrary(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	id := chi.URLParam(r, "id")
 
-	result, err := db.DB.ExecContext(r.Context(), "DELETE FROM libraries WHERE id = ? AND user_id = ?", id, userID)
+	result, err := db.DB.Exec(r.Context(), "DELETE FROM libraries WHERE id = $1 AND user_id = $2", id, userID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
 	}
 
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
+	if result.RowsAffected() == 0 {
 		http.Error(w, "library not found", http.StatusNotFound)
 		return
 	}
@@ -151,8 +153,6 @@ type validationError struct {
 	code int
 }
 
-// validateFolder checks that a folder path is valid, exists, and isn't used by another library.
-// excludeID allows the current library to keep its own folder on update.
 func validateFolder(r *http.Request, folder *string, excludeID string) *validationError {
 	if folder == nil || *folder == "" {
 		return &validationError{"folder cannot be null or empty", http.StatusBadRequest}
@@ -168,15 +168,15 @@ func validateFolder(r *http.Request, folder *string, excludeID string) *validati
 		return &validationError{"folder does not exist or is not a directory", http.StatusBadRequest}
 	}
 
-	query := "SELECT COUNT(*) FROM libraries WHERE folder = ?"
+	query := "SELECT COUNT(*) FROM libraries WHERE folder = $1"
 	args := []any{cleaned}
 	if excludeID != "" {
-		query += " AND id != ?"
+		query += fmt.Sprintf(" AND id != $%d", len(args)+1)
 		args = append(args, excludeID)
 	}
 
 	var count int
-	if err := db.DB.QueryRowContext(r.Context(), query, args...).Scan(&count); err != nil {
+	if err := db.DB.QueryRow(r.Context(), query, args...).Scan(&count); err != nil {
 		return &validationError{"db error", http.StatusInternalServerError}
 	}
 	if count > 0 {

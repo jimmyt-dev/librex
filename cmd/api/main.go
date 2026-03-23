@@ -1,10 +1,12 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
+	"github.com/joho/godotenv"
 
 	"reliquary/internal/db"
 	"reliquary/internal/handlers"
@@ -12,6 +14,10 @@ import (
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 	if err := db.Init(); err != nil {
 		panic(err)
 	}
@@ -44,7 +50,12 @@ func main() {
 
 	r.Route("/api/bookdrop", func(r chi.Router) {
 		r.Post("/scan", handlers.ScanBookdrop)
-		// r.Post("/import", handlers.ImportBookFromDrop)
+		r.Get("/staged", handlers.ListStagedBooks)
+		r.Get("/staged/{id}", handlers.GetStagedBook)
+		r.Put("/staged/{id}", handlers.UpdateStagedBook)
+		r.Put("/staged", handlers.BulkUpdateStagedBooks)
+		r.Delete("/staged/{id}", handlers.DeleteStagedBook)
+		r.Delete("/staged", handlers.ClearStagedBooks)
 	})
 
 	http.ListenAndServe(":5321", r)

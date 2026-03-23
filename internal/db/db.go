@@ -1,15 +1,16 @@
 package db
 
 import (
-	"database/sql"
+	"context"
+	"os"
 
-	_ "modernc.org/sqlite"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var DB *sql.DB
+var DB *pgxpool.Pool
 
 func Init() error {
 	var err error
-	DB, err = sql.Open("sqlite", "reliquary.db")
+	DB, err = pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
 	return err
 }
