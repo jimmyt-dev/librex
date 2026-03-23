@@ -148,19 +148,7 @@
         ]
       }
     ],
-    libraries: [
-      {
-        title: 'Test',
-        url: '#',
-        icon: FrameIcon,
-        books: 46
-      },
-      {
-        title: 'Test 2',
-        url: '#',
-        books: 12
-      }
-    ],
+    libraries: [] as { title: string; url: string; books: number }[],
     shelves: [
       {
         title: 'Unshelved',
@@ -197,6 +185,7 @@
 <script lang="ts">
   import * as Sidebar from '$lib/components/ui/sidebar/index.js';
   import type { ComponentProps } from 'svelte';
+  import { onMount } from 'svelte';
   import NavHome from './nav-home.svelte';
   import NavLibraries from './nav-libraries.svelte';
   // import NavMain from './nav-main.svelte';
@@ -207,6 +196,34 @@
   import LibraryIcon from '@lucide/svelte/icons/library';
 
   const sidebar = Sidebar.useSidebar();
+
+  let libraries = $state<{ title: string; url: string; books: number }[]>([]);
+
+  async function fetchLibraries() {
+    const token = localStorage.getItem('bearer_token') || '';
+    const res = await fetch('/api/libraries', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const items: { id: string; name: string }[] = await res.json();
+      libraries = items.map((l) => ({ title: l.name, url: '#', books: 0 }));
+    }
+  }
+
+  async function createLibrary() {
+    const token = localStorage.getItem('bearer_token') || '';
+    await fetch('/api/libraries', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ name: 'testies' })
+    });
+    await fetchLibraries();
+  }
+
+  onMount(fetchLibraries);
 
   let {
     ref = $bindable(null),
@@ -230,7 +247,7 @@
   <Sidebar.Content>
     <NavHome links={data.navHome} />
     <div class="border-t border-border"></div>
-    <NavLibraries links={data.libraries} />
+    <NavLibraries links={libraries} onAdd={createLibrary} />
     <div class="border-t border-border"></div>
     <NavShelves links={data.shelves} />
     <!-- <NavMain items={data.navMain} />

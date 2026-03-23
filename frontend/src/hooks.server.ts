@@ -20,7 +20,7 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
   if (!event.locals.user && !isPublic) {
     return redirect(302, '/login');
   }
-  if (event.locals.user && isPublic) {
+  if (event.locals.user && isPublic && !pathname.startsWith('/api/')) {
     return redirect(302, '/');
   }
 
