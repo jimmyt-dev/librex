@@ -154,8 +154,8 @@ type validationError struct {
 // validateFolder checks that a folder path is valid, exists, and isn't used by another library.
 // excludeID allows the current library to keep its own folder on update.
 func validateFolder(r *http.Request, folder *string, excludeID string) *validationError {
-	if folder == nil {
-		return nil
+	if folder == nil || *folder == "" {
+		return &validationError{"folder cannot be null or empty", http.StatusBadRequest}
 	}
 
 	cleaned := filepath.Clean(*folder)
@@ -180,7 +180,7 @@ func validateFolder(r *http.Request, folder *string, excludeID string) *validati
 		return &validationError{"db error", http.StatusInternalServerError}
 	}
 	if count > 0 {
-		return &validationError{"folder is already used by another library", http.StatusConflict}
+		return &validationError{"Folder is already used by another library", http.StatusConflict}
 	}
 
 	return nil

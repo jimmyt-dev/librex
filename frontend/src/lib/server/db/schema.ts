@@ -7,7 +7,7 @@ export const library = sqliteTable('libraries', {
     .$defaultFn(() => crypto.randomUUID()),
   name: text('name').notNull(),
   icon: text('icon'),
-  folder: text('folder').unique(),
+  folder: text('folder').unique().notNull(),
   userId: text('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' })

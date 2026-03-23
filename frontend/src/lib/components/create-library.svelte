@@ -9,12 +9,8 @@
   import FolderOpenIcon from '@lucide/svelte/icons/folder-open';
   import FolderIcon from '@lucide/svelte/icons/folder';
   import XIcon from '@lucide/svelte/icons/x';
-
-  let {
-    onAdd
-  }: {
-    onAdd: (name: string, icon?: string, folder?: string) => Promise<void>;
-  } = $props();
+  import { librariesState } from '$lib/api/libraries.svelte';
+  import { toast } from 'svelte-sonner';
 
   let open = $state(false);
   let folderDialogOpen = $state(false);
@@ -22,16 +18,22 @@
   let icon = $state('');
   let folder = $state('');
   let loading = $state(false);
+  let errorMessage = $state('');
 
   async function handleSubmit() {
-    if (!name.trim()) return;
+    if (!name.trim() || !folder.trim()) return;
     loading = true;
+    errorMessage = '';
     try {
-      await onAdd(name.trim(), icon || undefined, folder || undefined);
+      await librariesState.create(name.trim(), folder.trim(), icon || undefined);
+      toast.success(`Library "${name.trim()}" created successfully!`);
       name = '';
       icon = '';
       folder = '';
       open = false;
+    } catch (e) {
+      errorMessage = e instanceof Error ? e.message : String(e);
+      toast.error(errorMessage);
     } finally {
       loading = false;
     }
@@ -92,11 +94,18 @@
           {/if}
         </Button>
       </div>
+      
+      {#if errorMessage}
+        <div class="col-span-2 rounded-md bg-destructive/10 p-3 text-sm font-medium text-destructive">
+          {errorMessage}
+        </div>
+      {/if}
+      
       <Dialog.Footer class="col-span-2">
         <Dialog.Close type="button" class={buttonVariants({ variant: 'outline' })}>
           Cancel
         </Dialog.Close>
-        <Button type="submit" disabled={loading || !name.trim()}>
+        <Button type="submit" disabled={loading || !name.trim() || !folder.trim()}>
           {loading ? 'Creating...' : 'Create Library'}
         </Button>
       </Dialog.Footer>

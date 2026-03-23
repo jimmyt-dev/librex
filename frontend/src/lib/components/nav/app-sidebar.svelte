@@ -186,6 +186,7 @@
   import * as Sidebar from '$lib/components/ui/sidebar/index.js';
   import type { ComponentProps } from 'svelte';
   import { onMount } from 'svelte';
+  import { librariesState } from '$lib/api/libraries.svelte';
   import NavHome from './nav-home.svelte';
   import NavLibraries from './nav-libraries.svelte';
   // import NavMain from './nav-main.svelte';
@@ -197,42 +198,7 @@
 
   const sidebar = Sidebar.useSidebar();
 
-  let libraries = $state<
-    { id: string; title: string; url: string; icon?: string; books: number }[]
-  >([]);
-
-  async function fetchLibraries() {
-    const token = localStorage.getItem('bearer_token') || '';
-    const res = await fetch('/api/libraries', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (res.ok) {
-      const items: { id: string; name: string; icon: string | null }[] = await res.json();
-      libraries = items.map((l) => ({
-        id: l.id,
-        title: l.name,
-        url: '#',
-        icon: l.icon ?? undefined,
-        books: 0
-      }));
-    }
-  }
-
-  async function createLibrary(name: string, icon?: string, folder?: string) {
-    const token = localStorage.getItem('bearer_token') || '';
-    const res = await fetch('/api/libraries', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ name, icon: icon ?? null, folder: folder ?? null })
-    });
-    if (!res.ok) throw new Error('Failed to create library');
-    await fetchLibraries();
-  }
-
-  onMount(fetchLibraries);
+  onMount(librariesState.fetchAll);
 
   let {
     ref = $bindable(null),
@@ -256,7 +222,7 @@
   <Sidebar.Content>
     <NavHome links={data.navHome} />
     <div class="border-t border-border"></div>
-    <NavLibraries links={libraries} onAdd={createLibrary} />
+    <NavLibraries links={librariesState.items} />
     <div class="border-t border-border"></div>
     <NavShelves links={data.shelves} />
     <!-- <NavMain items={data.navMain} />

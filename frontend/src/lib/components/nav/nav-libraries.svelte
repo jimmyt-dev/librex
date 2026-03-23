@@ -12,8 +12,7 @@
   let open = $derived(sidebar.state === 'collapsed' || userOpen);
 
   let {
-    links,
-    onAdd
+    links
   }: {
     links: {
       id: string;
@@ -22,7 +21,6 @@
       icon?: string;
       books: number;
     }[];
-    onAdd?: (name: string, icon?: string, folder?: string) => Promise<void>;
   } = $props();
 </script>
 
@@ -33,9 +31,7 @@
     >
       <span class="flex items-center justify-center gap-1">
         Libraries
-        {#if onAdd}
-          <CreateLibrary {onAdd} />
-        {/if}
+        <CreateLibrary />
       </span>
       {#if links.length > 0}
         <Collapsible.Trigger>
