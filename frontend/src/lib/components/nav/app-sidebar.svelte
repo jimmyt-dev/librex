@@ -6,9 +6,14 @@
   import CommandIcon from '@lucide/svelte/icons/command';
   import FrameIcon from '@lucide/svelte/icons/frame';
   import GalleryVerticalEndIcon from '@lucide/svelte/icons/gallery-vertical-end';
+  import HomeIcon from '@lucide/svelte/icons/home';
   import MapIcon from '@lucide/svelte/icons/map';
   import Settings2Icon from '@lucide/svelte/icons/settings-2';
   import SquareTerminalIcon from '@lucide/svelte/icons/square-terminal';
+  import BookTextIcon from '@lucide/svelte/icons/book-text';
+  import BookCopyIcon from '@lucide/svelte/icons/book-copy';
+  import UsersIcon from '@lucide/svelte/icons/users';
+  import NotebookPenIcon from '@lucide/svelte/icons/notebook-pen';
 
   // This is sample data.
   const data = {
@@ -32,6 +37,33 @@
         name: 'Evil Corp.',
         logo: CommandIcon,
         plan: 'Free'
+      }
+    ],
+    navHome: [
+      {
+        title: 'Dashboard',
+        url: 'dashboard',
+        icon: HomeIcon
+      },
+      {
+        title: 'All Books',
+        url: 'all-books',
+        icon: BookTextIcon
+      },
+      {
+        title: 'Series',
+        url: 'series',
+        icon: BookCopyIcon
+      },
+      {
+        title: 'Authors',
+        url: 'authors',
+        icon: UsersIcon
+      },
+      {
+        title: 'Notebook',
+        url: 'notebook',
+        icon: NotebookPenIcon
       }
     ],
     navMain: [
@@ -121,6 +153,32 @@
         ]
       }
     ],
+    libraries: [
+      {
+        title: 'Test',
+        url: '#',
+        icon: FrameIcon,
+        books: 46
+      },
+      {
+        title: 'Test 2',
+        url: '#',
+        books: 12
+      }
+    ],
+    shelves: [
+      {
+        title: 'Unshelved',
+        url: '#',
+        icon: FrameIcon,
+        books: 46
+      },
+      {
+        title: 'Test 2',
+        url: '#',
+        books: 12
+      }
+    ],
     projects: [
       {
         name: 'Design Engineering',
@@ -142,12 +200,15 @@
 </script>
 
 <script lang="ts">
-  import NavMain from './nav-main.svelte';
-  import NavProjects from './nav-projects.svelte';
-  import NavUser from './nav-user.svelte';
-  import TeamSwitcher from './team-switcher.svelte';
   import * as Sidebar from '$lib/components/ui/sidebar/index.js';
   import type { ComponentProps } from 'svelte';
+  import NavHome from './nav-home.svelte';
+  import NavLibraries from './nav-libraries.svelte';
+  // import NavMain from './nav-main.svelte';
+  // import NavProjects from './nav-projects.svelte';
+  import NavUser from './nav-user.svelte';
+  import TeamSwitcher from './team-switcher.svelte';
+  import NavShelves from './nav-shelves.svelte';
 
   let {
     ref = $bindable(null),
@@ -161,8 +222,14 @@
     <TeamSwitcher teams={data.teams} />
   </Sidebar.Header>
   <Sidebar.Content>
-    <NavMain items={data.navMain} />
-    <NavProjects projects={data.projects} />
+    <NavHome links={data.navHome} />
+    <div class="border-t border-border"></div>
+    <NavLibraries links={data.libraries} />
+    <div class="border-t border-border"></div>
+    <NavShelves links={data.shelves} />
+    <!-- <NavMain items={data.navMain} />
+    <div class="border-t border-border"></div>
+    <NavProjects projects={data.projects} /> -->
   </Sidebar.Content>
   <Sidebar.Footer>
     <NavUser user={data.user} />
