@@ -202,8 +202,11 @@
   // import NavMain from './nav-main.svelte';
   // import NavProjects from './nav-projects.svelte';
   import NavUser from './nav-user.svelte';
-  import TeamSwitcher from './team-switcher.svelte';
+  // import TeamSwitcher from './team-switcher.svelte';
   import NavShelves from './nav-shelves.svelte';
+  import LibraryIcon from '@lucide/svelte/icons/library';
+
+  const sidebar = Sidebar.useSidebar();
 
   let {
     ref = $bindable(null),
@@ -217,7 +220,12 @@
 
 <Sidebar.Root bind:ref {collapsible} {...restProps}>
   <Sidebar.Header>
-    <TeamSwitcher teams={data.teams} />
+    <!-- <TeamSwitcher teams={data.teams} /> -->
+    {#if sidebar.state === 'collapsed'}
+      <LibraryIcon class="h-8 w-8" />
+    {:else}
+      <h1 class="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl">Reliquary</h1>
+    {/if}
   </Sidebar.Header>
   <Sidebar.Content>
     <NavHome links={data.navHome} />
