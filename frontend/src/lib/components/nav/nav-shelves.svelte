@@ -2,9 +2,9 @@
   import * as Collapsible from '$lib/components/ui/collapsible';
   import * as Sidebar from '$lib/components/ui/sidebar';
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
-  import type { Component } from 'svelte';
   import NavShelfItem from './nav-shelf-item.svelte';
   import { useSidebar } from '$lib/components/ui/sidebar';
+  import CreateShelf from '../create-shelf.svelte';
 
   const sidebar = useSidebar();
 
@@ -15,9 +15,10 @@
     links
   }: {
     links: {
+      id: string;
       title: string;
       url: string;
-      icon?: Component;
+      icon?: string;
       books: number;
     }[];
   } = $props();
@@ -28,16 +29,21 @@
     <Sidebar.GroupLabel
       class="flex w-full items-center justify-between text-sm text-foreground group-data-[collapsible=icon]:pointer-events-none"
     >
-      Shelves
-      <Collapsible.Trigger>
-        <ChevronRightIcon
-          class="ms-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 hover:cursor-pointer"
-        />
-      </Collapsible.Trigger>
+      <span class="flex items-center justify-center gap-1">
+        Shelves
+        <CreateShelf />
+      </span>
+      {#if links.length > 0}
+        <Collapsible.Trigger>
+          <ChevronRightIcon
+            class="ms-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 hover:cursor-pointer"
+          />
+        </Collapsible.Trigger>
+      {/if}
     </Sidebar.GroupLabel>
     <Collapsible.Content>
       <Sidebar.Menu>
-        {#each links as item (item.title)}
+        {#each links as item (item.id)}
           <NavShelfItem {item} />
         {/each}
       </Sidebar.Menu>

@@ -187,6 +187,7 @@
   import type { ComponentProps } from 'svelte';
   import { onMount } from 'svelte';
   import { librariesState } from '$lib/api/libraries.svelte';
+  import { shelvesState } from '$lib/api/shelves.svelte';
   import NavHome from './nav-home.svelte';
   import NavLibraries from './nav-libraries.svelte';
   // import NavMain from './nav-main.svelte';
@@ -198,7 +199,10 @@
 
   const sidebar = Sidebar.useSidebar();
 
-  onMount(librariesState.fetchAll);
+  onMount(() => {
+    librariesState.fetchAll();
+    shelvesState.fetchAll();
+  });
 
   let {
     ref = $bindable(null),
@@ -224,7 +228,7 @@
     <div class="border-t border-border"></div>
     <NavLibraries links={librariesState.items} />
     <div class="border-t border-border"></div>
-    <NavShelves links={data.shelves} />
+    <NavShelves links={shelvesState.items} />
     <!-- <NavMain items={data.navMain} />
     <div class="border-t border-border"></div>
     <NavProjects projects={data.projects} /> -->

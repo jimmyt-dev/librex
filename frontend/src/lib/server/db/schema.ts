@@ -13,4 +13,15 @@ export const library = sqliteTable('libraries', {
     .references(() => user.id, { onDelete: 'cascade' })
 });
 
+export const shelf = sqliteTable('shelves', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text('name').notNull(),
+  icon: text('icon'),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' })
+});
+
 export * from './auth.schema';

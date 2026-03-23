@@ -32,6 +32,14 @@ func main() {
 		r.Delete("/{id}", handlers.DeleteLibrary)
 	})
 
+	r.Route("/api/shelves", func(r chi.Router) {
+		r.Get("/", handlers.ListShelves)
+		r.Post("/", handlers.CreateShelf)
+		r.Get("/{id}", handlers.GetShelf)
+		r.Put("/{id}", handlers.UpdateShelf)
+		r.Delete("/{id}", handlers.DeleteShelf)
+	})
+
 	r.Get("/api/directories", handlers.ListDirectories)
 
 	http.ListenAndServe(":5321", r)

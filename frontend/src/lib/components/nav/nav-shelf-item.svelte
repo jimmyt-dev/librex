@@ -6,20 +6,41 @@
   import FolderIcon from '@lucide/svelte/icons/folder';
   import ForwardIcon from '@lucide/svelte/icons/forward';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
-  import type { Component } from 'svelte';
+  import LucideIcon from '$lib/components/ui/lucide-icon.svelte';
+  import { shelvesState } from '$lib/api/shelves.svelte';
+  import { toast } from 'svelte-sonner';
+  import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import { Button } from '$lib/components/ui/button';
 
   let {
     item
   }: {
     item: {
+      id: string;
       title: string;
       url: string;
-      icon?: Component;
+      icon?: string;
       books?: number;
     };
   } = $props();
 
   const sidebar = useSidebar();
+
+  let confirmOpen = $state(false);
+  let isDeleting = $state(false);
+
+  async function handleDelete() {
+    isDeleting = true;
+    try {
+      await shelvesState.delete(item.id);
+      toast.success(`Shelf "${item.title}" deleted.`);
+      confirmOpen = false;
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      isDeleting = false;
+    }
+  }
 </script>
 
 <Sidebar.MenuItem>
@@ -28,13 +49,13 @@
       <a href={item.url} {...props}>
         {#if sidebar.state === 'collapsed'}
           {#if item.icon}
-            <item.icon />
+            <LucideIcon name={item.icon} />
           {:else}
             <span>{item.title.slice(0, 2)}</span>
           {/if}
         {:else}
           {#if item.icon}
-            <item.icon />
+            <LucideIcon name={item.icon} />
           {/if}
           <span>{item.title}</span>
         {/if}
@@ -42,7 +63,7 @@
     {/snippet}
   </Sidebar.MenuButton>
 
-  {#if item.title !== 'Unshelved'}
+  {#if item.id !== 'unshelved'}
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>
         {#snippet child({ props })}
@@ -58,23 +79,41 @@
       <DropdownMenu.Content class="w-48 rounded-lg" align={sidebar.isMobile ? 'end' : 'start'}>
         <DropdownMenu.Item>
           <FolderIcon class="text-muted-foreground" />
-          <span>View Project</span>
+          <span>View Shelf</span>
         </DropdownMenu.Item>
         <DropdownMenu.Item>
           <ForwardIcon class="text-muted-foreground" />
-          <span>Share Project</span>
+          <span>Share Shelf</span>
         </DropdownMenu.Item>
         <DropdownMenu.Separator />
-        <DropdownMenu.Item>
+        <DropdownMenu.Item onclick={() => (confirmOpen = true)}>
           <Trash2Icon class="text-muted-foreground" />
-          <span>Delete Project</span>
+          <span>Delete Shelf</span>
         </DropdownMenu.Item>
       </DropdownMenu.Content>
     </DropdownMenu.Root>
+
+    <AlertDialog.Root bind:open={confirmOpen}>
+      <AlertDialog.Content>
+        <AlertDialog.Header>
+          <AlertDialog.Title>Are you absolutely sure?</AlertDialog.Title>
+          <AlertDialog.Description>
+            This action cannot be undone. This will permanently delete the
+            <strong>{item.title}</strong> shelf.
+          </AlertDialog.Description>
+        </AlertDialog.Header>
+        <AlertDialog.Footer>
+          <AlertDialog.Cancel disabled={isDeleting}>Cancel</AlertDialog.Cancel>
+          <Button variant="destructive" onclick={handleDelete} disabled={isDeleting}>
+            {isDeleting ? 'Deleting...' : 'Delete Shelf'}
+          </Button>
+        </AlertDialog.Footer>
+      </AlertDialog.Content>
+    </AlertDialog.Root>
   {/if}
 
   <Sidebar.MenuBadge
-    class={item.title !== 'Unshelved'
+    class={item.id !== 'unshelved'
       ? 'transition-opacity peer-hover/action:opacity-0 peer-focus-visible/action:opacity-0 peer-data-[state=open]/action:opacity-0'
       : ''}
   >
