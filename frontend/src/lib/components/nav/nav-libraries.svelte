@@ -7,10 +7,7 @@
   import { useSidebar } from '$lib/components/ui/sidebar';
 
   const sidebar = useSidebar();
-  $effect(() => {
-    console.log(sidebar.state);
-    console.log(open);
-  });
+
   let userOpen = $state(true);
   let open = $derived(sidebar.state === 'collapsed' || userOpen);
 
