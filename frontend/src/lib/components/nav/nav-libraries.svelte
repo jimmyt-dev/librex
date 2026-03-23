@@ -2,9 +2,9 @@
   import * as Collapsible from '$lib/components/ui/collapsible';
   import * as Sidebar from '$lib/components/ui/sidebar';
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
-  import PlusIcon from '@lucide/svelte/icons/plus';
   import NavLibraryItem from './nav-library-item.svelte';
   import { useSidebar } from '$lib/components/ui/sidebar';
+  import CreateLibrary from '../create-library.svelte';
 
   const sidebar = useSidebar();
 
@@ -22,19 +22,19 @@
       icon?: string;
       books: number;
     }[];
-    onAdd?: () => void;
+    onAdd?: (name: string, icon?: string) => Promise<void>;
   } = $props();
 </script>
 
 <Collapsible.Root {open} class="group/collapsible" onOpenChange={(value) => (userOpen = value)}>
   <Sidebar.Group>
-    <Sidebar.GroupLabel class="flex w-full items-center justify-between text-sm text-foreground group-data-[collapsible=icon]:pointer-events-none">
-      <span class="flex items-center gap-1">
+    <Sidebar.GroupLabel
+      class="flex w-full items-center justify-between text-sm text-foreground group-data-[collapsible=icon]:pointer-events-none"
+    >
+      <span class="flex items-center justify-center gap-1">
         Libraries
         {#if onAdd}
-          <button onclick={onAdd} class="hover:cursor-pointer hover:text-foreground/80">
-            <PlusIcon class="size-4" />
-          </button>
+          <CreateLibrary {onAdd} />
         {/if}
       </span>
       {#if links.length > 0}
