@@ -10,7 +10,7 @@ import (
 	"reliquary/internal/handlers"
 	"reliquary/internal/middleware"
 )
-git
+
 func main() {
 	if err := db.Init(); err != nil {
 		panic(err)
