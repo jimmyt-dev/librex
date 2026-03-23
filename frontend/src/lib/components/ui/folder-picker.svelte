@@ -60,12 +60,8 @@
   <!-- Controls row -->
   <div class="flex items-center gap-2 border-b px-3 py-2">
     <div class="relative flex-1">
-      <SearchIcon class="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-      <Input
-        bind:value={search}
-        placeholder="Search folders..."
-        class="h-8 pl-7 text-sm"
-      />
+      <SearchIcon class="absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      <Input bind:value={search} placeholder="Search folders..." class="h-8 pl-7 text-sm" />
     </div>
     <Button
       variant="outline"
@@ -100,7 +96,7 @@
         {#each filtered as dir (dir.path)}
           <button
             type="button"
-            class="flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:cursor-pointer"
+            class="flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm hover:cursor-pointer hover:bg-accent"
             onclick={() => browse(dir.path)}
           >
             <FolderIcon class="size-4 shrink-0 text-muted-foreground" />

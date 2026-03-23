@@ -25,7 +25,9 @@
 
 <Collapsible.Root {open} class="group/collapsible" onOpenChange={(value) => (userOpen = value)}>
   <Sidebar.Group>
-    <Sidebar.GroupLabel class="flex w-full items-center justify-between text-sm text-foreground group-data-[collapsible=icon]:pointer-events-none">
+    <Sidebar.GroupLabel
+      class="flex w-full items-center justify-between text-sm text-foreground group-data-[collapsible=icon]:pointer-events-none"
+    >
       Shelves
       <Collapsible.Trigger>
         <ChevronRightIcon

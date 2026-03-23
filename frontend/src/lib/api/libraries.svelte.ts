@@ -45,7 +45,7 @@ class LibrariesState {
 
   delete = async (id: string) => {
     const token = localStorage.getItem('bearer_token') || '';
-    
+
     // Keep local UI instantly in sync
     this.items = this.items.filter((l) => l.id !== id);
 
@@ -55,7 +55,7 @@ class LibrariesState {
         Authorization: `Bearer ${token}`
       }
     });
-    
+
     if (!res.ok) {
       const msg = await res.text();
       await this.fetchAll(); // rollback on error
