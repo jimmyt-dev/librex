@@ -3,7 +3,6 @@
   import * as Sidebar from '$lib/components/ui/sidebar';
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
   import PlusIcon from '@lucide/svelte/icons/plus';
-  import type { Component } from 'svelte';
   import NavLibraryItem from './nav-library-item.svelte';
   import { useSidebar } from '$lib/components/ui/sidebar';
 
@@ -17,9 +16,10 @@
     onAdd
   }: {
     links: {
+      id: string;
       title: string;
       url: string;
-      icon?: Component;
+      icon?: string;
       books: number;
     }[];
     onAdd?: () => void;
@@ -28,7 +28,7 @@
 
 <Collapsible.Root {open} class="group/collapsible" onOpenChange={(value) => (userOpen = value)}>
   <Sidebar.Group>
-    <Sidebar.GroupLabel class="flex w-full items-center justify-between text-sm text-foreground">
+    <Sidebar.GroupLabel class="flex w-full items-center justify-between text-sm text-foreground group-data-[collapsible=icon]:pointer-events-none">
       <span class="flex items-center gap-1">
         Libraries
         {#if onAdd}
@@ -47,7 +47,7 @@
     </Sidebar.GroupLabel>
     <Collapsible.Content>
       <Sidebar.Menu>
-        {#each links as item (item.title)}
+        {#each links as item (item.id)}
           <NavLibraryItem {item} />
         {/each}
       </Sidebar.Menu>

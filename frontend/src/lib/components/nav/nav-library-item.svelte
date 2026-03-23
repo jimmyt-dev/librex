@@ -6,7 +6,7 @@
   import FolderIcon from '@lucide/svelte/icons/folder';
   import ForwardIcon from '@lucide/svelte/icons/forward';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
-  import type { Component } from 'svelte';
+  import LucideIcon from '$lib/components/ui/lucide-icon.svelte';
 
   let {
     item
@@ -14,7 +14,7 @@
     item: {
       title: string;
       url: string;
-      icon?: Component;
+      icon?: string;
       books?: number;
     };
   } = $props();
@@ -28,13 +28,13 @@
       <a href={item.url} {...props}>
         {#if sidebar.state === 'collapsed'}
           {#if item.icon}
-            <item.icon />
+            <LucideIcon name={item.icon} />
           {:else}
             <span>{item.title.slice(0, 2)}</span>
           {/if}
         {:else}
           {#if item.icon}
-            <item.icon />
+            <LucideIcon name={item.icon} />
           {/if}
           <span>{item.title}</span>
         {/if}

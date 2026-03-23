@@ -197,7 +197,9 @@
 
   const sidebar = Sidebar.useSidebar();
 
-  let libraries = $state<{ title: string; url: string; books: number }[]>([]);
+  let libraries = $state<
+    { id: string; title: string; url: string; icon?: string; books: number }[]
+  >([]);
 
   async function fetchLibraries() {
     const token = localStorage.getItem('bearer_token') || '';
@@ -205,8 +207,14 @@
       headers: { Authorization: `Bearer ${token}` }
     });
     if (res.ok) {
-      const items: { id: string; name: string }[] = await res.json();
-      libraries = items.map((l) => ({ title: l.name, url: '#', books: 0 }));
+      const items: { id: string; name: string; icon: string | null }[] = await res.json();
+      libraries = items.map((l) => ({
+        id: l.id,
+        title: l.name,
+        url: '#',
+        icon: l.icon ?? undefined,
+        books: 0
+      }));
     }
   }
 
@@ -218,7 +226,7 @@
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ name: 'testies' })
+      body: JSON.stringify({ name: 'testies', icon: 'book-open' })
     });
     await fetchLibraries();
   }

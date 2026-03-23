@@ -28,9 +28,10 @@ type sessionResponse struct {
 }
 
 type Library struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	UserID string `json:"userId"`
+	ID     string  `json:"id"`
+	Name   string  `json:"name"`
+	Icon   *string `json:"icon"`
+	UserID string  `json:"userId"`
 }
 
 func initDB() error {
@@ -42,6 +43,7 @@ func initDB() error {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS libraries (
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL,
+		icon TEXT,
 		user_id TEXT NOT NULL
 	)`)
 	return err
@@ -53,7 +55,7 @@ func getUserID(r *http.Request) string {
 
 func getLibraries(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
-	rows, err := db.QueryContext(r.Context(), "SELECT id, name, user_id FROM libraries WHERE user_id = ?", userID)
+	rows, err := db.QueryContext(r.Context(), "SELECT id, name, icon, user_id FROM libraries WHERE user_id = ?", userID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
@@ -63,7 +65,7 @@ func getLibraries(w http.ResponseWriter, r *http.Request) {
 	libraries := []Library{}
 	for rows.Next() {
 		var l Library
-		if err := rows.Scan(&l.ID, &l.Name, &l.UserID); err != nil {
+		if err := rows.Scan(&l.ID, &l.Name, &l.Icon, &l.UserID); err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
@@ -78,7 +80,8 @@ func createLibrary(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
 
 	var body struct {
-		Name string `json:"name"`
+		Name string  `json:"name"`
+		Icon *string `json:"icon"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Name == "" {
 		http.Error(w, "name is required", http.StatusBadRequest)
@@ -86,14 +89,14 @@ func createLibrary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := uuid.New().String()
-	_, err := db.ExecContext(r.Context(), "INSERT INTO libraries (id, name, user_id) VALUES (?, ?, ?)", id, body.Name, userID)
+	_, err := db.ExecContext(r.Context(), "INSERT INTO libraries (id, name, icon, user_id) VALUES (?, ?, ?, ?)", id, body.Name, body.Icon, userID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(Library{ID: id, Name: body.Name, UserID: userID})
+	json.NewEncoder(w).Encode(Library{ID: id, Name: body.Name, Icon: body.Icon, UserID: userID})
 }
 
 func authMiddleware(next http.Handler) http.Handler {
