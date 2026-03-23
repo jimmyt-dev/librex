@@ -18,7 +18,6 @@
     item: {
       id: string;
       title: string;
-      url: string;
       icon?: string;
       books?: number;
     };
@@ -46,7 +45,7 @@
 <Sidebar.MenuItem>
   <Sidebar.MenuButton tooltipContent={item.title}>
     {#snippet child({ props })}
-      <a href={item.url} {...props}>
+      <a href={'/library/' + item.id} {...props}>
         {#if sidebar.state === 'collapsed'}
           {#if item.icon}
             <LucideIcon name={item.icon} />

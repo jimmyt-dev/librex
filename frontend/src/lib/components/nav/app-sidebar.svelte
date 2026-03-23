@@ -148,20 +148,6 @@
         ]
       }
     ],
-    libraries: [] as { title: string; url: string; books: number }[],
-    shelves: [
-      {
-        title: 'Unshelved',
-        url: '#',
-        icon: FrameIcon,
-        books: 46
-      },
-      {
-        title: 'Test 2',
-        url: '#',
-        books: 12
-      }
-    ],
     projects: [
       {
         name: 'Design Engineering',
@@ -196,6 +182,7 @@
   // import TeamSwitcher from './team-switcher.svelte';
   import NavShelves from './nav-shelves.svelte';
   import LibraryIcon from '@lucide/svelte/icons/library';
+  import Separator from '../ui/separator/separator.svelte';
 
   const sidebar = Sidebar.useSidebar();
 
@@ -225,9 +212,9 @@
   </Sidebar.Header>
   <Sidebar.Content>
     <NavHome links={data.navHome} />
-    <div class="border-t border-border"></div>
+    <Separator />
     <NavLibraries links={librariesState.items} />
-    <div class="border-t border-border"></div>
+    <Separator />
     <NavShelves links={shelvesState.items} />
     <!-- <NavMain items={data.navMain} />
     <div class="border-t border-border"></div>

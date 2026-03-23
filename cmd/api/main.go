@@ -42,5 +42,10 @@ func main() {
 
 	r.Get("/api/directories", handlers.ListDirectories)
 
+	r.Route("/api/bookdrop", func(r chi.Router) {
+		r.Post("/scan", handlers.ScanBookdrop)
+		// r.Post("/import", handlers.ImportBookFromDrop)
+	})
+
 	http.ListenAndServe(":5321", r)
 }

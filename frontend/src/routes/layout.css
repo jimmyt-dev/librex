@@ -129,6 +129,16 @@
   }
 }
 
+@layer base {
+  .container {
+    @apply mx-auto px-4;
+  }
+  button:not([disabled]),
+  [role='button']:not([disabled]) {
+    cursor: pointer;
+  }
+}
+
 @custom-variant data-open {
   &:where([data-state='open']),
   &:where([data-open]:not([data-open='false'])) {

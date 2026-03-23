@@ -24,4 +24,14 @@ export const shelf = sqliteTable('shelves', {
     .references(() => user.id, { onDelete: 'cascade' })
 });
 
+export const books = sqliteTable('books', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  libraryId: text('library_id').notNull(),
+  title: text('title').notNull(),
+  author: text('author'),
+  filePath: text('file_path').notNull()
+});
+
 export * from './auth.schema';
