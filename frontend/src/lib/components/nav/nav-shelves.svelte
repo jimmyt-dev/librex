@@ -4,6 +4,15 @@
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
   import type { Component } from 'svelte';
   import NavShelfItem from './nav-shelf-item.svelte';
+  import { useSidebar } from '$lib/components/ui/sidebar';
+
+  const sidebar = useSidebar();
+  $effect(() => {
+    console.log(sidebar.state);
+    console.log(open);
+  });
+  let userOpen = $state(true);
+  let open = $derived(sidebar.state === 'collapsed' || userOpen);
 
   let {
     links
@@ -17,7 +26,7 @@
   } = $props();
 </script>
 
-<Collapsible.Root open={true} class="group/collapsible">
+<Collapsible.Root {open} class="group/collapsible" onclick={() => (userOpen = !userOpen)}>
   <Sidebar.Group>
     <Sidebar.GroupLabel class="flex w-full items-center justify-between text-sm text-foreground">
       Shelves
