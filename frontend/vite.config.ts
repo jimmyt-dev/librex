@@ -8,7 +8,15 @@ export default defineConfig({
   plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
   server: {
     proxy: {
-      '/api': 'http://localhost:5321'
+      '/api': {
+        target: 'http://localhost:5321',
+        bypass: (req) => {
+          // Allow SvelteKit to handle better-auth routes instead of the Go proxy
+          if (req.url && req.url.startsWith('/api/auth')) {
+            return req.url;
+          }
+        }
+      }
     }
   },
   test: {

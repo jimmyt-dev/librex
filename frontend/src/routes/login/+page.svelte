@@ -1,10 +1,32 @@
 <script lang="ts">
-  import { enhance } from '$app/forms';
+  import { goto } from '$app/navigation';
+  import { authClient } from '$lib/auth-client';
   import { Button } from '$lib/components/ui/button/index.js';
   import { Input } from '$lib/components/ui/input/index.js';
-  import type { ActionData } from './$types';
 
-  let { form }: { form: ActionData } = $props();
+  let email = $state('');
+  let password = $state('');
+  let error = $state('');
+  let loading = $state(false);
+
+  async function handleSubmit(e: Event) {
+    e.preventDefault();
+    error = '';
+    loading = true;
+
+    await authClient.signIn.email(
+      { email, password },
+      {
+        onSuccess: () => {
+          goto('/');
+        },
+        onError: (ctx) => {
+          error = ctx.error.message || 'Invalid email or password';
+          loading = false;
+        }
+      }
+    );
+  }
 </script>
 
 <svelte:head>
@@ -19,16 +41,16 @@
     </div>
 
     <div class="rounded-xl border border-border bg-card p-6 shadow-sm">
-      <form method="post" use:enhance class="flex flex-col gap-4">
+      <form onsubmit={handleSubmit} class="flex flex-col gap-4">
         <div class="flex flex-col gap-1.5">
           <label for="email" class="text-sm font-medium text-foreground">Email</label>
           <Input
             id="email"
-            name="email"
             type="email"
             placeholder="you@example.com"
             autocomplete="email"
             required
+            bind:value={email}
           />
         </div>
 
@@ -36,19 +58,21 @@
           <label for="password" class="text-sm font-medium text-foreground">Password</label>
           <Input
             id="password"
-            name="password"
             type="password"
             placeholder="••••••••"
             autocomplete="current-password"
             required
+            bind:value={password}
           />
         </div>
 
-        {#if form?.message}
-          <p class="text-sm text-destructive">{form.message}</p>
+        {#if error}
+          <p class="text-sm text-destructive">{error}</p>
         {/if}
 
-        <Button type="submit" class="mt-1 w-full">Sign in</Button>
+        <Button type="submit" class="mt-1 w-full" disabled={loading}>
+          {loading ? 'Signing in...' : 'Sign in'}
+        </Button>
       </form>
     </div>
 
