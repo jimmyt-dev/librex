@@ -18,6 +18,7 @@
   import InfoIcon from '@lucide/svelte/icons/info';
   import BookOpenTextIcon from '@lucide/svelte/icons/book-open-text'; // Import Read icon
   import Button from './ui/button/button.svelte';
+  import { cn } from '$lib/utils';
 
   let {
     book,
@@ -62,9 +63,11 @@
   }
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
-  class="group relative cursor-pointer outline-none"
-  role="button"
+  class="group relative cursor-default outline-none"
+  class:!cursor-pointer={selectMode}
   tabindex="0"
   onclick={(e) => handleCardClick(e)}
   onkeydown={(e) => e.key === 'Enter' && handleCardClick(new MouseEvent('click'))}
@@ -132,7 +135,11 @@
     <div class="flex min-w-0 items-stretch">
       <Tooltip.Provider delayDuration={400}>
         <Tooltip.Root>
-          <Tooltip.Trigger class="min-w-0 flex-1 px-2 py-2 text-left">
+          <Tooltip.Trigger
+            class={cn('min-w-0 flex-1 cursor-default px-2 py-2 text-left', {
+              'cursor-pointer!': selectMode
+            })}
+          >
             <p class="truncate text-xs leading-tight font-medium">{book.title}</p>
             {#if book.authors.length > 0}
               <p class="truncate text-xs text-muted-foreground">
