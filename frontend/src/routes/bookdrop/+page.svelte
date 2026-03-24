@@ -6,6 +6,7 @@
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { librariesState } from '$lib/api/libraries.svelte';
+  import { booksState } from '$lib/api/books.svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import * as Select from '$lib/components/ui/select';
   import RotateCW from '@lucide/svelte/icons/rotate-cw';
@@ -74,8 +75,60 @@
   // How many selected books have a library assigned
   let readyToImportCount = $derived([...selectedIds].filter((id) => bookLibraryMap.has(id)).length);
 
+  let isImporting = $state(false);
+
   async function handleAddAllToLibraries() {
-    // TODO: call import endpoint once available
+    const items = [...selectedIds]
+      .filter((id) => bookLibraryMap.has(id))
+      .map((id) => ({ stagedBookId: id, libraryId: bookLibraryMap.get(id)! }));
+
+    if (items.length === 0) return;
+
+    isImporting = true;
+    errorMsg = null;
+    try {
+      const res = await fetch('/api/bookdrop/import', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(items)
+      });
+      if (!res.ok) throw new Error('Import request failed');
+
+      const results: { stagedBookId: string; error?: string }[] = await res.json();
+
+      const succeeded = new Set(results.filter((r) => !r.error).map((r) => r.stagedBookId));
+      const failed = results.filter((r) => r.error);
+
+      // Remove successfully imported books from local state
+      stagedBooks = stagedBooks.filter((b) => !succeeded.has(b.id));
+      selectedIds = new SvelteSet([...selectedIds].filter((id) => !succeeded.has(id)));
+
+      // Refresh affected libraries (counts + book lists)
+      const affectedLibraries = new Set(
+        items.filter((i) => succeeded.has(i.stagedBookId)).map((i) => i.libraryId)
+      );
+      librariesState.fetchAll();
+      for (const libId of affectedLibraries) {
+        booksState.invalidate(libId);
+        booksState.fetchForLibrary(libId);
+      }
+
+      for (const id of succeeded) bookLibraryMap.delete(id);
+      bookLibraryMap = new SvelteMap(bookLibraryMap);
+
+      if (failed.length > 0) {
+        errorMsg = failed
+          .map((r) => {
+            const book = stagedBooks.find((b) => b.id === r.stagedBookId);
+            return `${book?.title ?? r.stagedBookId}: ${r.error}`;
+          })
+          .join('\n');
+      }
+    } catch (err: unknown) {
+      errorMsg = err instanceof Error ? err.message : 'Import failed.';
+    } finally {
+      isImporting = false;
+    }
   }
 
   // Bulk edit sheet
@@ -114,7 +167,10 @@
         stagedBooks = await res.json();
       }
       if (selectedLibraryId) {
-        // TODO: call import endpoint once available
+        // Assign the chosen library to all selected books then import
+        for (const id of selectedIds) bookLibraryMap.set(id, selectedLibraryId);
+        bookLibraryMap = new SvelteMap(bookLibraryMap);
+        await handleAddAllToLibraries();
       }
       bulkSheetOpen = false;
       selectedIds = new SvelteSet();
@@ -298,7 +354,7 @@
 
 <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
   {#if errorMsg}
-    <div class="rounded-xl bg-destructive/15 p-4 text-destructive">{errorMsg}</div>
+    <div class="whitespace-pre-wrap rounded-xl bg-destructive/15 p-4 text-destructive">{errorMsg}</div>
   {/if}
 
   <!-- Bulk action bar -->
@@ -420,11 +476,12 @@
       </table>
       {#if readyToImportCount > 0}
         <div class="flex justify-end border-t px-4 py-3">
-          <Button onclick={handleAddAllToLibraries}>
-            Add {readyToImportCount} book{readyToImportCount === 1 ? '' : 's'} to {readyToImportCount ===
-            1
-              ? 'library'
-              : 'libraries'}
+          <Button onclick={handleAddAllToLibraries} disabled={isImporting}>
+            {#if isImporting}
+              Importing… <Spinner />
+            {:else}
+              Add {readyToImportCount} book{readyToImportCount === 1 ? '' : 's'} to {readyToImportCount === 1 ? 'library' : 'libraries'}
+            {/if}
           </Button>
         </div>
       {/if}

@@ -2,9 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -394,4 +397,175 @@ func ClearStagedBooks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// --- Import ---
+
+type importItem struct {
+	StagedBookID string `json:"stagedBookId"`
+	LibraryID    string `json:"libraryId"`
+}
+
+type importResult struct {
+	StagedBookID string `json:"stagedBookId"`
+	Error        string `json:"error,omitempty"`
+}
+
+var unsafeChars = regexp.MustCompile(`[/\\:*?"<>|]`)
+
+// sanitizeName makes a string safe to use as a filesystem directory/file component.
+func sanitizeName(s string) string {
+	s = strings.TrimSpace(s)
+	s = unsafeChars.ReplaceAllString(s, "_")
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "Unknown"
+	}
+	return s
+}
+
+// moveFile moves src to dst, falling back to copy+delete on cross-device links.
+func moveFile(src, dst string) error {
+	if err := os.Rename(src, dst); err == nil {
+		return nil
+	}
+	// Cross-device or other rename failure — copy then delete.
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err = io.Copy(out, in); err != nil {
+		os.Remove(dst)
+		return err
+	}
+	if err = out.Close(); err != nil {
+		os.Remove(dst)
+		return err
+	}
+	return os.Remove(src)
+}
+
+// uniqueDest returns dst unchanged if it doesn't exist, otherwise appends " (n)" before the extension.
+func uniqueDest(dst string) string {
+	if _, err := os.Stat(dst); os.IsNotExist(err) {
+		return dst
+	}
+	ext := filepath.Ext(dst)
+	base := strings.TrimSuffix(dst, ext)
+	for n := 2; n < 1000; n++ {
+		candidate := fmt.Sprintf("%s (%d)%s", base, n, ext)
+		if _, err := os.Stat(candidate); os.IsNotExist(err) {
+			return candidate
+		}
+	}
+	return dst
+}
+
+// ImportBooks moves staged books into their assigned libraries.
+// POST /api/bookdrop/import
+// Body: [{stagedBookId, libraryId}]
+// Returns: [{stagedBookId, error?}] — one entry per input item.
+func ImportBooks(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+
+	var items []importItem
+	if err := json.NewDecoder(r.Body).Decode(&items); err != nil || len(items) == 0 {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	results := make([]importResult, 0, len(items))
+
+	for _, item := range items {
+		res := importResult{StagedBookID: item.StagedBookID}
+
+		// Fetch staged book
+		row := db.DB.QueryRow(r.Context(),
+			"SELECT "+stagedBookCols+" FROM staged_books WHERE id = $1 AND user_id = $2",
+			item.StagedBookID, userID)
+		book, err := scanStagedBook(row.Scan)
+		if err != nil {
+			res.Error = "staged book not found"
+			results = append(results, res)
+			continue
+		}
+
+		// Fetch library
+		var libraryFolder string
+		err = db.DB.QueryRow(r.Context(),
+			"SELECT folder FROM libraries WHERE id = $1 AND user_id = $2",
+			item.LibraryID, userID).Scan(&libraryFolder)
+		if err != nil {
+			res.Error = "library not found"
+			results = append(results, res)
+			continue
+		}
+
+		// Build destination path: library_folder/author/filename
+		authorDir := "Unknown"
+		if book.Author != nil && *book.Author != "" {
+			authorDir = sanitizeName(*book.Author)
+		}
+
+		destDir := filepath.Join(libraryFolder, authorDir)
+		if err := os.MkdirAll(destDir, 0755); err != nil {
+			res.Error = fmt.Sprintf("failed to create author directory: %v", err)
+			results = append(results, res)
+			continue
+		}
+
+		destPath := uniqueDest(filepath.Join(destDir, filepath.Base(book.OriginalPath)))
+
+		if err := moveFile(book.OriginalPath, destPath); err != nil {
+			res.Error = fmt.Sprintf("failed to move file: %v", err)
+			results = append(results, res)
+			continue
+		}
+
+		// Fetch cover from staged_books
+		var coverImage []byte
+		var coverMime *string
+		_ = db.DB.QueryRow(r.Context(),
+			"SELECT cover_image, cover_mime FROM staged_books WHERE id = $1",
+			item.StagedBookID).Scan(&coverImage, &coverMime)
+
+		// Insert into books with full metadata
+		_, err = db.DB.Exec(r.Context(),
+			`INSERT INTO books (
+				library_id, user_id, title, author, subject, description, publisher, contributor,
+				date, type, format, identifier, source, language, relation, coverage,
+				cover_image, cover_mime, file_path
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+			item.LibraryID, userID,
+			book.Title, book.Author,
+			book.Subject, book.Description, book.Publisher, book.Contributor,
+			book.Date, book.Type, book.Format, book.Identifier,
+			book.Source, book.Language, book.Relation, book.Coverage,
+			coverImage, coverMime, destPath)
+		if err != nil {
+			// Move failed to record — try to move file back
+			_ = moveFile(destPath, book.OriginalPath)
+			res.Error = fmt.Sprintf("db error: %v", err)
+			results = append(results, res)
+			continue
+		}
+
+		// Remove from staged_books
+		_, _ = db.DB.Exec(r.Context(),
+			"DELETE FROM staged_books WHERE id = $1 AND user_id = $2",
+			item.StagedBookID, userID)
+
+		results = append(results, res)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
 }

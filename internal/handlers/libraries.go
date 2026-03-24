@@ -22,7 +22,12 @@ type libraryBody struct {
 
 func ListLibraries(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
-	rows, err := db.DB.Query(r.Context(), "SELECT id, name, icon, folder, user_id FROM libraries WHERE user_id = $1", userID)
+	rows, err := db.DB.Query(r.Context(), `
+		SELECT l.id, l.name, l.icon, l.folder, l.user_id, COUNT(b.id) AS book_count
+		FROM libraries l
+		LEFT JOIN books b ON b.library_id = l.id
+		WHERE l.user_id = $1
+		GROUP BY l.id, l.name, l.icon, l.folder, l.user_id`, userID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
@@ -32,7 +37,7 @@ func ListLibraries(w http.ResponseWriter, r *http.Request) {
 	libraries := []models.Library{}
 	for rows.Next() {
 		var l models.Library
-		if err := rows.Scan(&l.ID, &l.Name, &l.Icon, &l.Folder, &l.UserID); err != nil {
+		if err := rows.Scan(&l.ID, &l.Name, &l.Icon, &l.Folder, &l.UserID, &l.BookCount); err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}

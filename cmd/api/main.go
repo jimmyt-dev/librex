@@ -36,6 +36,14 @@ func main() {
 		r.Get("/{id}", handlers.GetLibrary)
 		r.Put("/{id}", handlers.UpdateLibrary)
 		r.Delete("/{id}", handlers.DeleteLibrary)
+		r.Get("/{id}/books", handlers.ListLibraryBooks)
+	})
+
+	r.Route("/api/books", func(r chi.Router) {
+		r.Get("/{id}", handlers.GetBook)
+		r.Put("/{id}", handlers.UpdateBook)
+		r.Delete("/{id}", handlers.DeleteBook)
+		r.Get("/{id}/cover", handlers.GetBookCover)
 	})
 
 	r.Route("/api/shelves", func(r chi.Router) {
@@ -57,6 +65,7 @@ func main() {
 		r.Put("/staged", handlers.BulkUpdateStagedBooks)
 		r.Delete("/staged/{id}", handlers.DeleteStagedBook)
 		r.Delete("/staged", handlers.ClearStagedBooks)
+		r.Post("/import", handlers.ImportBooks)
 	})
 
 	http.ListenAndServe(":5321", r)
