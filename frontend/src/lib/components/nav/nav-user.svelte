@@ -68,9 +68,10 @@
       <Button
         variant="ghost"
         size="icon"
-        class="size-12"
-        onclick={() => {
-          authClient.signOut();
+        class="size-12 hover:bg-sidebar-accent!"
+        onclick={async () => {
+          await authClient.signOut();
+          window.location.reload();
         }}
       >
         <LogOutIcon class="size-4" />

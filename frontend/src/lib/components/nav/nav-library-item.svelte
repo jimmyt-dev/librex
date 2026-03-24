@@ -91,7 +91,7 @@
     <DropdownMenu.Trigger>
       {#snippet child({ props })}
         <Sidebar.MenuAction
-          class="peer/action top-1/2! z-10 aspect-auto size-6 -translate-y-1/2! bg-transparent opacity-0 transition-opacity group-hover/menu-item:opacity-100"
+          class="peer/action top-1/2! z-10 aspect-auto size-7 -translate-y-1/2! bg-transparent opacity-0 transition-opacity group-hover/menu-item:opacity-100"
           {...props}
         >
           <EllipsisIcon />
