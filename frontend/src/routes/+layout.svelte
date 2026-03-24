@@ -16,6 +16,10 @@
   import ShelfAssignDialog from '$lib/components/shelf-assign-dialog.svelte';
 
   let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
+
+  let isAuthPage = $derived(
+    page.url.pathname === '/login' || page.url.pathname === '/register'
+  );
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
@@ -25,38 +29,42 @@
 <BookEditSheet />
 <ShelfAssignDialog />
 
-<Sidebar.Provider open={data.sidebarOpen}>
-  {#if data.user}
-    <AppSidebar user={data.user} />
-  {/if}
-  <Sidebar.Inset>
-    <header
-      class="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12"
-    >
-      <div class="flex w-full items-center justify-between gap-2 px-4">
-        <div class="flex items-center">
-          <Sidebar.Trigger class="-ms-1" />
-          <Separator orientation="vertical" class="me-2 data-[orientation=vertical]:h-4" />
-          <Breadcrumb.Root>
-            <Breadcrumb.List>
-              <Breadcrumb.Item>
-                <Breadcrumb.Page>{headerState.title}</Breadcrumb.Page>
-              </Breadcrumb.Item>
-            </Breadcrumb.List>
-          </Breadcrumb.Root>
-          {#if headerState.subtitle}
-            <span class="ml-2 text-sm text-muted-foreground">{headerState.subtitle}</span>
-          {/if}
+{#if isAuthPage}
+  {@render children()}
+{:else}
+  <Sidebar.Provider open={data.sidebarOpen}>
+    {#if data.user}
+      <AppSidebar user={data.user} />
+    {/if}
+    <Sidebar.Inset>
+      <header
+        class="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12"
+      >
+        <div class="flex w-full items-center justify-between gap-2 px-4">
+          <div class="flex items-center">
+            <Sidebar.Trigger class="-ms-1" />
+            <Separator orientation="vertical" class="me-2 data-[orientation=vertical]:h-4" />
+            <Breadcrumb.Root>
+              <Breadcrumb.List>
+                <Breadcrumb.Item>
+                  <Breadcrumb.Page>{headerState.title}</Breadcrumb.Page>
+                </Breadcrumb.Item>
+              </Breadcrumb.List>
+            </Breadcrumb.Root>
+            {#if headerState.subtitle}
+              <span class="ml-2 text-sm text-muted-foreground">{headerState.subtitle}</span>
+            {/if}
+          </div>
+          <div>
+            <a href="/bookdrop" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
+              <InboxIcon class="size-4" />
+            </a>
+          </div>
         </div>
-        <div>
-          <a href="/bookdrop" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
-            <InboxIcon class="size-4" />
-          </a>
-        </div>
-      </div>
-    </header>
-    {#key page.url.pathname}
-      {@render children()}
-    {/key}
-  </Sidebar.Inset>
-</Sidebar.Provider>
+      </header>
+      {#key page.url.pathname}
+        {@render children()}
+      {/key}
+    </Sidebar.Inset>
+  </Sidebar.Provider>
+{/if}

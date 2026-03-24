@@ -181,15 +181,10 @@
   import { shelvesState } from '$lib/api/shelves.svelte';
   import NavHome from './nav-home.svelte';
   import NavLibraries from './nav-libraries.svelte';
-  // import NavMain from './nav-main.svelte';
-  // import NavProjects from './nav-projects.svelte';
   import NavUser from './nav-user.svelte';
-  // import TeamSwitcher from './team-switcher.svelte';
   import NavShelves from './nav-shelves.svelte';
   import LibraryIcon from '@lucide/svelte/icons/library';
   import Separator from '../ui/separator/separator.svelte';
-
-  const sidebar = Sidebar.useSidebar();
 
   onMount(() => {
     librariesState.fetchAll();
@@ -208,15 +203,15 @@
 
 <Sidebar.Root bind:ref {collapsible} {...restProps}>
   <Sidebar.Header>
-    <!-- <TeamSwitcher teams={data.teams} /> -->
-    <a href="/">
-      {#if sidebar.state === 'collapsed'}
-        <LibraryIcon class="h-8 w-8" />
-      {:else}
-        <h1 class="scroll-m-20 p-2 text-4xl font-extrabold tracking-tight lg:text-5xl">
-          Reliquary
-        </h1>
-      {/if}
+    <a href="/" class="relative flex items-center justify-center">
+      <LibraryIcon
+        class="absolute h-8 w-8 opacity-0 transition-opacity duration-300 group-data-[state=collapsed]:opacity-100"
+      />
+      <h1
+        class="scroll-m-20 overflow-hidden p-2 text-4xl font-extrabold tracking-tight opacity-100 transition-opacity duration-300 group-data-[state=collapsed]:opacity-0 lg:text-5xl"
+      >
+        Reliquary
+      </h1>
     </a>
   </Sidebar.Header>
   <Sidebar.Content>
