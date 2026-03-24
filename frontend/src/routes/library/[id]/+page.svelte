@@ -1,15 +1,13 @@
 <script lang="ts">
-  import * as Breadcrumb from '$lib/components/ui/breadcrumb';
-  import { Separator } from '$lib/components/ui/separator';
-  import * as Sidebar from '$lib/components/ui/sidebar';
   import * as Sheet from '$lib/components/ui/sheet';
+  import { headerState } from '$lib/state/header.svelte';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { page } from '$app/state';
   import { librariesState } from '$lib/api/libraries.svelte';
   import { booksState, type Book } from '$lib/api/books.svelte';
 
-  let libraryId = $derived(page.params.id);
+  let libraryId = $derived(page.params.id || '');
   let library = $derived(librariesState.items.find((l) => l.id === libraryId));
   let books = $derived(booksState.get(libraryId));
 
@@ -31,16 +29,26 @@
   let isSaving = $state(false);
 
   $effect(() => {
+    headerState.title = library?.title ?? 'Library';
+    headerState.subtitle = isLoading
+      ? null
+      : `${books.length} book${books.length === 1 ? '' : 's'}`;
+  });
+
+  $effect(() => {
     const id = libraryId;
     // Re-runs when libraryId changes OR when cache is invalidated (has() becomes false)
     if (booksState.has(id)) return;
     isLoading = true;
     errorMsg = null;
-    booksState.fetchForLibrary(id).catch((e: unknown) => {
-      errorMsg = e instanceof Error ? e.message : 'Failed to load books.';
-    }).finally(() => {
-      isLoading = false;
-    });
+    booksState
+      .fetchForLibrary(id)
+      .catch((e: unknown) => {
+        errorMsg = e instanceof Error ? e.message : 'Failed to load books.';
+      })
+      .finally(() => {
+        isLoading = false;
+      });
   });
 
   function getExt(filePath: string) {
@@ -97,27 +105,6 @@
   }
 </script>
 
-<header
-  class="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12"
->
-  <div class="flex w-full items-center gap-2 px-4">
-    <Sidebar.Trigger class="-ms-1" />
-    <Separator orientation="vertical" class="me-2 data-[orientation=vertical]:h-4" />
-    <Breadcrumb.Root>
-      <Breadcrumb.List>
-        <Breadcrumb.Item>
-          <Breadcrumb.Page>{library?.title ?? 'Library'}</Breadcrumb.Page>
-        </Breadcrumb.Item>
-      </Breadcrumb.List>
-    </Breadcrumb.Root>
-    {#if !isLoading}
-      <span class="text-sm text-muted-foreground">
-        {books.length} book{books.length === 1 ? '' : 's'}
-      </span>
-    {/if}
-  </div>
-</header>
-
 <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
   {#if errorMsg}
     <div class="rounded-xl bg-destructive/15 p-4 text-destructive">{errorMsg}</div>
@@ -139,18 +126,22 @@
     >
       {#each books as book (book.id)}
         <button
-          class="group flex flex-col gap-2 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          class="group flex flex-col gap-2 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           onclick={() => openEdit(book)}
         >
-          <div class="flex aspect-2/3 w-full items-center justify-center overflow-hidden rounded bg-muted/50">
+          <div
+            class="flex aspect-2/3 w-full items-center justify-center overflow-hidden rounded bg-muted/50"
+          >
             {#if book.cover}
               <img src={book.cover} alt={book.title} class="h-full w-full object-cover" />
             {:else}
-              <span class="text-2xl font-bold text-muted-foreground/40">{getExt(book.filePath)}</span>
+              <span class="text-2xl font-bold text-muted-foreground/40"
+                >{getExt(book.filePath)}</span
+              >
             {/if}
           </div>
           <div class="flex flex-col gap-0.5">
-            <p class="line-clamp-2 text-sm font-medium leading-tight" title={book.title}>
+            <p class="line-clamp-2 text-sm leading-tight font-medium" title={book.title}>
               {book.title}
             </p>
             <p class="truncate text-xs text-muted-foreground" title={book.author ?? undefined}>

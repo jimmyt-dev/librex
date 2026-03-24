@@ -1,8 +1,8 @@
 <script lang="ts">
-  import * as Breadcrumb from '$lib/components/ui/breadcrumb';
-  import { Separator } from '$lib/components/ui/separator';
-  import * as Sidebar from '$lib/components/ui/sidebar';
   import * as Sheet from '$lib/components/ui/sheet';
+  import { headerState } from '$lib/state/header.svelte';
+  headerState.title = 'Bookdrop';
+  headerState.subtitle = null;
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { librariesState } from '$lib/api/libraries.svelte';
@@ -325,21 +325,8 @@
   });
 </script>
 
-<header
-  class="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12"
->
-  <div class="flex w-full items-center justify-between gap-2 px-4">
-    <div class="flex items-center">
-      <Sidebar.Trigger class="-ms-1" />
-      <Separator orientation="vertical" class="me-2 data-[orientation=vertical]:h-4" />
-      <Breadcrumb.Root>
-        <Breadcrumb.List>
-          <Breadcrumb.Item>
-            <Breadcrumb.Page>Bookdrop</Breadcrumb.Page>
-          </Breadcrumb.Item>
-        </Breadcrumb.List>
-      </Breadcrumb.Root>
-    </div>
+<div class="flex flex-1 flex-col gap-4 p-4 pt-0">
+  <div class="flex w-full items-center justify-end">
     <Button onclick={handleScan} disabled={isScanning}>
       {#if isScanning}
         <span>Scanning...</span>
@@ -350,11 +337,10 @@
       {/if}
     </Button>
   </div>
-</header>
-
-<div class="flex flex-1 flex-col gap-4 p-4 pt-0">
   {#if errorMsg}
-    <div class="whitespace-pre-wrap rounded-xl bg-destructive/15 p-4 text-destructive">{errorMsg}</div>
+    <div class="rounded-xl bg-destructive/15 p-4 whitespace-pre-wrap text-destructive">
+      {errorMsg}
+    </div>
   {/if}
 
   <!-- Bulk action bar -->
@@ -480,7 +466,10 @@
             {#if isImporting}
               Importing… <Spinner />
             {:else}
-              Add {readyToImportCount} book{readyToImportCount === 1 ? '' : 's'} to {readyToImportCount === 1 ? 'library' : 'libraries'}
+              Add {readyToImportCount} book{readyToImportCount === 1 ? '' : 's'} to {readyToImportCount ===
+              1
+                ? 'library'
+                : 'libraries'}
             {/if}
           </Button>
         </div>

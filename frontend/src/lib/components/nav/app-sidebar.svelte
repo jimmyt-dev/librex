@@ -60,12 +60,12 @@
         title: 'Notebook',
         url: 'notebook',
         icon: NotebookPenIcon
-      },
-      {
-        title: 'Bookdrop',
-        url: '/bookdrop',
-        icon: InboxIcon
       }
+      // {
+      //   title: 'Bookdrop',
+      //   url: '/bookdrop',
+      //   icon: InboxIcon
+      // }
     ],
     navMain: [
       {
