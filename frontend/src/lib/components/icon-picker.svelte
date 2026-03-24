@@ -4,7 +4,7 @@
   import { ScrollArea } from '$lib/components/ui/scroll-area';
   import { Input } from '$lib/components/ui/input';
   import { Button } from '$lib/components/ui/button';
-  import LucideIcon from '$lib/components/ui/lucide-icon.svelte';
+  import LucideIcon from '$lib/components/lucide-icon.svelte';
   import XIcon from '@lucide/svelte/icons/x';
 
   let {

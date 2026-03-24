@@ -3,7 +3,7 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
-  import IconPicker from '$lib/components/ui/icon-picker.svelte';
+  import IconPicker from '$lib/components/icon-picker.svelte';
   import PlusIcon from '@lucide/svelte/icons/plus';
   import { shelvesState } from '$lib/api/shelves.svelte';
   import { toast } from 'svelte-sonner';

@@ -7,10 +7,12 @@
   import { Input } from '$lib/components/ui/input';
   import { librariesState } from '$lib/api/libraries.svelte';
   import { booksState } from '$lib/api/books.svelte';
+  import { shelvesState } from '$lib/api/shelves.svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import * as Select from '$lib/components/ui/select';
   import RotateCW from '@lucide/svelte/icons/rotate-cw';
   import { Spinner } from '$lib/components/ui/spinner';
+  import { Checkbox } from '$lib/components/ui/checkbox';
 
   interface StagedBook {
     id: string;
@@ -108,6 +110,7 @@
         items.filter((i) => succeeded.has(i.stagedBookId)).map((i) => i.libraryId)
       );
       librariesState.fetchAll();
+      shelvesState.fetchAll();
       for (const libId of affectedLibraries) {
         booksState.invalidate(libId);
         booksState.fetchForLibrary(libId);
@@ -382,7 +385,7 @@
         <thead>
           <tr class="border-b bg-muted/50">
             <th class="w-10 px-4 py-3 text-left">
-              <input type="checkbox" checked={allSelected} onchange={toggleAll} class="rounded" />
+              <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
             </th>
             <th class="w-12 px-2 py-3"></th>
             <th class="px-4 py-3 text-left font-medium">Title</th>
@@ -402,11 +405,9 @@
                 : ''}"
             >
               <td class="px-4 py-3">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={selectedIds.has(book.id)}
-                  onchange={() => toggleOne(book.id)}
-                  class="rounded"
+                  onCheckedChange={() => toggleOne(book.id)}
                 />
               </td>
               <td class="px-2 py-2">
@@ -485,7 +486,16 @@
 </div>
 
 <!-- Bulk edit sheet (bottom) -->
-<Sheet.Root bind:open={bulkSheetOpen}>
+<Sheet.Root
+  bind:open={bulkSheetOpen}
+  onOpenChange={(o) => {
+    if (!o) {
+      bulkAuthor = '';
+      selectedLibraryId = '';
+      isBulkSaving = false;
+    }
+  }}
+>
   <Sheet.Portal>
     <Sheet.Overlay />
     <Sheet.Content side="bottom" class="mx-auto max-w-2xl">
@@ -533,7 +543,24 @@
 </Sheet.Root>
 
 <!-- Single book edit sheet -->
-<Sheet.Root bind:open={sheetOpen}>
+<Sheet.Root
+  bind:open={sheetOpen}
+  onOpenChange={(o) => {
+    if (!o) {
+      editingBook = null;
+      editTitle = '';
+      editAuthor = '';
+      editSubject = '';
+      editDescription = '';
+      editPublisher = '';
+      editContributor = '';
+      editDate = '';
+      editIdentifier = '';
+      editLanguage = '';
+      isSaving = false;
+    }
+  }}
+>
   <Sheet.Portal>
     <Sheet.Overlay />
     <Sheet.Content side="right" class="w-96">

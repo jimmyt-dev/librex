@@ -3,8 +3,8 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
-  import IconPicker from '$lib/components/ui/icon-picker.svelte';
-  import FolderPicker from '$lib/components/ui/folder-picker.svelte';
+  import IconPicker from '$lib/components/icon-picker.svelte';
+  import FolderPicker from '$lib/components/folder-picker.svelte';
   import PlusIcon from '@lucide/svelte/icons/plus';
   import FolderOpenIcon from '@lucide/svelte/icons/folder-open';
   import FolderIcon from '@lucide/svelte/icons/folder';

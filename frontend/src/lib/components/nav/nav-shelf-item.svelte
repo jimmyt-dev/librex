@@ -6,7 +6,7 @@
   import FolderIcon from '@lucide/svelte/icons/folder';
   import ForwardIcon from '@lucide/svelte/icons/forward';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
-  import LucideIcon from '$lib/components/ui/lucide-icon.svelte';
+  import LucideIcon from '$lib/components/lucide-icon.svelte';
   import { shelvesState } from '$lib/api/shelves.svelte';
   import { toast } from 'svelte-sonner';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';

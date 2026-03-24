@@ -33,10 +33,12 @@ func main() {
 	r.Route("/api/libraries", func(r chi.Router) {
 		r.Get("/", handlers.ListLibraries)
 		r.Post("/", handlers.CreateLibrary)
+		r.Post("/scan", handlers.ScanAllLibraries)
 		r.Get("/{id}", handlers.GetLibrary)
 		r.Put("/{id}", handlers.UpdateLibrary)
 		r.Delete("/{id}", handlers.DeleteLibrary)
 		r.Get("/{id}/books", handlers.ListLibraryBooks)
+		r.Post("/{id}/scan", handlers.ScanLibrary)
 	})
 
 	r.Route("/api/books", func(r chi.Router) {

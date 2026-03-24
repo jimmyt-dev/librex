@@ -69,6 +69,14 @@ class ShelvesState {
     delete this.byShelf[shelfId];
   }
 
+  removeBook(bookId: string) {
+    const updated: Record<string, Book[]> = {};
+    for (const [key, books] of Object.entries(this.byShelf)) {
+      updated[key] = books.filter((b) => b.id !== bookId);
+    }
+    this.byShelf = updated;
+  }
+
   create = async (name: string, icon?: string) => {
     const res = await fetch('/api/shelves', {
       method: 'POST',

@@ -3,10 +3,9 @@
   import * as Sidebar from '$lib/components/ui/sidebar';
   import { useSidebar } from '$lib/components/ui/sidebar';
   import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
-  import FolderIcon from '@lucide/svelte/icons/folder';
-  import ForwardIcon from '@lucide/svelte/icons/forward';
+  import FolderSyncIcon from '@lucide/svelte/icons/folder-sync';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
-  import LucideIcon from '$lib/components/ui/lucide-icon.svelte';
+  import LucideIcon from '$lib/components/lucide-icon.svelte';
   import { librariesState } from '$lib/api/libraries.svelte';
   import { toast } from 'svelte-sonner';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -25,8 +24,34 @@
 
   const sidebar = useSidebar();
 
+  import { booksState } from '$lib/api/books.svelte';
+  import { shelvesState } from '$lib/api/shelves.svelte';
+
   let confirmOpen = $state(false);
   let isDeleting = $state(false);
+  let isScanning = $state(false);
+  let dropdownOpen = $state(false);
+
+  async function handleScan() {
+    isScanning = true;
+    try {
+      const token = localStorage.getItem('bearer_token') || '';
+      const res = await fetch(`/api/libraries/${item.id}/scan`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const result = await res.json();
+      toast.success(`Scan complete: ${result.added} added, ${result.removed} removed.`);
+      booksState.invalidate(item.id);
+      await Promise.all([librariesState.fetchAll(), shelvesState.fetchAll()]);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      isScanning = false;
+      dropdownOpen = false;
+    }
+  }
 
   async function handleDelete() {
     isDeleting = true;
@@ -62,7 +87,7 @@
     {/snippet}
   </Sidebar.MenuButton>
 
-  <DropdownMenu.Root>
+  <DropdownMenu.Root bind:open={dropdownOpen}>
     <DropdownMenu.Trigger>
       {#snippet child({ props })}
         <Sidebar.MenuAction
@@ -75,18 +100,14 @@
       {/snippet}
     </DropdownMenu.Trigger>
     <DropdownMenu.Content class="w-48 rounded-lg" align={sidebar.isMobile ? 'end' : 'start'}>
-      <DropdownMenu.Item>
-        <FolderIcon class="text-muted-foreground" />
-        <span>View Project</span>
-      </DropdownMenu.Item>
-      <DropdownMenu.Item>
-        <ForwardIcon class="text-muted-foreground" />
-        <span>Share Project</span>
+      <DropdownMenu.Item onclick={handleScan} disabled={isScanning}>
+        <FolderSyncIcon class="text-muted-foreground" />
+        <span>{isScanning ? 'Scanning…' : 'Rescan Library'}</span>
       </DropdownMenu.Item>
       <DropdownMenu.Separator />
       <DropdownMenu.Item onclick={() => (confirmOpen = true)}>
         <Trash2Icon class="text-muted-foreground" />
-        <span>Delete Project</span>
+        <span>Delete Library</span>
       </DropdownMenu.Item>
     </DropdownMenu.Content>
   </DropdownMenu.Root>

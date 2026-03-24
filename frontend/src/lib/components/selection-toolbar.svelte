@@ -1,5 +1,7 @@
 <script lang="ts">
   import { booksState, type Book } from '$lib/api/books.svelte';
+  import { librariesState } from '$lib/api/libraries.svelte';
+  import { shelvesState } from '$lib/api/shelves.svelte';
   import { shelfAssignState } from '$lib/state/shelf-assign.svelte';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { buttonVariants } from '$lib/components/ui/button';
@@ -9,6 +11,7 @@
   import { toast } from 'svelte-sonner';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import SquareCheckBig from '@lucide/svelte/icons/square-check-big';
+  import { Checkbox } from '$lib/components/ui/checkbox';
 
   let {
     selectedIds,
@@ -35,6 +38,7 @@
     for (const id of ids) {
       try {
         await booksState.delete(id, deleteFile);
+        shelvesState.removeBook(id);
       } catch {
         failed++;
       }
@@ -47,6 +51,8 @@
     } else {
       toast.success(`Deleted ${ids.length} book${ids.length > 1 ? 's' : ''}.`);
     }
+    librariesState.fetchAll();
+    shelvesState.fetchAll();
   }
 
   let selectedTitles = $derived(
@@ -133,7 +139,7 @@
   </div>
 {/if}
 
-<AlertDialog.Root bind:open={deleteOpen}>
+<AlertDialog.Root bind:open={deleteOpen} onOpenChange={(o) => { if (!o) deleteFile = false; }}>
   <AlertDialog.Content>
     <AlertDialog.Header>
       <AlertDialog.Title>Delete {count} book{count > 1 ? 's' : ''}?</AlertDialog.Title>
@@ -149,7 +155,7 @@
     </AlertDialog.Header>
 
     <label class="flex cursor-pointer items-center gap-2 text-sm">
-      <input type="checkbox" bind:checked={deleteFile} class="size-4 accent-primary" />
+      <Checkbox bind:checked={deleteFile} />
       Also delete the files from disk
     </label>
 

@@ -23,5 +23,6 @@
 </script>
 
 {#if icon}
-  <svelte:component this={icon} class={className} />
+  {@const Icon = icon}
+  <Icon class={className} />
 {/if}

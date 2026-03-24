@@ -1,5 +1,7 @@
 <script lang="ts">
   import { booksState, type Book } from '$lib/api/books.svelte';
+  import { librariesState } from '$lib/api/libraries.svelte';
+  import { shelvesState } from '$lib/api/shelves.svelte';
   import { bookEditState } from '$lib/state/book-edit.svelte';
   import { shelfAssignState } from '$lib/state/shelf-assign.svelte';
   import * as Tooltip from '$lib/components/ui/tooltip';
@@ -43,8 +45,11 @@
     deleting = true;
     try {
       await booksState.delete(book.id, deleteFile);
+      shelvesState.removeBook(book.id);
       toast.success(`"${book.title}" deleted.`);
       deleteOpen = false;
+      librariesState.fetchAll();
+      shelvesState.fetchAll();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to delete book.');
     } finally {
@@ -152,7 +157,7 @@
   </div>
 </div>
 
-<AlertDialog.Root bind:open={deleteOpen}>
+<AlertDialog.Root bind:open={deleteOpen} onOpenChange={(o) => { if (!o) deleteFile = false; }}>
   <AlertDialog.Content>
     <AlertDialog.Header>
       <AlertDialog.Title>Delete "{book.title}"?</AlertDialog.Title>
@@ -161,7 +166,7 @@
       </AlertDialog.Description>
     </AlertDialog.Header>
     <label class="flex cursor-pointer items-center gap-2 text-sm">
-      <input type="checkbox" bind:checked={deleteFile} class="size-4 accent-primary" />
+      <Checkbox bind:checked={deleteFile} />
       Also delete the file from disk
     </label>
     <AlertDialog.Footer>

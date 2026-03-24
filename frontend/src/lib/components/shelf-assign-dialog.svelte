@@ -4,7 +4,7 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
   import { toast } from 'svelte-sonner';
-  import LucideIcon from '$lib/components/ui/lucide-icon.svelte';
+  import LucideIcon from '$lib/components/lucide-icon.svelte';
   import { Checkbox } from '$lib/components/ui/checkbox';
 
   function getToken() {
@@ -70,7 +70,17 @@
   }
 </script>
 
-<Dialog.Root bind:open={shelfAssignState.open}>
+<Dialog.Root
+  bind:open={shelfAssignState.open}
+  onOpenChange={(o) => {
+    if (!o) {
+      checked = {};
+      original = {};
+      loading = true;
+      saving = false;
+    }
+  }}
+>
   <Dialog.Content class="sm:max-w-sm">
     <Dialog.Header>
       <Dialog.Title>

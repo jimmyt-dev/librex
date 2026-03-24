@@ -79,9 +79,10 @@ class BooksState {
       headers: { Authorization: `Bearer ${getToken()}` }
     });
     if (!res.ok) throw new Error('Failed to delete book');
-    const book = this.all.find((b) => b.id === bookId);
     this.all = this.all.filter((b) => b.id !== bookId);
-    if (book) this.remove(book.libraryId, bookId);
+    for (const libraryId of Object.keys(this.byLibrary)) {
+      this.remove(libraryId, bookId);
+    }
   }
 
   invalidate(libraryId: string) {
