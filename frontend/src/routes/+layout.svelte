@@ -40,7 +40,7 @@
             </Breadcrumb.List>
           </Breadcrumb.Root>
           {#if headerState.subtitle}
-            <span class="text-sm text-muted-foreground">{headerState.subtitle}</span>
+            <span class="ml-2 text-sm text-muted-foreground">{headerState.subtitle}</span>
           {/if}
         </div>
         <div>
