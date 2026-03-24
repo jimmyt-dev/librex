@@ -3,6 +3,7 @@
   import { headerState } from '$lib/state/header.svelte';
   headerState.title = 'Bookdrop';
   headerState.subtitle = null;
+  headerState.counts = [];
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { librariesState } from '$lib/api/libraries.svelte';

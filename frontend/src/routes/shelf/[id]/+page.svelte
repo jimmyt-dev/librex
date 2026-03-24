@@ -21,9 +21,8 @@
 
   $effect(() => {
     headerState.title = shelf?.title ?? 'Shelf';
-    headerState.subtitle = isLoading
-      ? null
-      : `${books.length} book${books.length === 1 ? '' : 's'}`;
+    headerState.subtitle = null;
+    headerState.counts = isLoading ? [] : [{ label: 'books', value: books.length }];
   });
 
   $effect(() => {

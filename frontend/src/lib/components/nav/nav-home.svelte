@@ -9,6 +9,7 @@
       title: string;
       url: string;
       icon: Component;
+      count?: number;
     }[];
   } = $props();
 
@@ -28,6 +29,9 @@
             </a>
           {/snippet}
         </Sidebar.MenuButton>
+        {#if item.count != null}
+          <Sidebar.MenuBadge>{item.count}</Sidebar.MenuBadge>
+        {/if}
       </Sidebar.MenuItem>
     {/each}
   </Sidebar.Menu>

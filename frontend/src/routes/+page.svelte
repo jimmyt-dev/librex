@@ -2,6 +2,7 @@
   import { headerState } from '$lib/state/header.svelte';
   headerState.title = 'Dashboard';
   headerState.subtitle = null;
+  headerState.counts = [];
 </script>
 
 <div class="flex flex-1 flex-col gap-4 p-4 pt-0">

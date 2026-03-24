@@ -54,6 +54,16 @@
             {#if headerState.subtitle}
               <span class="ml-2 text-sm text-muted-foreground">{headerState.subtitle}</span>
             {/if}
+            {#if headerState.counts.length > 0}
+              <div class="ml-2 flex items-center gap-1.5">
+                {#each headerState.counts as count (count.label)}
+                  <span class="rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                    {count.value}
+                    {count.label}
+                  </span>
+                {/each}
+              </div>
+            {/if}
           </div>
           <div>
             <a href="/bookdrop" class={buttonVariants({ variant: 'outline', size: 'icon' })}>

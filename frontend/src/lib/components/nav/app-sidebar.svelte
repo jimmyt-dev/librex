@@ -60,11 +60,6 @@
         url: '/notebook',
         icon: NotebookPenIcon
       }
-      // {
-      //   title: 'Bookdrop',
-      //   url: '/bookdrop',
-      //   icon: InboxIcon
-      // }
     ],
     navMain: [
       {
@@ -191,6 +186,15 @@
     shelvesState.fetchAll();
   });
 
+  let totalBooks = $derived(librariesState.items.reduce((sum, l) => sum + l.books, 0));
+
+  let navHomeLinks = $derived(
+    data.navHome.map((link) => ({
+      ...link,
+      count: link.title === 'All Books' ? totalBooks : undefined
+    }))
+  );
+
   let {
     ref = $bindable(null),
     collapsible = 'icon',
@@ -215,7 +219,7 @@
     </a>
   </Sidebar.Header>
   <Sidebar.Content>
-    <NavHome links={data.navHome} />
+    <NavHome links={navHomeLinks} />
     <Separator />
     <NavLibraries links={librariesState.items} />
     <Separator />

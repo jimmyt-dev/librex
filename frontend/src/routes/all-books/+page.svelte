@@ -1,8 +1,12 @@
 <script lang="ts">
   import { booksState } from '$lib/api/books.svelte';
+  import { headerState } from '$lib/state/header.svelte';
   import BookCard from '$lib/components/book-card.svelte';
   import SelectionToolbar from '$lib/components/selection-toolbar.svelte';
   import { SvelteSet } from 'svelte/reactivity';
+
+  headerState.title = 'All Books';
+  headerState.subtitle = null;
 
   let isLoading = $state(false);
   let errorMsg = $state<string | null>(null);
@@ -20,6 +24,12 @@
       .finally(() => {
         isLoading = false;
       });
+  });
+
+  $effect(() => {
+    headerState.counts = isLoading
+      ? []
+      : [{ label: 'books', value: booksState.all.length }];
   });
 
   function toggleSelect(id: string, selected: boolean, shiftKey: boolean) {
