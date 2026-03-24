@@ -17,9 +17,7 @@
 
   let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 
-  let isAuthPage = $derived(
-    page.url.pathname === '/login' || page.url.pathname === '/register'
-  );
+  let isAuthPage = $derived(page.url.pathname === '/login' || page.url.pathname === '/register');
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>

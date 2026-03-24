@@ -17,6 +17,12 @@
   let lastSelectedId = $state<string | null>(null);
 
   $effect(() => {
+    const bookIds = new Set(books.map((b) => b.id));
+    const pruned = new SvelteSet([...selectedIds].filter((id) => bookIds.has(id)));
+    if (pruned.size !== selectedIds.size) selectedIds = pruned;
+  });
+
+  $effect(() => {
     headerState.title = library?.title ?? 'Library';
     headerState.subtitle = null;
     headerState.counts = isLoading ? [] : [{ label: 'books', value: books.length }];

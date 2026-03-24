@@ -27,9 +27,7 @@
   });
 
   $effect(() => {
-    headerState.counts = isLoading
-      ? []
-      : [{ label: 'books', value: booksState.all.length }];
+    headerState.counts = isLoading ? [] : [{ label: 'books', value: booksState.all.length }];
   });
 
   function toggleSelect(id: string, selected: boolean, shiftKey: boolean) {

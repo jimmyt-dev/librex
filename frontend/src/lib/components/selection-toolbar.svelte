@@ -139,7 +139,12 @@
   </div>
 {/if}
 
-<AlertDialog.Root bind:open={deleteOpen} onOpenChange={(o) => { if (!o) deleteFile = false; }}>
+<AlertDialog.Root
+  bind:open={deleteOpen}
+  onOpenChange={(o) => {
+    if (!o) deleteFile = false;
+  }}
+>
   <AlertDialog.Content>
     <AlertDialog.Header>
       <AlertDialog.Title>Delete {count} book{count > 1 ? 's' : ''}?</AlertDialog.Title>
