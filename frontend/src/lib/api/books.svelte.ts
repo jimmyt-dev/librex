@@ -72,6 +72,18 @@ class BooksState {
     };
   }
 
+  async delete(bookId: string, deleteFile = false): Promise<void> {
+    const url = `/api/books/${bookId}${deleteFile ? '?deleteFile=true' : ''}`;
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    if (!res.ok) throw new Error('Failed to delete book');
+    const book = this.all.find((b) => b.id === bookId);
+    this.all = this.all.filter((b) => b.id !== bookId);
+    if (book) this.remove(book.libraryId, bookId);
+  }
+
   invalidate(libraryId: string) {
     const { [libraryId]: _, ...rest } = this.byLibrary;
     this.byLibrary = rest;

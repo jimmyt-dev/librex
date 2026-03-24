@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/go-chi/chi/v5"
 
@@ -233,10 +234,20 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(existing)
 }
 
-// DeleteBook removes a book record (does not delete the file).
+// DeleteBook removes a book record. Pass ?deleteFile=true to also delete the file from disk.
 func DeleteBook(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	id := chi.URLParam(r, "id")
+	shouldDeleteFile := r.URL.Query().Get("deleteFile") == "true"
+
+	var filePath string
+	if shouldDeleteFile {
+		if err := db.DB.QueryRow(r.Context(),
+			"SELECT file_path FROM books WHERE id = $1 AND user_id = $2", id, userID).Scan(&filePath); err != nil {
+			http.Error(w, "book not found", http.StatusNotFound)
+			return
+		}
+	}
 
 	result, err := db.DB.Exec(r.Context(),
 		"DELETE FROM books WHERE id = $1 AND user_id = $2", id, userID)
@@ -247,6 +258,10 @@ func DeleteBook(w http.ResponseWriter, r *http.Request) {
 	if result.RowsAffected() == 0 {
 		http.Error(w, "book not found", http.StatusNotFound)
 		return
+	}
+
+	if shouldDeleteFile && filePath != "" {
+		os.Remove(filePath)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
