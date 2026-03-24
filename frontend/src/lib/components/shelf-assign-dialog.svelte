@@ -5,6 +5,7 @@
   import { Button } from '$lib/components/ui/button';
   import { toast } from 'svelte-sonner';
   import LucideIcon from '$lib/components/ui/lucide-icon.svelte';
+  import { Checkbox } from '$lib/components/ui/checkbox';
 
   function getToken() {
     return localStorage.getItem('bearer_token') || '';
@@ -25,7 +26,7 @@
       bookIds.map((id) =>
         fetch(`/api/books/${id}/shelves`, {
           headers: { Authorization: `Bearer ${getToken()}` }
-        }).then((r) => (r.ok ? r.json() as Promise<string[]> : []))
+        }).then((r) => (r.ok ? (r.json() as Promise<string[]>) : []))
       )
     ).then((results) => {
       const counts: Record<string, number> = {};
@@ -45,9 +46,7 @@
     });
   });
 
-  let hasChanges = $derived(
-    shelvesState.items.some((s) => checked[s.id] !== original[s.id])
-  );
+  let hasChanges = $derived(shelvesState.items.some((s) => checked[s.id] !== original[s.id]));
 
   async function save() {
     saving = true;
@@ -75,7 +74,9 @@
   <Dialog.Content class="sm:max-w-sm">
     <Dialog.Header>
       <Dialog.Title>
-        {shelfAssignState.bookIds.length === 1 ? 'Manage Shelves' : `Shelve ${shelfAssignState.bookIds.length} Books`}
+        {shelfAssignState.bookIds.length === 1
+          ? 'Manage Shelves'
+          : `Shelve ${shelfAssignState.bookIds.length} Books`}
       </Dialog.Title>
       <Dialog.Description>
         {shelfAssignState.bookIds.length === 1
@@ -98,10 +99,9 @@
           <label
             class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted"
           >
-            <input
-              type="checkbox"
+            <Checkbox
               checked={checked[shelf.id] ?? false}
-              onchange={() => (checked[shelf.id] = !checked[shelf.id])}
+              onCheckedChange={(v) => (checked[shelf.id] = !!v)}
               class="size-4 accent-primary"
             />
             {#if shelf.icon}

@@ -15,7 +15,8 @@ class LibrariesState {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     });
     if (res.ok) {
-      const dbItems: { id: string; name: string; icon: string | null; bookCount: number }[] = await res.json();
+      const dbItems: { id: string; name: string; icon: string | null; bookCount: number }[] =
+        await res.json();
       this.items = dbItems.map((l) => ({
         id: l.id,
         title: l.name,
