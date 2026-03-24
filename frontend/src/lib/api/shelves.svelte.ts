@@ -12,7 +12,7 @@ class ShelvesState {
   fetchAll = async () => {
     const token = localStorage.getItem('bearer_token') || '';
     const res = await fetch('/api/shelves', {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
     });
     if (res.ok) {
       const dbItems: { id: string; name: string; icon: string | null }[] = await res.json();

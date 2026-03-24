@@ -210,11 +210,15 @@
 <Sidebar.Root bind:ref {collapsible} {...restProps}>
   <Sidebar.Header>
     <!-- <TeamSwitcher teams={data.teams} /> -->
-    {#if sidebar.state === 'collapsed'}
-      <LibraryIcon class="h-8 w-8" />
-    {:else}
-      <h1 class="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl">Reliquary</h1>
-    {/if}
+    <a href="/">
+      {#if sidebar.state === 'collapsed'}
+        <LibraryIcon class="h-8 w-8" />
+      {:else}
+        <h1 class="scroll-m-20 p-2 text-4xl font-extrabold tracking-tight lg:text-5xl">
+          Reliquary
+        </h1>
+      {/if}
+    </a>
   </Sidebar.Header>
   <Sidebar.Content>
     <NavHome links={data.navHome} />

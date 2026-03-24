@@ -25,12 +25,6 @@ func GetUserID(r *http.Request) string {
 
 func Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if !strings.HasPrefix(authHeader, "Bearer ") {
-			http.Error(w, "missing token", http.StatusUnauthorized)
-			return
-		}
-
 		frontendURL := os.Getenv("FRONTEND_URL")
 		if frontendURL == "" {
 			frontendURL = "http://localhost:5173"
@@ -41,7 +35,16 @@ func Auth(next http.Handler) http.Handler {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		req.Header.Set("Authorization", authHeader)
+
+		// Forward bearer token if present
+		if authHeader := r.Header.Get("Authorization"); strings.HasPrefix(authHeader, "Bearer ") {
+			req.Header.Set("Authorization", authHeader)
+		}
+
+		// Forward session cookie so Better Auth can validate via cookie too
+		if cookie := r.Header.Get("Cookie"); cookie != "" {
+			req.Header.Set("Cookie", cookie)
+		}
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil || resp.StatusCode != http.StatusOK {

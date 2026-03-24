@@ -1,5 +1,4 @@
 <script lang="ts">
-  import AppSidebar from '$lib/components/nav/app-sidebar.svelte';
   import * as Breadcrumb from '$lib/components/ui/breadcrumb';
   import { Separator } from '$lib/components/ui/separator';
   import * as Sidebar from '$lib/components/ui/sidebar';
@@ -7,10 +6,10 @@
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { librariesState } from '$lib/api/libraries.svelte';
-  import type { PageData } from './$types';
-  import { SvelteSet } from 'svelte/reactivity';
+  import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import * as Select from '$lib/components/ui/select';
   import RotateCW from '@lucide/svelte/icons/rotate-cw';
+  import { Spinner } from '$lib/components/ui/spinner';
 
   interface StagedBook {
     id: string;
@@ -21,8 +20,6 @@
     originalPath: string;
     userId: string;
   }
-
-  let { data }: { data: PageData } = $props();
 
   let stagedBooks = $state<StagedBook[]>([]);
   let isScanning = $state(false);
@@ -40,6 +37,28 @@
   let editAuthor = $state('');
   let isSaving = $state(false);
 
+  // Per-book library selection
+  let bookLibraryMap = $state<Map<string, string>>(new Map());
+
+  function getBookLibraryTitle(bookId: string) {
+    const libId = bookLibraryMap.get(bookId);
+    return libId
+      ? (librariesState.items.find((l) => l.id === libId)?.title ?? 'Library…')
+      : 'Library…';
+  }
+
+  // How many selected books have a library assigned
+  let readyToImportCount = $derived([...selectedIds].filter((id) => bookLibraryMap.has(id)).length);
+
+  async function handleAddAllToLibraries() {
+    // TODO: call import endpoint once available
+  }
+
+  // Bulk edit sheet
+  let bulkSheetOpen = $state(false);
+  let bulkAuthor = $state('');
+  let isBulkSaving = $state(false);
+
   // Bulk add to library
   let selectedLibraryId = $state('');
 
@@ -49,6 +68,38 @@
           'Select Library')
       : 'Select Library'
   );
+
+  function openBulkEdit() {
+    sheetOpen = false;
+    bulkAuthor = '';
+    selectedLibraryId = '';
+    bulkSheetOpen = true;
+  }
+
+  async function saveBulkEdit() {
+    isBulkSaving = true;
+    try {
+      if (bulkAuthor.trim()) {
+        const items = [...selectedIds].map((id) => ({ id, author: bulkAuthor }));
+        const res = await fetch('/api/bookdrop/staged', {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(items)
+        });
+        if (!res.ok) throw new Error('Bulk update failed');
+        stagedBooks = await res.json();
+      }
+      if (selectedLibraryId) {
+        // TODO: call import endpoint once available
+      }
+      bulkSheetOpen = false;
+      selectedIds = new SvelteSet();
+    } catch {
+      errorMsg = 'Bulk update failed.';
+    } finally {
+      isBulkSaving = false;
+    }
+  }
 
   function getToken() {
     return localStorage.getItem('bearer_token') || '';
@@ -164,11 +215,12 @@
     if (editingBook && deleted.has(editingBook.id)) sheetOpen = false;
   }
 
-  async function handleAddToLibrary() {
-    if (!selectedLibraryId) return;
-    // TODO: call import endpoint once available
-    selectedLibraryId = '';
-    selectedIds = new SvelteSet();
+  function applyBulkLibrary(libId: string) {
+    selectedLibraryId = libId;
+    for (const id of selectedIds) {
+      bookLibraryMap.set(id, libId);
+    }
+    bookLibraryMap = new SvelteMap(bookLibraryMap);
   }
 
   $effect(() => {
@@ -176,49 +228,184 @@
   });
 </script>
 
-<Sidebar.Provider>
-  <AppSidebar user={data.user} />
-  <Sidebar.Inset>
-    <header
-      class="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12"
-    >
-      <div class="flex w-full items-center justify-between gap-2 px-4">
-        <div class="flex items-center">
-          <Sidebar.Trigger class="-ms-1" />
-          <Separator orientation="vertical" class="me-2 data-[orientation=vertical]:h-4" />
-          <Breadcrumb.Root>
-            <Breadcrumb.List>
-              <Breadcrumb.Item>
-                <Breadcrumb.Page>Bookdrop</Breadcrumb.Page>
-              </Breadcrumb.Item>
-            </Breadcrumb.List>
-          </Breadcrumb.Root>
-        </div>
-        <Button onclick={handleScan} disabled={isScanning}>
-          <!-- {isScanning ? 'Scanning...' : 'Scan Bookdrop'} -->
-          {#if isScanning}
-            <span>Scanning...</span>
-            <Spinner />
-          {:else}
-            <span>Scan Bookdrop</span>
-            <RotateCW />
-          {/if}
-        </Button>
-      </div>
-    </header>
-
-    <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
-      {#if errorMsg}
-        <div class="rounded-xl bg-destructive/15 p-4 text-destructive">{errorMsg}</div>
+<header
+  class="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12"
+>
+  <div class="flex w-full items-center justify-between gap-2 px-4">
+    <div class="flex items-center">
+      <Sidebar.Trigger class="-ms-1" />
+      <Separator orientation="vertical" class="me-2 data-[orientation=vertical]:h-4" />
+      <Breadcrumb.Root>
+        <Breadcrumb.List>
+          <Breadcrumb.Item>
+            <Breadcrumb.Page>Bookdrop</Breadcrumb.Page>
+          </Breadcrumb.Item>
+        </Breadcrumb.List>
+      </Breadcrumb.Root>
+    </div>
+    <Button onclick={handleScan} disabled={isScanning}>
+      {#if isScanning}
+        <span>Scanning...</span>
+        <Spinner />
+      {:else}
+        <span>Scan Bookdrop</span>
+        <RotateCW />
       {/if}
+    </Button>
+  </div>
+</header>
 
-      <!-- Bulk action bar -->
-      {#if selectedIds.size > 0}
-        <div class="flex items-center gap-3 rounded-lg border bg-muted/50 px-4 py-2">
-          <span class="text-sm text-muted-foreground">{selectedIds.size} selected</span>
+<div class="flex flex-1 flex-col gap-4 p-4 pt-0">
+  {#if errorMsg}
+    <div class="rounded-xl bg-destructive/15 p-4 text-destructive">{errorMsg}</div>
+  {/if}
 
-          <Select.Root type="single" bind:value={selectedLibraryId}>
-            <Select.Trigger class="w-[180px]">
+  <!-- Bulk action bar -->
+  {#if selectedIds.size > 0}
+    <div class="flex items-center gap-3 rounded-lg border bg-muted/50 px-4 py-2">
+      <span class="text-sm text-muted-foreground">{selectedIds.size} selected</span>
+      <Button size="sm" onclick={openBulkEdit}>Bulk Edit</Button>
+      <div class="flex">
+        <Select.Root type="single" bind:value={selectedLibraryId}>
+          <Select.Trigger class="w- h-8">
+            {selectedLibraryTitle}
+          </Select.Trigger>
+          <Select.Content>
+            {#each librariesState.items as lib (lib.id)}
+              <Select.Item value={lib.id}>{lib.title}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
+        {#if selectedLibraryId}
+          <Button variant="ghost" class="ml-2" onclick={() => applyBulkLibrary(selectedLibraryId)}>
+            Apply Library
+          </Button>
+        {/if}
+      </div>
+      <Button size="sm" variant="destructive" onclick={handleBulkDelete}>Delete selected</Button>
+      <Button size="sm" variant="ghost" onclick={() => (selectedIds = new SvelteSet())}>
+        Clear
+      </Button>
+    </div>
+  {/if}
+
+  {#if isLoading}
+    <div class="flex min-h-100 items-center justify-center">
+      <p class="text-muted-foreground">Loading…</p>
+    </div>
+  {:else if stagedBooks.length > 0}
+    <div class="rounded-lg border">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b bg-muted/50">
+            <th class="w-10 px-4 py-3 text-left">
+              <input type="checkbox" checked={allSelected} onchange={toggleAll} class="rounded" />
+            </th>
+            <th class="px-4 py-3 text-left font-medium">Title</th>
+            <th class="px-4 py-3 text-left font-medium">Author</th>
+            <th class="w-20 px-4 py-3 text-left font-medium">Type</th>
+            <th class="max-w-xs px-4 py-3 text-left font-medium">File</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each stagedBooks as book (book.id)}
+            <tr
+              class="border-b transition-colors last:border-0 hover:bg-muted/30 {selectedIds.has(
+                book.id
+              )
+                ? 'bg-muted/20'
+                : ''}"
+            >
+              <td class="px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(book.id)}
+                  onchange={() => toggleOne(book.id)}
+                  class="rounded"
+                />
+              </td>
+              <td class="px-4 py-3 font-medium">{book.title}</td>
+              <td class="px-4 py-3 text-muted-foreground">{book.author ?? '—'}</td>
+              <td class="px-4 py-3 text-muted-foreground uppercase">{book.ext.slice(1)}</td>
+              <td class="max-w-xs truncate px-4 py-3 text-muted-foreground" title={book.fileName}>
+                {book.fileName}
+              </td>
+              <td class="px-4 py-3">
+                <div class="flex justify-end gap-1">
+                  <Select.Root
+                    type="single"
+                    value={bookLibraryMap.get(book.id) ?? ''}
+                    onValueChange={(v) => {
+                      bookLibraryMap.set(book.id, v);
+                      bookLibraryMap = new SvelteMap(bookLibraryMap);
+                    }}
+                  >
+                    <Select.Trigger class="h-8 w-36 text-xs">
+                      {getBookLibraryTitle(book.id)}
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each librariesState.items as lib (lib.id)}
+                        <Select.Item value={lib.id}>{lib.title}</Select.Item>
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                  <Button size="sm" variant="ghost" onclick={() => openEdit(book)}>Edit</Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    class="text-destructive hover:text-destructive"
+                    onclick={() => handleDelete(book.id)}
+                  >
+                    ✕
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      {#if readyToImportCount > 0}
+        <div class="flex justify-end border-t px-4 py-3">
+          <Button onclick={handleAddAllToLibraries}>
+            Add {readyToImportCount} book{readyToImportCount === 1 ? '' : 's'} to {readyToImportCount ===
+            1
+              ? 'library'
+              : 'libraries'}
+          </Button>
+        </div>
+      {/if}
+    </div>
+  {:else}
+    <div
+      class="flex min-h-100 flex-1 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20"
+    >
+      <p class="text-muted-foreground">Click "Scan Bookdrop" to find new files.</p>
+    </div>
+  {/if}
+</div>
+
+<!-- Bulk edit sheet (bottom) -->
+<Sheet.Root bind:open={bulkSheetOpen}>
+  <Sheet.Portal>
+    <Sheet.Overlay />
+    <Sheet.Content side="bottom" class="mx-auto max-w-2xl">
+      <Sheet.Header>
+        <Sheet.Title>Bulk Edit</Sheet.Title>
+        <Sheet.Description class="text-xs text-muted-foreground">
+          Editing {selectedIds.size} book{selectedIds.size === 1 ? '' : 's'}. Leave a field blank to
+          keep existing values.
+        </Sheet.Description>
+      </Sheet.Header>
+      <div class="grid grid-cols-2 gap-4 px-4 py-6">
+        <div class="flex flex-col gap-1.5">
+          <label for="bulk-author" class="text-sm font-medium">Author</label>
+          <Input id="bulk-author" bind:value={bulkAuthor} placeholder="Set author for all…" />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-medium" for="bulk-library">Add to Library</label>
+          <Select.Root name="bulk-library" type="single" bind:value={selectedLibraryId}>
+            <Select.Trigger>
               {selectedLibraryTitle}
             </Select.Trigger>
             <Select.Content>
@@ -227,91 +414,24 @@
               {/each}
             </Select.Content>
           </Select.Root>
-
-          <Button onclick={handleAddToLibrary} disabled={!selectedLibraryId}>Add to Library</Button>
-          <Button variant="destructive" onclick={handleBulkDelete}>Delete selected</Button>
-          <Button variant="ghost" onclick={() => (selectedIds = new SvelteSet())}>Clear</Button>
         </div>
-      {/if}
-
-      {#if isLoading}
-        <div class="flex min-h-100 items-center justify-center">
-          <p class="text-muted-foreground">Loading…</p>
-        </div>
-      {:else if stagedBooks.length > 0}
-        <div class="rounded-lg border">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b bg-muted/50">
-                <th class="w-10 px-4 py-3 text-left">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onchange={toggleAll}
-                    class="rounded"
-                  />
-                </th>
-                <th class="px-4 py-3 text-left font-medium">Title</th>
-                <th class="px-4 py-3 text-left font-medium">Author</th>
-                <th class="w-20 px-4 py-3 text-left font-medium">Type</th>
-                <th class="max-w-xs px-4 py-3 text-left font-medium">File</th>
-                <th class="w-24 px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each stagedBooks as book (book.id)}
-                <tr
-                  class="border-b transition-colors last:border-0 hover:bg-muted/30 {selectedIds.has(
-                    book.id
-                  )
-                    ? 'bg-muted/20'
-                    : ''}"
-                >
-                  <td class="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(book.id)}
-                      onchange={() => toggleOne(book.id)}
-                      class="rounded"
-                    />
-                  </td>
-                  <td class="px-4 py-3 font-medium">{book.title}</td>
-                  <td class="px-4 py-3 text-muted-foreground">{book.author ?? '—'}</td>
-                  <td class="px-4 py-3 text-muted-foreground uppercase">{book.ext.slice(1)}</td>
-                  <td
-                    class="max-w-xs truncate px-4 py-3 text-muted-foreground"
-                    title={book.fileName}
-                  >
-                    {book.fileName}
-                  </td>
-                  <td class="px-4 py-3">
-                    <div class="flex justify-end gap-1">
-                      <Button size="sm" variant="ghost" onclick={() => openEdit(book)}>Edit</Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        class="text-destructive hover:text-destructive"
-                        onclick={() => handleDelete(book.id)}
-                      >
-                        ✕
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-      {:else}
-        <div
-          class="flex min-h-[400px] flex-1 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20"
+      </div>
+      <Sheet.Footer>
+        <Sheet.Close>
+          {#snippet child({ props })}
+            <Button variant="outline" {...props}>Cancel</Button>
+          {/snippet}
+        </Sheet.Close>
+        <Button
+          onclick={saveBulkEdit}
+          disabled={isBulkSaving || (!bulkAuthor.trim() && !selectedLibraryId)}
         >
-          <p class="text-muted-foreground">Click "Scan Bookdrop" to find new files.</p>
-        </div>
-      {/if}
-    </div>
-  </Sidebar.Inset>
-</Sidebar.Provider>
+          {isBulkSaving ? 'Saving…' : 'Apply'}
+        </Button>
+      </Sheet.Footer>
+    </Sheet.Content>
+  </Sheet.Portal>
+</Sheet.Root>
 
 <!-- Single book edit sheet -->
 <Sheet.Root bind:open={sheetOpen}>

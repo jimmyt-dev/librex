@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
+  import { goto, invalidateAll } from '$app/navigation';
   import { authClient } from '$lib/auth-client';
   import { Button } from '$lib/components/ui/button/index.js';
   import { Input } from '$lib/components/ui/input/index.js';
@@ -18,7 +18,8 @@
     await authClient.signUp.email(
       { name, email, password },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
+          await invalidateAll();
           goto('/');
         },
         onError: (ctx) => {
