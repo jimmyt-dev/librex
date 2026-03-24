@@ -66,8 +66,7 @@ class ShelvesState {
   }
 
   invalidate(shelfId: string) {
-    const { [shelfId]: _, ...rest } = this.byShelf;
-    this.byShelf = rest;
+    delete this.byShelf[shelfId];
   }
 
   create = async (name: string, icon?: string) => {

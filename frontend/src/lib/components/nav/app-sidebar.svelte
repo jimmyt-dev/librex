@@ -14,7 +14,6 @@
   import BookCopyIcon from '@lucide/svelte/icons/book-copy';
   import UsersIcon from '@lucide/svelte/icons/users';
   import NotebookPenIcon from '@lucide/svelte/icons/notebook-pen';
-  import InboxIcon from '@lucide/svelte/icons/inbox';
 
   // This is sample data.
   const data = {

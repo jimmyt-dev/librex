@@ -85,8 +85,7 @@ class BooksState {
   }
 
   invalidate(libraryId: string) {
-    const { [libraryId]: _, ...rest } = this.byLibrary;
-    this.byLibrary = rest;
+    delete this.byLibrary[libraryId];
   }
 }
 
