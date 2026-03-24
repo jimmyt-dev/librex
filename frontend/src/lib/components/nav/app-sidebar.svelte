@@ -43,22 +43,22 @@
       },
       {
         title: 'All Books',
-        url: 'all-books',
+        url: '/all-books',
         icon: BookTextIcon
       },
       {
         title: 'Series',
-        url: 'series',
+        url: '/series',
         icon: BookCopyIcon
       },
       {
         title: 'Authors',
-        url: 'authors',
+        url: '/authors',
         icon: UsersIcon
       },
       {
         title: 'Notebook',
-        url: 'notebook',
+        url: '/notebook',
         icon: NotebookPenIcon
       }
       // {

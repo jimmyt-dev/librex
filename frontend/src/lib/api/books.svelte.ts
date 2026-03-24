@@ -25,6 +25,16 @@ function getToken() {
 
 class BooksState {
   private byLibrary = $state<Record<string, Book[]>>({});
+  all = $state<Book[]>([]);
+
+  async fetchAll(): Promise<void> {
+    const res = await fetch('/api/books/all', {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    if (res.ok) {
+      this.all = await res.json();
+    }
+  }
 
   get(libraryId: string): Book[] {
     return this.byLibrary[libraryId] ?? [];

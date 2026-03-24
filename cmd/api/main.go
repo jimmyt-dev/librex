@@ -40,6 +40,7 @@ func main() {
 	})
 
 	r.Route("/api/books", func(r chi.Router) {
+		r.Get("/all", handlers.GetBookAll)
 		r.Get("/{id}", handlers.GetBook)
 		r.Put("/{id}", handlers.UpdateBook)
 		r.Delete("/{id}", handlers.DeleteBook)

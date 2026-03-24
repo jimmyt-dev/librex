@@ -86,6 +86,31 @@ func GetBook(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(b)
 }
 
+func GetBookAll(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+
+	rows, err := db.DB.Query(r.Context(),
+		"SELECT "+bookCols+" FROM books WHERE user_id = $1", userID)
+	if err != nil {
+		http.Error(w, "books not found", http.StatusNotFound)
+		return
+	}
+	defer rows.Close()
+
+	books := []models.Book{}
+	for rows.Next() {
+		b, err := scanBook(rows.Scan)
+		if err != nil {
+			http.Error(w, "db error", http.StatusInternalServerError)
+			return
+		}
+		books = append(books, b)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(books)
+}
+
 // GetBookCover serves the cover image for a book.
 func GetBookCover(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
