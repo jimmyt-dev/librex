@@ -1,4 +1,10 @@
-import { pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import { pgTable, text, uuid, customType } from 'drizzle-orm/pg-core';
+
+const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
+  dataType() {
+    return 'bytea';
+  }
+});
 import { user } from './auth.schema';
 
 export const library = pgTable('libraries', {
@@ -32,6 +38,20 @@ export const stagedBooks = pgTable('staged_books', {
   id: uuid('id').defaultRandom().primaryKey(),
   title: text('title').notNull(),
   author: text('author'),
+  subject: text('subject'),
+  description: text('description'),
+  publisher: text('publisher'),
+  contributor: text('contributor'),
+  date: text('date'),
+  type: text('type'),
+  format: text('format'),
+  identifier: text('identifier'),
+  source: text('source'),
+  language: text('language'),
+  relation: text('relation'),
+  coverage: text('coverage'),
+  coverImage: bytea('cover_image'),
+  coverMime: text('cover_mime'),
   fileName: text('file_name').notNull(),
   ext: text('ext').notNull(),
   originalPath: text('original_path').notNull(),

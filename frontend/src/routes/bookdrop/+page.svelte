@@ -15,10 +15,27 @@
     id: string;
     title: string;
     author: string | null;
+    subject: string | null;
+    description: string | null;
+    publisher: string | null;
+    contributor: string | null;
+    date: string | null;
+    type: string | null;
+    format: string | null;
+    identifier: string | null;
+    source: string | null;
+    language: string | null;
+    relation: string | null;
+    coverage: string | null;
+    hasCover: boolean;
     fileName: string;
     ext: string;
     originalPath: string;
     userId: string;
+  }
+
+  function coverUrl(id: string) {
+    return `/api/bookdrop/staged/${id}/cover`;
   }
 
   let stagedBooks = $state<StagedBook[]>([]);
@@ -35,6 +52,13 @@
   let editingBook = $state<StagedBook | null>(null);
   let editTitle = $state('');
   let editAuthor = $state('');
+  let editSubject = $state('');
+  let editDescription = $state('');
+  let editPublisher = $state('');
+  let editContributor = $state('');
+  let editDate = $state('');
+  let editIdentifier = $state('');
+  let editLanguage = $state('');
   let isSaving = $state(false);
 
   // Per-book library selection
@@ -160,6 +184,13 @@
     editingBook = book;
     editTitle = book.title;
     editAuthor = book.author ?? '';
+    editSubject = book.subject ?? '';
+    editDescription = book.description ?? '';
+    editPublisher = book.publisher ?? '';
+    editContributor = book.contributor ?? '';
+    editDate = book.date ?? '';
+    editIdentifier = book.identifier ?? '';
+    editLanguage = book.language ?? '';
     sheetOpen = true;
   }
 
@@ -173,7 +204,17 @@
           Authorization: `Bearer ${getToken()}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ title: editTitle, author: editAuthor || null })
+        body: JSON.stringify({
+          title: editTitle,
+          author: editAuthor || null,
+          subject: editSubject || null,
+          description: editDescription || null,
+          publisher: editPublisher || null,
+          contributor: editContributor || null,
+          date: editDate || null,
+          identifier: editIdentifier || null,
+          language: editLanguage || null
+        })
       });
       if (!res.ok) throw new Error('Failed to save');
       const updated: StagedBook = await res.json();
@@ -301,6 +342,7 @@
             <th class="w-10 px-4 py-3 text-left">
               <input type="checkbox" checked={allSelected} onchange={toggleAll} class="rounded" />
             </th>
+            <th class="w-12 px-2 py-3"></th>
             <th class="px-4 py-3 text-left font-medium">Title</th>
             <th class="px-4 py-3 text-left font-medium">Author</th>
             <th class="w-20 px-4 py-3 text-left font-medium">Type</th>
@@ -324,6 +366,17 @@
                   onchange={() => toggleOne(book.id)}
                   class="rounded"
                 />
+              </td>
+              <td class="px-2 py-2">
+                {#if book.hasCover}
+                  <img
+                    src={coverUrl(book.id)}
+                    alt=""
+                    class="h-10 w-7 rounded object-cover shadow-sm"
+                  />
+                {:else}
+                  <div class="h-10 w-7 rounded bg-muted"></div>
+                {/if}
               </td>
               <td class="px-4 py-3 font-medium">{book.title}</td>
               <td class="px-4 py-3 text-muted-foreground">{book.author ?? '—'}</td>
@@ -445,7 +498,14 @@
             {editingBook.fileName}
           </Sheet.Description>
         </Sheet.Header>
-        <div class="flex flex-col gap-4 px-4 py-6">
+        <div class="flex flex-col gap-4 overflow-y-auto px-4 py-6">
+          {#if editingBook.hasCover}
+            <img
+              src={coverUrl(editingBook.id)}
+              alt="Cover"
+              class="mx-auto h-48 w-auto rounded object-contain shadow"
+            />
+          {/if}
           <div class="flex flex-col gap-1.5">
             <label for="edit-title" class="text-sm font-medium">Title</label>
             <Input id="edit-title" bind:value={editTitle} />
@@ -453,6 +513,36 @@
           <div class="flex flex-col gap-1.5">
             <label for="edit-author" class="text-sm font-medium">Author</label>
             <Input id="edit-author" bind:value={editAuthor} placeholder="Unknown" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label for="edit-subject" class="text-sm font-medium">Subject</label>
+            <Input id="edit-subject" bind:value={editSubject} placeholder="Genre / topics" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label for="edit-description" class="text-sm font-medium">Description</label>
+            <Input id="edit-description" bind:value={editDescription} placeholder="Synopsis" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label for="edit-publisher" class="text-sm font-medium">Publisher</label>
+            <Input id="edit-publisher" bind:value={editPublisher} />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label for="edit-contributor" class="text-sm font-medium">Contributor</label>
+            <Input id="edit-contributor" bind:value={editContributor} />
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1.5">
+              <label for="edit-date" class="text-sm font-medium">Date</label>
+              <Input id="edit-date" bind:value={editDate} placeholder="YYYY or YYYY-MM-DD" />
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label for="edit-language" class="text-sm font-medium">Language</label>
+              <Input id="edit-language" bind:value={editLanguage} placeholder="en" />
+            </div>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label for="edit-identifier" class="text-sm font-medium">Identifier (ISBN)</label>
+            <Input id="edit-identifier" bind:value={editIdentifier} />
           </div>
         </div>
         <Sheet.Footer>

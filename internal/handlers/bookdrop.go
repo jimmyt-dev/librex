@@ -24,6 +24,33 @@ var validBookExts = map[string]bool{
 	".cbr":  true,
 }
 
+func nilIfEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+// stagedBookCols selects all fields for list/get responses.
+// cover_image is excluded; cover_image IS NOT NULL is used to set has_cover.
+const stagedBookCols = `id, title, author, subject, description, publisher, contributor,
+	date, type, format, identifier, source, language, relation, coverage,
+	cover_image IS NOT NULL AS has_cover,
+	file_name, ext, original_path, user_id`
+
+func scanStagedBook(scan func(dest ...any) error) (models.StagedBook, error) {
+	var b models.StagedBook
+	err := scan(
+		&b.ID, &b.Title, &b.Author,
+		&b.Subject, &b.Description, &b.Publisher, &b.Contributor,
+		&b.Date, &b.Type, &b.Format, &b.Identifier,
+		&b.Source, &b.Language, &b.Relation, &b.Coverage,
+		&b.HasCover,
+		&b.FileName, &b.Ext, &b.OriginalPath, &b.UserID,
+	)
+	return b, err
+}
+
 // ScanBookdrop scans the bookdrop directory and inserts new files into staged_books.
 func ScanBookdrop(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
@@ -76,20 +103,35 @@ func ScanBookdrop(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Extract metadata from the file (title, author)
 		meta := metadata.Extract(originalPath)
 		title := meta.Title
 		if title == "" {
 			title = strings.TrimSuffix(baseName, filepath.Ext(baseName))
 		}
-		var author *string
-		if meta.Author != "" {
-			author = &meta.Author
+
+		var coverImage []byte
+		var coverMime *string
+		if len(meta.CoverImage) > 0 {
+			coverImage = meta.CoverImage
+			coverMime = &meta.CoverMime
 		}
 
 		_, err = db.DB.Exec(r.Context(),
-			"INSERT INTO staged_books (title, author, file_name, ext, original_path, user_id) VALUES ($1, $2, $3, $4, $5, $6)",
-			title, author, baseName, ext, originalPath, userID)
+			`INSERT INTO staged_books (
+				title, author, subject, description, publisher, contributor,
+				date, type, format, identifier, source, language, relation, coverage,
+				cover_image, cover_mime,
+				file_name, ext, original_path, user_id
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+			title, nilIfEmpty(meta.Creator),
+			nilIfEmpty(meta.Subject), nilIfEmpty(meta.Description),
+			nilIfEmpty(meta.Publisher), nilIfEmpty(meta.Contributor),
+			nilIfEmpty(meta.Date), nilIfEmpty(meta.Type),
+			nilIfEmpty(meta.Format), nilIfEmpty(meta.Identifier),
+			nilIfEmpty(meta.Source), nilIfEmpty(meta.Language),
+			nilIfEmpty(meta.Relation), nilIfEmpty(meta.Coverage),
+			coverImage, coverMime,
+			baseName, ext, originalPath, userID)
 		if err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
@@ -107,7 +149,7 @@ func ListStagedBooks(w http.ResponseWriter, r *http.Request) {
 
 func listStagedBooks(w http.ResponseWriter, r *http.Request, userID string) {
 	rows, err := db.DB.Query(r.Context(),
-		"SELECT id, title, author, file_name, ext, original_path, user_id FROM staged_books WHERE user_id = $1", userID)
+		"SELECT "+stagedBookCols+" FROM staged_books WHERE user_id = $1", userID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
@@ -116,8 +158,8 @@ func listStagedBooks(w http.ResponseWriter, r *http.Request, userID string) {
 
 	books := []models.StagedBook{}
 	for rows.Next() {
-		var b models.StagedBook
-		if err := rows.Scan(&b.ID, &b.Title, &b.Author, &b.FileName, &b.Ext, &b.OriginalPath, &b.UserID); err != nil {
+		b, err := scanStagedBook(rows.Scan)
+		if err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
@@ -133,10 +175,10 @@ func GetStagedBook(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	id := chi.URLParam(r, "id")
 
-	var b models.StagedBook
-	err := db.DB.QueryRow(r.Context(),
-		"SELECT id, title, author, file_name, ext, original_path, user_id FROM staged_books WHERE id = $1 AND user_id = $2",
-		id, userID).Scan(&b.ID, &b.Title, &b.Author, &b.FileName, &b.Ext, &b.OriginalPath, &b.UserID)
+	row := db.DB.QueryRow(r.Context(),
+		"SELECT "+stagedBookCols+" FROM staged_books WHERE id = $1 AND user_id = $2",
+		id, userID)
+	b, err := scanStagedBook(row.Scan)
 	if err != nil {
 		http.Error(w, "staged book not found", http.StatusNotFound)
 		return
@@ -146,20 +188,55 @@ func GetStagedBook(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(b)
 }
 
-type stagedBookUpdate struct {
-	Title  *string `json:"title"`
-	Author *string `json:"author"`
+// GetStagedBookCover serves the raw cover image for a staged book.
+func GetStagedBookCover(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	id := chi.URLParam(r, "id")
+
+	var imgData []byte
+	var mime string
+	err := db.DB.QueryRow(r.Context(),
+		"SELECT cover_image, cover_mime FROM staged_books WHERE id = $1 AND user_id = $2",
+		id, userID).Scan(&imgData, &mime)
+	if err != nil || len(imgData) == 0 {
+		http.Error(w, "cover not found", http.StatusNotFound)
+		return
+	}
+
+	if mime == "" {
+		mime = "image/jpeg"
+	}
+	w.Header().Set("Content-Type", mime)
+	w.Header().Set("Cache-Control", "max-age=86400")
+	w.Write(imgData)
 }
 
-// UpdateStagedBook updates the editable metadata (title, author) of a staged book.
+type stagedBookUpdate struct {
+	Title       *string `json:"title"`
+	Author      *string `json:"author"`
+	Subject     *string `json:"subject"`
+	Description *string `json:"description"`
+	Publisher   *string `json:"publisher"`
+	Contributor *string `json:"contributor"`
+	Date        *string `json:"date"`
+	Type        *string `json:"type"`
+	Format      *string `json:"format"`
+	Identifier  *string `json:"identifier"`
+	Source      *string `json:"source"`
+	Language    *string `json:"language"`
+	Relation    *string `json:"relation"`
+	Coverage    *string `json:"coverage"`
+}
+
+// UpdateStagedBook updates the editable metadata of a staged book.
 func UpdateStagedBook(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	id := chi.URLParam(r, "id")
 
-	var existing models.StagedBook
-	err := db.DB.QueryRow(r.Context(),
-		"SELECT id, title, author, file_name, ext, original_path, user_id FROM staged_books WHERE id = $1 AND user_id = $2",
-		id, userID).Scan(&existing.ID, &existing.Title, &existing.Author, &existing.FileName, &existing.Ext, &existing.OriginalPath, &existing.UserID)
+	row := db.DB.QueryRow(r.Context(),
+		"SELECT "+stagedBookCols+" FROM staged_books WHERE id = $1 AND user_id = $2",
+		id, userID)
+	existing, err := scanStagedBook(row.Scan)
 	if err != nil {
 		http.Error(w, "staged book not found", http.StatusNotFound)
 		return
@@ -177,10 +254,54 @@ func UpdateStagedBook(w http.ResponseWriter, r *http.Request) {
 	if body.Author != nil {
 		existing.Author = body.Author
 	}
+	if body.Subject != nil {
+		existing.Subject = body.Subject
+	}
+	if body.Description != nil {
+		existing.Description = body.Description
+	}
+	if body.Publisher != nil {
+		existing.Publisher = body.Publisher
+	}
+	if body.Contributor != nil {
+		existing.Contributor = body.Contributor
+	}
+	if body.Date != nil {
+		existing.Date = body.Date
+	}
+	if body.Type != nil {
+		existing.Type = body.Type
+	}
+	if body.Format != nil {
+		existing.Format = body.Format
+	}
+	if body.Identifier != nil {
+		existing.Identifier = body.Identifier
+	}
+	if body.Source != nil {
+		existing.Source = body.Source
+	}
+	if body.Language != nil {
+		existing.Language = body.Language
+	}
+	if body.Relation != nil {
+		existing.Relation = body.Relation
+	}
+	if body.Coverage != nil {
+		existing.Coverage = body.Coverage
+	}
 
 	_, err = db.DB.Exec(r.Context(),
-		"UPDATE staged_books SET title = $1, author = $2 WHERE id = $3 AND user_id = $4",
-		existing.Title, existing.Author, id, userID)
+		`UPDATE staged_books SET
+			title=$1, author=$2, subject=$3, description=$4, publisher=$5, contributor=$6,
+			date=$7, type=$8, format=$9, identifier=$10, source=$11, language=$12,
+			relation=$13, coverage=$14
+		WHERE id = $15 AND user_id = $16`,
+		existing.Title, existing.Author,
+		existing.Subject, existing.Description, existing.Publisher, existing.Contributor,
+		existing.Date, existing.Type, existing.Format, existing.Identifier,
+		existing.Source, existing.Language, existing.Relation, existing.Coverage,
+		id, userID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return

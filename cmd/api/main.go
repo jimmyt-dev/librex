@@ -52,6 +52,7 @@ func main() {
 		r.Post("/scan", handlers.ScanBookdrop)
 		r.Get("/staged", handlers.ListStagedBooks)
 		r.Get("/staged/{id}", handlers.GetStagedBook)
+		r.Get("/staged/{id}/cover", handlers.GetStagedBookCover)
 		r.Put("/staged/{id}", handlers.UpdateStagedBook)
 		r.Put("/staged", handlers.BulkUpdateStagedBooks)
 		r.Delete("/staged/{id}", handlers.DeleteStagedBook)
