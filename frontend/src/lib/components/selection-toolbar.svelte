@@ -65,7 +65,7 @@
 
 {#if count > 0}
   <div
-    class="fixed bottom-6 left-1/2 z-50 flex w-3xl -translate-x-1/2 items-center justify-between rounded-lg border bg-card px-3 py-2 shadow-lg"
+    class="fixed bottom-6 left-1/2 z-50 flex w-[calc(100vw-2rem)] -translate-x-1/2 items-center justify-between rounded-lg border bg-card px-3 py-2 shadow-lg sm:w-xl md:w-2xl lg:w-3xl"
   >
     <div class="flex items-center">
       <span class="text-sm font-medium">{count} selected</span>
