@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"reliquary/internal/db"
+	"reliquary/internal/metadata"
 	"reliquary/internal/middleware"
 	"reliquary/internal/models"
 )
@@ -62,7 +63,6 @@ func ScanBookdrop(w http.ResponseWriter, r *http.Request) {
 		}
 
 		baseName := entry.Name()
-		titleGuess := strings.TrimSuffix(baseName, filepath.Ext(baseName))
 		originalPath := filepath.Join(cleanedDir, baseName)
 
 		var count int
@@ -76,9 +76,20 @@ func ScanBookdrop(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		// Extract metadata from the file (title, author)
+		meta := metadata.Extract(originalPath)
+		title := meta.Title
+		if title == "" {
+			title = strings.TrimSuffix(baseName, filepath.Ext(baseName))
+		}
+		var author *string
+		if meta.Author != "" {
+			author = &meta.Author
+		}
+
 		_, err = db.DB.Exec(r.Context(),
-			"INSERT INTO staged_books (title, file_name, ext, original_path, user_id) VALUES ($1, $2, $3, $4, $5)",
-			titleGuess, baseName, ext, originalPath, userID)
+			"INSERT INTO staged_books (title, author, file_name, ext, original_path, user_id) VALUES ($1, $2, $3, $4, $5, $6)",
+			title, author, baseName, ext, originalPath, userID)
 		if err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
