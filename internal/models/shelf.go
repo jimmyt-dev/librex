@@ -5,4 +5,5 @@ type Shelf struct {
 	Name   string  `json:"name"`
 	Icon   *string `json:"icon"`
 	UserID string  `json:"userId"`
+	Books  int     `json:"books"`
 }

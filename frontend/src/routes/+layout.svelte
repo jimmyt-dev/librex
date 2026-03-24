@@ -13,6 +13,7 @@
   import InboxIcon from '@lucide/svelte/icons/inbox';
   import { buttonVariants } from '$lib/components/ui/button';
   import BookEditSheet from '$lib/components/book-edit-sheet.svelte';
+  import ShelfAssignDialog from '$lib/components/shelf-assign-dialog.svelte';
 
   let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 </script>
@@ -22,6 +23,7 @@
 <ModeWatcher />
 <Toaster richColors />
 <BookEditSheet />
+<ShelfAssignDialog />
 
 <Sidebar.Provider open={data.sidebarOpen}>
   {#if data.user}

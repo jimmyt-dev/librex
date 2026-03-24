@@ -1,6 +1,7 @@
 <script lang="ts">
   import { booksState, type Book } from '$lib/api/books.svelte';
   import { bookEditState } from '$lib/state/book-edit.svelte';
+  import { shelfAssignState } from '$lib/state/shelf-assign.svelte';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -8,7 +9,9 @@
   import EllipsisVerticalIcon from '@lucide/svelte/icons/ellipsis-vertical';
   import PencilIcon from '@lucide/svelte/icons/pencil';
   import TrashIcon from '@lucide/svelte/icons/trash-2';
+  import LibraryBigIcon from '@lucide/svelte/icons/library-big';
   import { toast } from 'svelte-sonner';
+  import { Checkbox } from '$lib/components/ui/checkbox';
 
   let {
     book,
@@ -24,6 +27,7 @@
     onselect?: (id: string, selected: boolean, shiftKey: boolean) => void;
   } = $props();
 
+  let lastClickShift = false;
   let deleteOpen = $state(false);
   let deleteFile = $state(false);
   let deleting = $state(false);
@@ -57,17 +61,19 @@
   onkeydown={(e) => e.key === 'Enter' && handleCardClick(new MouseEvent('click'))}
 >
   {#if checkboxes}
-    <input
-      type="checkbox"
-      checked={selected}
-      onclick={(e) => {
-        e.stopPropagation();
-        onselect?.(book.id, e.currentTarget.checked, e.shiftKey);
-      }}
-      class="absolute top-1.5 left-1.5 z-10 size-3.5 cursor-pointer rounded accent-primary opacity-0 transition-opacity group-hover:opacity-100"
+    <button
+      class="absolute top-1.5 left-1.5 z-10 opacity-0 transition-opacity group-hover:opacity-100"
       class:opacity-100={selected}
-      aria-label="Select {book.title}"
-    />
+      onclick={(e) => e.stopPropagation()}
+    >
+      <Checkbox
+        checked={selected}
+        onCheckedChange={(v) => onselect?.(book.id, !!v, lastClickShift)}
+        onclick={(e) => (lastClickShift = e.shiftKey)}
+        class="border-2 border-white bg-white/70 shadow-md drop-shadow-sm backdrop-blur-sm data-[state=checked]:border-primary data-[state=checked]:bg-primary"
+        aria-label="Select {book.title}"
+      />
+    </button>
   {/if}
 
   <div
@@ -80,7 +86,7 @@
         <img
           src={book.cover}
           alt={book.title}
-          class="h-full w-full object-cover transition hover:scale-105 hover:duration-300"
+          class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
         />
       {:else}
         <div class="flex h-full w-full items-center justify-center text-muted-foreground">
@@ -118,6 +124,15 @@
             >
               <PencilIcon class="size-3.5" />
               Edit
+            </DropdownMenu.Item>
+            <DropdownMenu.Item
+              onclick={(e) => {
+                e.stopPropagation();
+                shelfAssignState.openFor([book.id]);
+              }}
+            >
+              <LibraryBigIcon class="size-3.5" />
+              Shelves
             </DropdownMenu.Item>
             <DropdownMenu.Separator />
             <DropdownMenu.Item

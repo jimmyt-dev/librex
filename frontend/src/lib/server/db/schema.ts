@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, customType } from 'drizzle-orm/pg-core';
+import { pgTable, text, uuid, customType, primaryKey } from 'drizzle-orm/pg-core';
 
 const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
   dataType() {
@@ -52,6 +52,19 @@ export const books = pgTable('books', {
   coverMime: text('cover_mime'),
   filePath: text('file_path').notNull()
 });
+
+export const bookShelves = pgTable(
+  'book_shelves',
+  {
+    bookId: uuid('book_id')
+      .notNull()
+      .references(() => books.id, { onDelete: 'cascade' }),
+    shelfId: uuid('shelf_id')
+      .notNull()
+      .references(() => shelf.id, { onDelete: 'cascade' })
+  },
+  (t) => [primaryKey({ columns: [t.bookId, t.shelfId] })]
+);
 
 export const stagedBooks = pgTable('staged_books', {
   id: uuid('id').defaultRandom().primaryKey(),

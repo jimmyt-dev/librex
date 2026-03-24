@@ -1,9 +1,11 @@
 <script lang="ts">
   import { booksState, type Book } from '$lib/api/books.svelte';
+  import { shelfAssignState } from '$lib/state/shelf-assign.svelte';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { buttonVariants } from '$lib/components/ui/button';
   import TrashIcon from '@lucide/svelte/icons/trash-2';
   import XIcon from '@lucide/svelte/icons/x';
+  import LibraryBigIcon from '@lucide/svelte/icons/library-big';
   import { toast } from 'svelte-sonner';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import SquareCheckBig from '@lucide/svelte/icons/square-check-big';
@@ -64,7 +66,6 @@
     </div>
 
     <div class="flex items-center gap-x-2">
-      <div class="h-8 w-px bg-border"></div>
       <!-- Select All -->
       <Tooltip.Provider delayDuration={400}>
         <Tooltip.Root>
@@ -90,6 +91,23 @@
           </Tooltip.Trigger>
           <Tooltip.Portal>
             <Tooltip.Content>Clear Selection</Tooltip.Content>
+          </Tooltip.Portal>
+        </Tooltip.Root>
+      </Tooltip.Provider>
+
+      <div class="h-8 w-px bg-border"></div>
+
+      <!-- Add to Shelf -->
+      <Tooltip.Provider delayDuration={400}>
+        <Tooltip.Root>
+          <Tooltip.Trigger
+            class={buttonVariants({ variant: 'outline', size: 'icon' })}
+            onclick={() => shelfAssignState.openFor([...selectedIds])}
+          >
+            <LibraryBigIcon class="size-4" />
+          </Tooltip.Trigger>
+          <Tooltip.Portal>
+            <Tooltip.Content>Shelves</Tooltip.Content>
           </Tooltip.Portal>
         </Tooltip.Root>
       </Tooltip.Provider>

@@ -266,3 +266,31 @@ func DeleteBook(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// ListBookShelves returns the shelf IDs a book belongs to.
+func ListBookShelves(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	id := chi.URLParam(r, "id")
+
+	rows, err := db.DB.Query(r.Context(),
+		"SELECT bs.shelf_id FROM book_shelves bs JOIN books b ON b.id = bs.book_id WHERE bs.book_id = $1 AND b.user_id = $2",
+		id, userID)
+	if err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	shelfIDs := []string{}
+	for rows.Next() {
+		var sid string
+		if err := rows.Scan(&sid); err != nil {
+			http.Error(w, "db error", http.StatusInternalServerError)
+			return
+		}
+		shelfIDs = append(shelfIDs, sid)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(shelfIDs)
+}

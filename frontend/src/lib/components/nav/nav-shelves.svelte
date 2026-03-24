@@ -12,15 +12,16 @@
   let open = $derived(sidebar.state === 'collapsed' || userOpen);
 
   let {
-    links
+    links,
+    unshelvedCount = 0
   }: {
     links: {
       id: string;
       title: string;
-      url: string;
       icon?: string;
       books: number;
     }[];
+    unshelvedCount?: number;
   } = $props();
 </script>
 
@@ -43,6 +44,9 @@
     </Sidebar.GroupLabel>
     <Collapsible.Content>
       <Sidebar.Menu>
+        <NavShelfItem
+          item={{ id: 'unshelved', title: 'Unshelved', icon: 'inbox', books: unshelvedCount }}
+        />
         {#each links as item (item.id)}
           <NavShelfItem {item} />
         {/each}

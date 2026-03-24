@@ -225,7 +225,7 @@
     <Separator />
     <NavLibraries links={librariesState.items} />
     <Separator />
-    <NavShelves links={shelvesState.items} />
+    <NavShelves links={shelvesState.items} unshelvedCount={shelvesState.unshelvedCount} />
     <!-- <NavMain items={data.navMain} />
     <div class="border-t border-border"></div>
     <NavProjects projects={data.projects} /> -->

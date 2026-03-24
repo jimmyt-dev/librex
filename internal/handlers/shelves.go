@@ -18,7 +18,13 @@ type shelfBody struct {
 
 func ListShelves(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
-	rows, err := db.DB.Query(r.Context(), "SELECT id, name, icon, user_id FROM shelves WHERE user_id = $1", userID)
+	rows, err := db.DB.Query(r.Context(),
+		`SELECT s.id, s.name, s.icon, s.user_id, COUNT(bs.book_id) AS books
+		 FROM shelves s
+		 LEFT JOIN book_shelves bs ON bs.shelf_id = s.id
+		 WHERE s.user_id = $1
+		 GROUP BY s.id
+		 ORDER BY s.name`, userID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
@@ -28,7 +34,7 @@ func ListShelves(w http.ResponseWriter, r *http.Request) {
 	shelves := []models.Shelf{}
 	for rows.Next() {
 		var s models.Shelf
-		if err := rows.Scan(&s.ID, &s.Name, &s.Icon, &s.UserID); err != nil {
+		if err := rows.Scan(&s.ID, &s.Name, &s.Icon, &s.UserID, &s.Books); err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
@@ -44,8 +50,13 @@ func GetShelf(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	var s models.Shelf
-	err := db.DB.QueryRow(r.Context(), "SELECT id, name, icon, user_id FROM shelves WHERE id = $1 AND user_id = $2", id, userID).
-		Scan(&s.ID, &s.Name, &s.Icon, &s.UserID)
+	err := db.DB.QueryRow(r.Context(),
+		`SELECT s.id, s.name, s.icon, s.user_id, COUNT(bs.book_id) AS books
+		 FROM shelves s
+		 LEFT JOIN book_shelves bs ON bs.shelf_id = s.id
+		 WHERE s.id = $1 AND s.user_id = $2
+		 GROUP BY s.id`, id, userID).
+		Scan(&s.ID, &s.Name, &s.Icon, &s.UserID, &s.Books)
 	if err != nil {
 		http.Error(w, "shelf not found", http.StatusNotFound)
 		return
@@ -119,6 +130,133 @@ func DeleteShelf(w http.ResponseWriter, r *http.Request) {
 	if result.RowsAffected() == 0 {
 		http.Error(w, "shelf not found", http.StatusNotFound)
 		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ListShelfBooks returns all books on a shelf.
+func ListShelfBooks(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	shelfID := chi.URLParam(r, "id")
+
+	var exists bool
+	if err := db.DB.QueryRow(r.Context(),
+		"SELECT EXISTS(SELECT 1 FROM shelves WHERE id = $1 AND user_id = $2)",
+		shelfID, userID).Scan(&exists); err != nil || !exists {
+		http.Error(w, "shelf not found", http.StatusNotFound)
+		return
+	}
+
+	rows, err := db.DB.Query(r.Context(),
+		"SELECT "+bookCols+" FROM books b JOIN book_shelves bs ON bs.book_id = b.id WHERE bs.shelf_id = $1 ORDER BY b.title",
+		shelfID)
+	if err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	books := []models.Book{}
+	for rows.Next() {
+		b, err := scanBook(rows.Scan)
+		if err != nil {
+			http.Error(w, "db error", http.StatusInternalServerError)
+			return
+		}
+		books = append(books, b)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(books)
+}
+
+// ListUnshelvedBooks returns books not on any shelf.
+func ListUnshelvedBooks(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+
+	rows, err := db.DB.Query(r.Context(),
+		"SELECT "+bookCols+" FROM books b WHERE b.user_id = $1 AND NOT EXISTS (SELECT 1 FROM book_shelves bs WHERE bs.book_id = b.id) ORDER BY b.title",
+		userID)
+	if err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	books := []models.Book{}
+	for rows.Next() {
+		b, err := scanBook(rows.Scan)
+		if err != nil {
+			http.Error(w, "db error", http.StatusInternalServerError)
+			return
+		}
+		books = append(books, b)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(books)
+}
+
+type shelfBooksBody struct {
+	BookIDs []string `json:"bookIds"`
+}
+
+// AddBooksToShelf adds books to a shelf.
+func AddBooksToShelf(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	shelfID := chi.URLParam(r, "id")
+
+	var exists bool
+	if err := db.DB.QueryRow(r.Context(),
+		"SELECT EXISTS(SELECT 1 FROM shelves WHERE id = $1 AND user_id = $2)",
+		shelfID, userID).Scan(&exists); err != nil || !exists {
+		http.Error(w, "shelf not found", http.StatusNotFound)
+		return
+	}
+
+	var body shelfBooksBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.BookIDs) == 0 {
+		http.Error(w, "bookIds is required", http.StatusBadRequest)
+		return
+	}
+
+	for _, bookID := range body.BookIDs {
+		_, err := db.DB.Exec(r.Context(),
+			"INSERT INTO book_shelves (book_id, shelf_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+			bookID, shelfID)
+		if err != nil {
+			http.Error(w, "db error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// RemoveBooksFromShelf removes books from a shelf.
+func RemoveBooksFromShelf(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	shelfID := chi.URLParam(r, "id")
+
+	var exists bool
+	if err := db.DB.QueryRow(r.Context(),
+		"SELECT EXISTS(SELECT 1 FROM shelves WHERE id = $1 AND user_id = $2)",
+		shelfID, userID).Scan(&exists); err != nil || !exists {
+		http.Error(w, "shelf not found", http.StatusNotFound)
+		return
+	}
+
+	var body shelfBooksBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.BookIDs) == 0 {
+		http.Error(w, "bookIds is required", http.StatusBadRequest)
+		return
+	}
+
+	for _, bookID := range body.BookIDs {
+		_, _ = db.DB.Exec(r.Context(),
+			"DELETE FROM book_shelves WHERE book_id = $1 AND shelf_id = $2",
+			bookID, shelfID)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
