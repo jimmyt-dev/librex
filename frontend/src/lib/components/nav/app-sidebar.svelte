@@ -180,18 +180,27 @@
   import NavShelves from './nav-shelves.svelte';
   import LibraryIcon from '@lucide/svelte/icons/library';
   import Separator from '../ui/separator/separator.svelte';
+  import { authorsState } from '$lib/api/authors.svelte';
 
   onMount(() => {
     librariesState.fetchAll();
     shelvesState.fetchAll();
+    authorsState.fetchAll();
   });
 
   let totalBooks = $derived(librariesState.items.reduce((sum, l) => sum + l.books, 0));
+  let totalAuthors = $derived(authorsState.items.length);
 
   let navHomeLinks = $derived(
     data.navHome.map((link) => ({
       ...link,
-      count: link.title === 'All Books' ? totalBooks : undefined
+
+      count:
+        link.title === 'All Books'
+          ? totalBooks
+          : link.title === 'Authors'
+            ? totalAuthors
+            : undefined
     }))
   );
 

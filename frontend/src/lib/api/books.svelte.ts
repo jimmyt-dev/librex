@@ -1,9 +1,14 @@
+export type BookAuthor = {
+  id: string;
+  name: string;
+};
+
 export type Book = {
   id: string;
   libraryId: string;
   title: string;
   cover: string | null;
-  author: string | null;
+  authors: BookAuthor[];
   subject: string | null;
   description: string | null;
   publisher: string | null;

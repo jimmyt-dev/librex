@@ -44,7 +44,11 @@
       const result = await res.json();
       toast.success(`Scan complete: ${result.added} added, ${result.removed} removed.`);
       booksState.invalidate(item.id);
-      await Promise.all([librariesState.fetchAll(), shelvesState.fetchAll()]);
+      await Promise.all([
+        librariesState.fetchAll(),
+        shelvesState.fetchAll(),
+        booksState.fetchAll()
+      ]);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {

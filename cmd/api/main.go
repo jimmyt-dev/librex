@@ -63,6 +63,15 @@ func main() {
 		r.Delete("/{id}/books", handlers.RemoveBooksFromShelf)
 	})
 
+	r.Route("/api/authors", func(r chi.Router) {
+		r.Get("/", handlers.ListAuthors)
+		r.Post("/", handlers.CreateAuthor)
+		r.Get("/{id}", handlers.GetAuthor)
+		r.Put("/{id}", handlers.UpdateAuthor)
+		r.Delete("/{id}", handlers.DeleteAuthor)
+		r.Get("/{id}/books", handlers.ListAuthorBooks)
+	})
+
 	r.Get("/api/directories", handlers.ListDirectories)
 
 	r.Route("/api/bookdrop", func(r chi.Router) {

@@ -14,7 +14,7 @@ import (
 	"reliquary/internal/models"
 )
 
-const bookCols = `id, library_id, user_id, title, author, subject, description, publisher, contributor,
+const bookCols = `id, library_id, user_id, title, subject, description, publisher, contributor,
 	date, type, format, identifier, source, language, relation, coverage,
 	cover_image IS NOT NULL AS has_cover,
 	file_path`
@@ -23,7 +23,7 @@ func scanBook(scan func(dest ...any) error) (models.Book, error) {
 	var b models.Book
 	var hasCover bool
 	err := scan(
-		&b.ID, &b.LibraryID, &b.UserID, &b.Title, &b.Author,
+		&b.ID, &b.LibraryID, &b.UserID, &b.Title,
 		&b.Subject, &b.Description, &b.Publisher, &b.Contributor,
 		&b.Date, &b.Type, &b.Format, &b.Identifier,
 		&b.Source, &b.Language, &b.Relation, &b.Coverage,
@@ -33,6 +33,7 @@ func scanBook(scan func(dest ...any) error) (models.Book, error) {
 		url := fmt.Sprintf("/api/books/%s/cover", b.ID)
 		b.Cover = &url
 	}
+	b.Authors = []models.Author{}
 	return b, err
 }
 
@@ -67,6 +68,11 @@ func ListLibraryBooks(w http.ResponseWriter, r *http.Request) {
 		books = append(books, b)
 	}
 
+	if err := attachAuthors(r, books); err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(books)
 }
@@ -84,8 +90,14 @@ func GetBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	books := []models.Book{b}
+	if err := attachAuthors(r, books); err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(b)
+	json.NewEncoder(w).Encode(books[0])
 }
 
 func GetBookAll(w http.ResponseWriter, r *http.Request) {
@@ -107,6 +119,11 @@ func GetBookAll(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		books = append(books, b)
+	}
+
+	if err := attachAuthors(r, books); err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -137,9 +154,9 @@ func GetBookCover(w http.ResponseWriter, r *http.Request) {
 }
 
 type bookUpdate struct {
-	Title       *string `json:"title"`
-	Author      *string `json:"author"`
-	Subject     *string `json:"subject"`
+	Title       *string   `json:"title"`
+	Authors     *[]string `json:"authors"`
+	Subject     *string   `json:"subject"`
 	Description *string `json:"description"`
 	Publisher   *string `json:"publisher"`
 	Contributor *string `json:"contributor"`
@@ -174,9 +191,6 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 
 	if body.Title != nil {
 		existing.Title = *body.Title
-	}
-	if body.Author != nil {
-		existing.Author = body.Author
 	}
 	if body.Subject != nil {
 		existing.Subject = body.Subject
@@ -217,11 +231,11 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 
 	_, err = db.DB.Exec(r.Context(),
 		`UPDATE books SET
-			title=$1, author=$2, subject=$3, description=$4, publisher=$5, contributor=$6,
-			date=$7, type=$8, format=$9, identifier=$10, source=$11, language=$12,
-			relation=$13, coverage=$14
-		WHERE id = $15 AND user_id = $16`,
-		existing.Title, existing.Author,
+			title=$1, subject=$2, description=$3, publisher=$4, contributor=$5,
+			date=$6, type=$7, format=$8, identifier=$9, source=$10, language=$11,
+			relation=$12, coverage=$13
+		WHERE id = $14 AND user_id = $15`,
+		existing.Title,
 		existing.Subject, existing.Description, existing.Publisher, existing.Contributor,
 		existing.Date, existing.Type, existing.Format, existing.Identifier,
 		existing.Source, existing.Language, existing.Relation, existing.Coverage,
@@ -229,6 +243,28 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
+	}
+
+	// Update authors if provided
+	if body.Authors != nil {
+		authors, err := findOrCreateAuthors(r, *body.Authors, userID)
+		if err != nil {
+			http.Error(w, "db error", http.StatusInternalServerError)
+			return
+		}
+		if err := linkBookAuthors(r, id, authors); err != nil {
+			http.Error(w, "db error", http.StatusInternalServerError)
+			return
+		}
+		existing.Authors = authors
+	} else {
+		// Fetch current authors
+		books := []models.Book{existing}
+		if err := attachAuthors(r, books); err != nil {
+			http.Error(w, "db error", http.StatusInternalServerError)
+			return
+		}
+		existing = books[0]
 	}
 
 	w.Header().Set("Content-Type", "application/json")

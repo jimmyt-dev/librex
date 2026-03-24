@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, customType, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, text, uuid, customType, primaryKey, unique } from 'drizzle-orm/pg-core';
 
 const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
   dataType() {
@@ -26,6 +26,18 @@ export const shelf = pgTable('shelves', {
     .references(() => user.id, { onDelete: 'cascade' })
 });
 
+export const authors = pgTable(
+  'authors',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: text('name').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' })
+  },
+  (t) => [unique().on(t.name, t.userId)]
+);
+
 export const books = pgTable('books', {
   id: uuid('id').defaultRandom().primaryKey(),
   libraryId: uuid('library_id')
@@ -35,7 +47,6 @@ export const books = pgTable('books', {
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
-  author: text('author'),
   subject: text('subject'),
   description: text('description'),
   publisher: text('publisher'),
@@ -52,6 +63,19 @@ export const books = pgTable('books', {
   coverMime: text('cover_mime'),
   filePath: text('file_path').notNull()
 });
+
+export const bookAuthors = pgTable(
+  'book_authors',
+  {
+    bookId: uuid('book_id')
+      .notNull()
+      .references(() => books.id, { onDelete: 'cascade' }),
+    authorId: uuid('author_id')
+      .notNull()
+      .references(() => authors.id, { onDelete: 'cascade' })
+  },
+  (t) => [primaryKey({ columns: [t.bookId, t.authorId] })]
+);
 
 export const bookShelves = pgTable(
   'book_shelves',

@@ -283,23 +283,33 @@ func scanLibraryFolder(r *http.Request, libraryID, folder, userID string) (scanR
 			coverMime = &meta.CoverMime
 		}
 
-		_, err := db.DB.Exec(r.Context(),
+		var bookID string
+		err := db.DB.QueryRow(r.Context(),
 			`INSERT INTO books (
-				library_id, user_id, title, author, subject, description, publisher, contributor,
+				library_id, user_id, title, subject, description, publisher, contributor,
 				date, type, format, identifier, source, language, relation, coverage,
 				cover_image, cover_mime, file_path
-			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+			RETURNING id`,
 			libraryID, userID,
-			title, nilIfEmpty(meta.Creator),
+			title,
 			nilIfEmpty(meta.Subject), nilIfEmpty(meta.Description),
 			nilIfEmpty(meta.Publisher), nilIfEmpty(meta.Contributor),
 			nilIfEmpty(meta.Date), nilIfEmpty(meta.Type),
 			nilIfEmpty(meta.Format), nilIfEmpty(meta.Identifier),
 			nilIfEmpty(meta.Source), nilIfEmpty(meta.Language),
 			nilIfEmpty(meta.Relation), nilIfEmpty(meta.Coverage),
-			coverImage, coverMime, fp)
+			coverImage, coverMime, fp).Scan(&bookID)
 		if err == nil {
 			result.Added++
+			// Link authors from metadata
+			if meta.Creator != "" {
+				authorNames := parseAuthorString(meta.Creator)
+				authors, err := findOrCreateAuthors(r, authorNames, userID)
+				if err == nil {
+					_ = linkBookAuthors(r, bookID, authors)
+				}
+			}
 		}
 	}
 

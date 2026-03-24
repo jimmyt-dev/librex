@@ -25,7 +25,7 @@
     const book = bookEditState.book;
     if (!book) return;
     editTitle = book.title;
-    editAuthor = book.author ?? '';
+    editAuthor = book.authors.map((a) => a.name).join(', ');
     editSubject = book.subject ?? '';
     editDescription = book.description ?? '';
     editPublisher = book.publisher ?? '';
@@ -46,7 +46,9 @@
         headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: editTitle,
-          author: editAuthor || null,
+          authors: editAuthor
+            ? editAuthor.split(',').map((s: string) => s.trim()).filter(Boolean)
+            : [],
           subject: editSubject || null,
           description: editDescription || null,
           publisher: editPublisher || null,

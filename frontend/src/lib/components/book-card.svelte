@@ -15,6 +15,9 @@
   import DownloadIcon from '@lucide/svelte/icons/download';
   import { toast } from 'svelte-sonner';
   import { Checkbox } from '$lib/components/ui/checkbox';
+  import InfoIcon from '@lucide/svelte/icons/info';
+  import BookOpenTextIcon from '@lucide/svelte/icons/book-open-text'; // Import Read icon
+  import Button from './ui/button/button.svelte';
 
   let {
     book,
@@ -88,6 +91,31 @@
     class:ring-primary={selected}
   >
     <div class="relative aspect-2/3 w-full overflow-hidden bg-muted">
+      <div
+        class="absolute top-1/2 left-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-y-2 opacity-0 transition-opacity group-hover:opacity-100"
+      >
+        <Button
+          class="border-accent"
+          href="/books/{book.id}"
+          size="icon-lg"
+          aria-label="View details for {book.title}"
+          onclick={(e) => e.stopPropagation()}
+        >
+          <InfoIcon class="size-4" />
+        </Button>
+
+        <Button
+          class="border-accent"
+          size="icon-lg"
+          aria-label="Read {book.title}"
+          onclick={(e) => {
+            e.stopPropagation();
+            toast.info('Read functionality coming soon!');
+          }}
+        >
+          <BookOpenTextIcon class="size-4" />
+        </Button>
+      </div>
       {#if book.cover}
         <img
           src={book.cover}
@@ -106,6 +134,11 @@
         <Tooltip.Root>
           <Tooltip.Trigger class="min-w-0 flex-1 px-2 py-2 text-left">
             <p class="truncate text-xs leading-tight font-medium">{book.title}</p>
+            {#if book.authors.length > 0}
+              <p class="truncate text-xs text-muted-foreground">
+                {book.authors.map((a) => a.name).join(', ')}
+              </p>
+            {/if}
           </Tooltip.Trigger>
           <Tooltip.Portal>
             <Tooltip.Content side="bottom">{book.title}</Tooltip.Content>

@@ -1,12 +1,12 @@
 package models
 
 type Book struct {
-	ID          string  `json:"id"`
-	LibraryID   string  `json:"libraryId"`
-	UserID      string  `json:"userId"`
-	Title       string  `json:"title"`
-	Author      *string `json:"author"`
-	Subject     *string `json:"subject"`
+	ID          string   `json:"id"`
+	LibraryID   string   `json:"libraryId"`
+	UserID      string   `json:"userId"`
+	Title       string   `json:"title"`
+	Authors     []Author `json:"authors"`
+	Subject     *string  `json:"subject"`
 	Description *string `json:"description"`
 	Publisher   *string `json:"publisher"`
 	Contributor *string `json:"contributor"`

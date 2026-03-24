@@ -12,7 +12,7 @@ export default defineConfig({
         target: 'http://localhost:5321',
         bypass: (req) => {
           // Allow SvelteKit to handle better-auth routes instead of the Go proxy
-          if (req.url && req.url.startsWith('/api/auth')) {
+          if (req.url && (req.url === '/api/auth' || req.url.startsWith('/api/auth/'))) {
             return req.url;
           }
         }

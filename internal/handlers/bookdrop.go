@@ -538,24 +538,35 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			item.StagedBookID).Scan(&coverImage, &coverMime)
 
 		// Insert into books with full metadata
-		_, err = db.DB.Exec(r.Context(),
+		var bookID string
+		err = db.DB.QueryRow(r.Context(),
 			`INSERT INTO books (
-				library_id, user_id, title, author, subject, description, publisher, contributor,
+				library_id, user_id, title, subject, description, publisher, contributor,
 				date, type, format, identifier, source, language, relation, coverage,
 				cover_image, cover_mime, file_path
-			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+			RETURNING id`,
 			item.LibraryID, userID,
-			book.Title, book.Author,
+			book.Title,
 			book.Subject, book.Description, book.Publisher, book.Contributor,
 			book.Date, book.Type, book.Format, book.Identifier,
 			book.Source, book.Language, book.Relation, book.Coverage,
-			coverImage, coverMime, destPath)
+			coverImage, coverMime, destPath).Scan(&bookID)
 		if err != nil {
 			// Move failed to record — try to move file back
 			_ = moveFile(destPath, book.OriginalPath)
 			res.Error = fmt.Sprintf("db error: %v", err)
 			results = append(results, res)
 			continue
+		}
+
+		// Link authors
+		if book.Author != nil && *book.Author != "" {
+			authorNames := parseAuthorString(*book.Author)
+			authors, err := findOrCreateAuthors(r, authorNames, userID)
+			if err == nil {
+				_ = linkBookAuthors(r, bookID, authors)
+			}
 		}
 
 		// Remove from staged_books
