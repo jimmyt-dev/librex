@@ -50,7 +50,7 @@
 </script>
 
 <div
-  class="group relative cursor-pointer"
+  class="group relative cursor-pointer outline-none"
   role="button"
   tabindex="0"
   onclick={(e) => handleCardClick(e)}
@@ -72,7 +72,7 @@
   {/if}
 
   <div
-    class="flex flex-col overflow-hidden rounded-md border bg-card text-card-foreground shadow-sm transition-all"
+    class="focus-none flex flex-col overflow-hidden rounded-md border bg-card text-card-foreground shadow-sm transition-all"
     class:ring-2={selected}
     class:ring-primary={selected}
   >
@@ -94,7 +94,7 @@
       <Tooltip.Provider delayDuration={400}>
         <Tooltip.Root>
           <Tooltip.Trigger class="min-w-0 flex-1 px-2 py-2 text-left">
-            <p class="truncate text-xs font-medium leading-tight">{book.title}</p>
+            <p class="truncate text-xs leading-tight font-medium">{book.title}</p>
           </Tooltip.Trigger>
           <Tooltip.Portal>
             <Tooltip.Content side="bottom">{book.title}</Tooltip.Content>
