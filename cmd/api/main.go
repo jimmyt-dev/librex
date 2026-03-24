@@ -47,6 +47,7 @@ func main() {
 		r.Put("/{id}", handlers.UpdateBook)
 		r.Delete("/{id}", handlers.DeleteBook)
 		r.Get("/{id}/cover", handlers.GetBookCover)
+		r.Get("/{id}/download", handlers.DownloadBook)
 		r.Get("/{id}/shelves", handlers.ListBookShelves)
 	})
 

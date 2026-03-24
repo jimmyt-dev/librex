@@ -12,6 +12,7 @@
   import PencilIcon from '@lucide/svelte/icons/pencil';
   import TrashIcon from '@lucide/svelte/icons/trash-2';
   import LibraryBigIcon from '@lucide/svelte/icons/library-big';
+  import DownloadIcon from '@lucide/svelte/icons/download';
   import { toast } from 'svelte-sonner';
   import { Checkbox } from '$lib/components/ui/checkbox';
 
@@ -138,6 +139,32 @@
             >
               <LibraryBigIcon class="size-3.5" />
               Shelves
+            </DropdownMenu.Item>
+            <DropdownMenu.Item
+              onclick={async (e) => {
+                e.stopPropagation();
+                try {
+                  const token = localStorage.getItem('bearer_token') || '';
+                  const res = await fetch(`/api/books/${book.id}/download`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                  });
+                  if (!res.ok) throw new Error('Download failed');
+                  const blob = await res.blob();
+                  const disposition = res.headers.get('Content-Disposition') || '';
+                  const match = disposition.match(/filename="(.+?)"/);
+                  const filename = match ? match[1] : book.title;
+                  const a = document.createElement('a');
+                  a.href = URL.createObjectURL(blob);
+                  a.download = filename;
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                } catch {
+                  toast.error('Failed to download book.');
+                }
+              }}
+            >
+              <DownloadIcon class="size-3.5" />
+              Download
             </DropdownMenu.Item>
             <DropdownMenu.Separator />
             <DropdownMenu.Item

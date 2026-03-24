@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/go-chi/chi/v5"
 
@@ -265,6 +266,27 @@ func DeleteBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// DownloadBook serves the book file for download.
+func DownloadBook(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	id := chi.URLParam(r, "id")
+
+	var filePath string
+	if err := db.DB.QueryRow(r.Context(),
+		"SELECT file_path FROM books WHERE id = $1 AND user_id = $2", id, userID).Scan(&filePath); err != nil {
+		http.Error(w, "book not found", http.StatusNotFound)
+		return
+	}
+
+	if _, err := os.Stat(filePath); err != nil {
+		http.Error(w, "file not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filepath.Base(filePath)))
+	http.ServeFile(w, r, filePath)
 }
 
 // ListBookShelves returns the shelf IDs a book belongs to.
