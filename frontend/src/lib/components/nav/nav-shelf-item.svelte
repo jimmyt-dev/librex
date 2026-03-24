@@ -68,7 +68,7 @@
       <DropdownMenu.Trigger>
         {#snippet child({ props })}
           <Sidebar.MenuAction
-            class="peer/action z-10 size-6 bg-transparent opacity-0 hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+            class="peer/action top-1/2! z-10 aspect-auto size-6 -translate-y-1/2! bg-transparent opacity-0 transition-opacity group-hover/menu-item:opacity-100"
             {...props}
           >
             <EllipsisIcon />
@@ -113,9 +113,7 @@
   {/if}
 
   <Sidebar.MenuBadge
-    class={item.id !== 'unshelved'
-      ? 'transition-opacity peer-hover/action:opacity-0 peer-focus-visible/action:opacity-0 peer-data-[state=open]/action:opacity-0'
-      : ''}
+    class={item.id !== 'unshelved' ? 'transition-opacity group-hover/menu-item:opacity-0' : ''}
   >
     {item.books ?? 0}
   </Sidebar.MenuBadge>

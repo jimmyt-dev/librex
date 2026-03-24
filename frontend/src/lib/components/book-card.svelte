@@ -60,11 +60,10 @@
     <input
       type="checkbox"
       checked={selected}
-      onchange={(e) => {
+      onclick={(e) => {
         e.stopPropagation();
         onselect?.(book.id, e.currentTarget.checked, e.shiftKey);
       }}
-      onclick={(e) => e.stopPropagation()}
       class="absolute top-1.5 left-1.5 z-10 size-3.5 cursor-pointer rounded accent-primary opacity-0 transition-opacity group-hover:opacity-100"
       class:opacity-100={selected}
       aria-label="Select {book.title}"
