@@ -24,7 +24,7 @@ class ShelvesState {
         icon: s.icon ?? undefined,
         books: s.books
       }));
-      
+
       await this.fetchUnshelvedCount();
     } catch (e) {
       console.error('Failed to fetch shelves', e);

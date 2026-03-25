@@ -16,7 +16,7 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
   }
 
   const res = await fetch(url, { ...options, headers });
-  
+
   if (!res.ok) {
     const errorText = await res.text();
     throw new Error(errorText || `API request failed with status ${res.status}`);

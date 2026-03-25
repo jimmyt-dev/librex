@@ -620,7 +620,7 @@
       </Sheet.Header>
       <div class="flex flex-col gap-4 px-4 py-6">
         <!-- Text fields -->
-        <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Text Fields</p>
+        <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Text Fields</p>
         <div class="flex flex-col gap-1.5">
           <label for="bulk-series" class="text-sm font-medium">Series Name</label>
           <Input id="bulk-series" bind:value={bulkSeriesName} placeholder="Leave empty to skip" />
@@ -635,20 +635,47 @@
         </div>
 
         <!-- Number fields -->
-        <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Number Fields</p>
+        <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Number Fields
+        </p>
         <div class="flex flex-col gap-1.5">
           <label for="bulk-series-total" class="text-sm font-medium">Series Total</label>
-          <Input id="bulk-series-total" type="number" bind:value={bulkSeriesTotal} placeholder="—" />
+          <Input
+            id="bulk-series-total"
+            type="number"
+            bind:value={bulkSeriesTotal}
+            placeholder="—"
+          />
         </div>
 
         <div class="h-px bg-border"></div>
 
         <!-- Array fields -->
-        <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Array Fields</p>
+        <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Array Fields
+        </p>
 
-        <ArrayField label="Authors" bind:values={bulkAuthors} bind:mode={bulkAuthorsMode} placeholder="Type and press Enter to add each item." fetchSuggestions={fetchAuthorSuggestions} />
-        <ArrayField label="Genres" bind:values={bulkGenres} bind:mode={bulkGenresMode} placeholder="Type and press Enter to add each item." fetchSuggestions={fetchGenreSuggestions} />
-        <ArrayField label="Tags" bind:values={bulkTags} bind:mode={bulkTagsMode} placeholder="Type and press Enter to add each item." fetchSuggestions={fetchTagSuggestions} />
+        <ArrayField
+          label="Authors"
+          bind:values={bulkAuthors}
+          bind:mode={bulkAuthorsMode}
+          placeholder="Type and press Enter to add each item."
+          fetchSuggestions={fetchAuthorSuggestions}
+        />
+        <ArrayField
+          label="Genres"
+          bind:values={bulkGenres}
+          bind:mode={bulkGenresMode}
+          placeholder="Type and press Enter to add each item."
+          fetchSuggestions={fetchGenreSuggestions}
+        />
+        <ArrayField
+          label="Tags"
+          bind:values={bulkTags}
+          bind:mode={bulkTagsMode}
+          placeholder="Type and press Enter to add each item."
+          fetchSuggestions={fetchTagSuggestions}
+        />
 
         <div class="h-px bg-border"></div>
 
@@ -736,7 +763,11 @@
           </div>
           <div class="flex flex-col gap-1.5">
             <label class="text-sm font-medium">Authors</label>
-            <TagInput bind:values={editAuthors} placeholder="Add author…" fetchSuggestions={fetchAuthorSuggestions} />
+            <TagInput
+              bind:values={editAuthors}
+              placeholder="Add author…"
+              fetchSuggestions={fetchAuthorSuggestions}
+            />
           </div>
           <div class="flex flex-col gap-1.5">
             <label for="edit-description" class="text-sm font-medium">Description</label>
@@ -770,7 +801,7 @@
               <Input bind:value={editSeriesName} placeholder="Series name" />
               <Input type="number" bind:value={editSeriesNumber} placeholder="#" />
             </div>
-            <div class="grid grid-cols-2 gap-2 mt-1">
+            <div class="mt-1 grid grid-cols-2 gap-2">
               <div class="flex flex-col gap-1">
                 <label class="text-xs text-muted-foreground">Total Books</label>
                 <Input type="number" bind:value={editSeriesTotal} placeholder="Total" />
@@ -783,11 +814,19 @@
           </div>
           <div class="flex flex-col gap-1.5">
             <label class="text-sm font-medium">Genres</label>
-            <TagInput bind:values={editGenres} placeholder="Add genre…" fetchSuggestions={fetchGenreSuggestions} />
+            <TagInput
+              bind:values={editGenres}
+              placeholder="Add genre…"
+              fetchSuggestions={fetchGenreSuggestions}
+            />
           </div>
           <div class="flex flex-col gap-1.5">
             <label class="text-sm font-medium">Tags</label>
-            <TagInput bind:values={editTags} placeholder="Add tag…" fetchSuggestions={fetchTagSuggestions} />
+            <TagInput
+              bind:values={editTags}
+              placeholder="Add tag…"
+              fetchSuggestions={fetchTagSuggestions}
+            />
           </div>
         </div>
         <Sheet.Footer>

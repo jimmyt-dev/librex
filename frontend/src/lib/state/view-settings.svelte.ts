@@ -1,6 +1,12 @@
 import type { Book } from '$lib/api/books.svelte';
 
-export type SortField = 'seriesName' | 'seriesNumber' | 'title' | 'author' | 'rating' | 'publishedDate';
+export type SortField =
+  | 'seriesName'
+  | 'seriesNumber'
+  | 'title'
+  | 'author'
+  | 'rating'
+  | 'publishedDate';
 export type SortDir = 'asc' | 'desc';
 export type SortLevel = { field: SortField; dir: SortDir };
 
@@ -23,12 +29,18 @@ const STORAGE_KEY = 'view_settings';
 
 function getValue(book: Book, field: SortField): string | number | null {
   switch (field) {
-    case 'seriesName':    return book.metadata.seriesName;
-    case 'seriesNumber':  return book.metadata.seriesNumber;
-    case 'title':         return book.metadata.title;
-    case 'author':        return book.authors[0]?.name ?? null;
-    case 'rating':        return book.metadata.rating;
-    case 'publishedDate': return book.metadata.publishedDate;
+    case 'seriesName':
+      return book.metadata.seriesName;
+    case 'seriesNumber':
+      return book.metadata.seriesNumber;
+    case 'title':
+      return book.metadata.title;
+    case 'author':
+      return book.authors[0]?.name ?? null;
+    case 'rating':
+      return book.metadata.rating;
+    case 'publishedDate':
+      return book.metadata.publishedDate;
   }
 }
 
@@ -69,7 +81,10 @@ class ViewSettings {
 
   private save() {
     if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ mode: this.mode, sortLevels: this.sortLevels }));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ mode: this.mode, sortLevels: this.sortLevels })
+    );
   }
 
   setMode(m: 'grid' | 'table') {

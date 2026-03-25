@@ -72,7 +72,9 @@
     const { seriesName, seriesNumber } = book.metadata;
     if (!seriesName) return '—';
     if (seriesNumber == null) return seriesName;
-    const num = Number.isInteger(seriesNumber) ? seriesNumber : seriesNumber.toFixed(2).replace(/\.?0+$/, '');
+    const num = Number.isInteger(seriesNumber)
+      ? seriesNumber
+      : seriesNumber.toFixed(2).replace(/\.?0+$/, '');
     return `${seriesName} #${num}`;
   }
 
@@ -118,8 +120,14 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
         <tr
-          class="border-b transition-colors last:border-0 hover:bg-muted/30 {selectedIds.has(book.id) ? 'bg-muted/20' : ''} {selectMode ? 'cursor-pointer' : ''}"
-          onclick={(e) => { if (selectMode) onselect?.(book.id, !selectedIds.has(book.id), e.shiftKey); }}
+          class="border-b transition-colors last:border-0 hover:bg-muted/30 {selectedIds.has(
+            book.id
+          )
+            ? 'bg-muted/20'
+            : ''} {selectMode ? 'cursor-pointer' : ''}"
+          onclick={(e) => {
+            if (selectMode) onselect?.(book.id, !selectedIds.has(book.id), e.shiftKey);
+          }}
         >
           <td class="px-4 py-2" onclick={(e) => e.stopPropagation()}>
             <Checkbox
@@ -136,7 +144,9 @@
                 class="h-10 w-7 rounded object-cover shadow-sm"
               />
             {:else}
-              <div class="flex h-10 w-7 items-center justify-center rounded bg-muted text-muted-foreground">
+              <div
+                class="flex h-10 w-7 items-center justify-center rounded bg-muted text-muted-foreground"
+              >
                 <BookIcon class="size-4" />
               </div>
             {/if}
@@ -165,7 +175,11 @@
 
           <td class="px-4 py-2">
             {#if book.metadata.rating}
-              <span class="text-yellow-400 text-base leading-none">{'★'.repeat(book.metadata.rating)}<span class="text-muted-foreground/30">{'★'.repeat(5 - book.metadata.rating)}</span></span>
+              <span class="text-base leading-none text-yellow-400"
+                >{'★'.repeat(book.metadata.rating)}<span class="text-muted-foreground/30"
+                  >{'★'.repeat(5 - book.metadata.rating)}</span
+                ></span
+              >
             {:else}
               <span class="text-muted-foreground">—</span>
             {/if}
@@ -196,7 +210,10 @@
                   <DropdownMenu.Separator />
                   <DropdownMenu.Item
                     class="text-destructive focus:text-destructive"
-                    onclick={() => { bookToDelete = book; deleteFile = false; }}
+                    onclick={() => {
+                      bookToDelete = book;
+                      deleteFile = false;
+                    }}
                   >
                     <TrashIcon class="size-3.5" /> Delete
                   </DropdownMenu.Item>
@@ -212,7 +229,12 @@
 
 <AlertDialog.Root
   open={!!bookToDelete}
-  onOpenChange={(o) => { if (!o) { bookToDelete = null; deleteFile = false; } }}
+  onOpenChange={(o) => {
+    if (!o) {
+      bookToDelete = null;
+      deleteFile = false;
+    }
+  }}
 >
   <AlertDialog.Content>
     <AlertDialog.Header>

@@ -24,7 +24,7 @@ class LibrariesState {
         bookCount: number;
         fileNamingPattern: string | null;
       }[] = await apiFetch('/api/libraries');
-      
+
       this.items = dbItems.map((l) => ({
         id: l.id,
         title: l.name,
@@ -39,7 +39,12 @@ class LibrariesState {
     }
   };
 
-  create = async (name: string, folder: string, icon?: string, fileNamingPattern?: string): Promise<string> => {
+  create = async (
+    name: string,
+    folder: string,
+    icon?: string,
+    fileNamingPattern?: string
+  ): Promise<string> => {
     const lib: { id: string } = await apiFetch('/api/libraries', {
       method: 'POST',
       body: JSON.stringify({

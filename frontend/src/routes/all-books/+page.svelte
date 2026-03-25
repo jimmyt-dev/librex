@@ -63,7 +63,9 @@
   {:else if errorMsg}
     <div class="rounded-xl bg-destructive/15 p-4 text-destructive">{errorMsg}</div>
   {:else if booksState.all.length === 0}
-    <div class="flex min-h-64 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20">
+    <div
+      class="flex min-h-64 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20"
+    >
       <p class="text-muted-foreground">No books yet.</p>
     </div>
   {:else}
@@ -71,7 +73,9 @@
       <BookViewControls />
     </div>
     {#if viewSettings.mode === 'grid'}
-      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+      <div
+        class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
+      >
         {#each sortedBooks as book (book.id)}
           <BookCard
             {book}

@@ -24,7 +24,11 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
       // @ts-expect-error duplex required for streaming request bodies in Node 18+
       duplex: 'half'
     });
-    return new Response(res.body, { status: res.status, statusText: res.statusText, headers: res.headers });
+    return new Response(res.body, {
+      status: res.status,
+      statusText: res.statusText,
+      headers: res.headers
+    });
   }
 
   const session = await auth.api.getSession({ headers: event.request.headers });

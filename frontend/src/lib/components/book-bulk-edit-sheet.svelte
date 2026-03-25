@@ -169,9 +169,27 @@
         <div class="h-px bg-border"></div>
 
         <!-- Array fields -->
-        <ArrayField label="Authors" bind:values={authors} bind:mode={authorsMode} placeholder="Add author..." fetchSuggestions={fetchAuthorSuggestions} />
-        <ArrayField label="Genres" bind:values={genres} bind:mode={genresMode} placeholder="Add genre..." fetchSuggestions={fetchGenreSuggestions} />
-        <ArrayField label="Tags" bind:values={tags} bind:mode={tagsMode} placeholder="Add tag..." fetchSuggestions={fetchTagSuggestions} />
+        <ArrayField
+          label="Authors"
+          bind:values={authors}
+          bind:mode={authorsMode}
+          placeholder="Add author..."
+          fetchSuggestions={fetchAuthorSuggestions}
+        />
+        <ArrayField
+          label="Genres"
+          bind:values={genres}
+          bind:mode={genresMode}
+          placeholder="Add genre..."
+          fetchSuggestions={fetchGenreSuggestions}
+        />
+        <ArrayField
+          label="Tags"
+          bind:values={tags}
+          bind:mode={tagsMode}
+          placeholder="Add tag..."
+          fetchSuggestions={fetchTagSuggestions}
+        />
       </div>
 
       <Sheet.Footer>
@@ -181,7 +199,9 @@
           {/snippet}
         </Sheet.Close>
         <Button onclick={save} disabled={saving || !hasChanges()}>
-          {saving ? 'Saving…' : `Apply to ${selectedIds.size} book${selectedIds.size > 1 ? 's' : ''}`}
+          {saving
+            ? 'Saving…'
+            : `Apply to ${selectedIds.size} book${selectedIds.size > 1 ? 's' : ''}`}
         </Button>
       </Sheet.Footer>
     </Sheet.Content>

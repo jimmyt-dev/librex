@@ -20,13 +20,14 @@
   <div class="flex items-center justify-between">
     <label class="text-sm font-medium">{label}</label>
     <div class="flex gap-1">
-      {#each (['merge', 'replace'] as const) as m}
+      {#each ['merge', 'replace'] as const as m}
         <button
           type="button"
           class="rounded px-2 py-0.5 text-xs capitalize {mode === m
             ? 'bg-primary text-primary-foreground'
             : 'text-muted-foreground hover:text-foreground'}"
-          onclick={() => (mode = m)}>{m}</button>
+          onclick={() => (mode = m)}>{m}</button
+        >
       {/each}
     </div>
   </div>
