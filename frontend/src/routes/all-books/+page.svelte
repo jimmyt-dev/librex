@@ -1,9 +1,14 @@
 <script lang="ts">
   import { booksState } from '$lib/api/books.svelte';
   import { headerState } from '$lib/state/header.svelte';
+  import { viewSettings } from '$lib/state/view-settings.svelte';
   import BookCard from '$lib/components/book-card.svelte';
+  import BookTable from '$lib/components/book-table.svelte';
+  import BookViewControls from '$lib/components/book-view-controls.svelte';
   import SelectionToolbar from '$lib/components/selection-toolbar.svelte';
   import { SvelteSet } from 'svelte/reactivity';
+
+  let sortedBooks = $derived(viewSettings.sort(booksState.all));
 
   headerState.title = 'All Books';
   headerState.subtitle = null;
@@ -50,22 +55,40 @@
   }
 </script>
 
-<div class="px-4">
+<div class="flex flex-1 flex-col gap-4 p-4 pt-0">
   {#if isLoading}
-    <p>Loading...</p>
-  {:else if errorMsg}
-    <p>{errorMsg}</p>
-  {:else}
-    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
-      {#each booksState.all as book (book.id)}
-        <BookCard
-          {book}
-          selected={selectedIds.has(book.id)}
-          selectMode={selectedIds.size > 0}
-          onselect={toggleSelect}
-        />
-      {/each}
+    <div class="flex min-h-64 items-center justify-center">
+      <p class="text-muted-foreground">Loading…</p>
     </div>
+  {:else if errorMsg}
+    <div class="rounded-xl bg-destructive/15 p-4 text-destructive">{errorMsg}</div>
+  {:else if booksState.all.length === 0}
+    <div class="flex min-h-64 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20">
+      <p class="text-muted-foreground">No books yet.</p>
+    </div>
+  {:else}
+    <div class="flex justify-end">
+      <BookViewControls />
+    </div>
+    {#if viewSettings.mode === 'grid'}
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+        {#each sortedBooks as book (book.id)}
+          <BookCard
+            {book}
+            selected={selectedIds.has(book.id)}
+            selectMode={selectedIds.size > 0}
+            onselect={toggleSelect}
+          />
+        {/each}
+      </div>
+    {:else}
+      <BookTable
+        books={sortedBooks}
+        {selectedIds}
+        selectMode={selectedIds.size > 0}
+        onselect={toggleSelect}
+      />
+    {/if}
   {/if}
 </div>
 

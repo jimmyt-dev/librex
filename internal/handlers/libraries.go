@@ -323,12 +323,12 @@ func scanLibraryFolder(r *http.Request, libraryID, folder, userID string) (scanR
 			}
 		}
 
-		// Link categories from subject
+		// Link genres from subject
 		if meta.Subject != "" {
-			catNames := strings.Split(meta.Subject, ",")
-			cats, err := findOrCreateCategories(r, catNames, userID)
+			genreNames := strings.Split(meta.Subject, ",")
+			genres, err := findOrCreateGenres(r, genreNames, userID)
 			if err == nil {
-				_ = linkBookCategories(r, bookID, cats)
+				_ = linkBookGenres(r, bookID, genres)
 			}
 		}
 	}

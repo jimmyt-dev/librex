@@ -12,15 +12,24 @@
   import MoonIcon from '@lucide/svelte/icons/moon';
   import MonitorIcon from '@lucide/svelte/icons/monitor';
   import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+  import FolderOpenIcon from '@lucide/svelte/icons/folder-open';
+  import FolderIcon from '@lucide/svelte/icons/folder';
+  import XIcon from '@lucide/svelte/icons/x';
+  import FolderPicker from '$lib/components/folder-picker.svelte';
+  import * as Dialog from '$lib/components/ui/dialog';
+  import { buttonVariants } from '$lib/components/ui/button';
 
   const DEFAULT_PATTERN = '{authors}/{title}{ext}';
 
   let pattern = $state('');
   let writeMetadata = $state(false);
+  let bookdropPath = $state('');
+  let folderDialogOpen = $state(false);
   let saving = $state(false);
   let dirty = $derived(
     pattern !== (settingsState.settings?.fileNamingPattern ?? DEFAULT_PATTERN) ||
-      writeMetadata !== (settingsState.settings?.writeMetadataToFile ?? false)
+      writeMetadata !== (settingsState.settings?.writeMetadataToFile ?? false) ||
+      bookdropPath !== (settingsState.settings?.bookdropPath ?? '')
   );
 
   // Example data for live preview
@@ -119,6 +128,7 @@
     settingsState.fetch().then(() => {
       pattern = settingsState.settings?.fileNamingPattern ?? DEFAULT_PATTERN;
       writeMetadata = settingsState.settings?.writeMetadataToFile ?? false;
+      bookdropPath = settingsState.settings?.bookdropPath ?? '';
     });
   });
 
@@ -126,7 +136,8 @@
     saving = true;
     const ok = await settingsState.update({
       fileNamingPattern: pattern,
-      writeMetadataToFile: writeMetadata
+      writeMetadataToFile: writeMetadata,
+      bookdropPath: bookdropPath
     });
     if (ok) {
       toast.success('Settings saved.');
@@ -144,6 +155,51 @@
 </script>
 
 <div class="mx-auto flex max-w-2xl flex-col gap-8 p-6">
+  <!-- Bookdrop -->
+  <section>
+    <h2 class="text-lg font-semibold">Bookdrop</h2>
+    <p class="mt-1 text-sm text-muted-foreground">
+      The default folder scanned when you open the Bookdrop page.
+    </p>
+    <div class="mt-4 flex flex-col gap-3">
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-medium">Bookdrop Folder</label>
+        <Button
+          type="button"
+          variant="outline"
+          class="w-full justify-start gap-2 font-normal {!bookdropPath ? 'text-muted-foreground' : ''}"
+          onclick={() => (folderDialogOpen = true)}
+        >
+          {#if bookdropPath}
+            <FolderOpenIcon class="size-4 shrink-0" />
+            <span class="truncate">{bookdropPath}</span>
+            <button
+              type="button"
+              class="ml-auto text-muted-foreground hover:text-foreground"
+              onclick={(e) => { e.stopPropagation(); bookdropPath = ''; }}
+            >
+              <XIcon class="size-3" />
+            </button>
+          {:else}
+            <FolderIcon class="size-4 shrink-0" />
+            Select folder...
+          {/if}
+        </Button>
+      </div>
+      <div class="flex justify-end">
+        <Button
+          onclick={saveSettings}
+          disabled={saving || bookdropPath === (settingsState.settings?.bookdropPath ?? '')}
+          size="sm"
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </Button>
+      </div>
+    </div>
+  </section>
+
+  <Separator />
+
   <!-- File Organization -->
   <section>
     <h2 class="text-lg font-semibold">File Organization</h2>
@@ -264,3 +320,20 @@
     </p>
   </section>
 </div>
+
+<Dialog.Root bind:open={folderDialogOpen}>
+  <Dialog.Content class="sm:max-w-2xl">
+    <Dialog.Header>
+      <Dialog.Title>Select Bookdrop Folder</Dialog.Title>
+      <Dialog.Description>Choose the folder to scan for new books.</Dialog.Description>
+    </Dialog.Header>
+    <FolderPicker bind:value={bookdropPath} />
+    <Dialog.Footer>
+      <Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cancel</Dialog.Close>
+      <Button onclick={() => (folderDialogOpen = false)} disabled={!bookdropPath}>
+        <FolderOpenIcon class="size-4" />
+        Select Folder
+      </Button>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>

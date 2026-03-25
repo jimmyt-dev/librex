@@ -50,8 +50,8 @@ export const authors = pgTable(
   (t) => [unique().on(t.name, t.userId)]
 );
 
-export const categories = pgTable(
-  'categories',
+export const genres = pgTable(
+  'genres',
   {
     id: uuid('id').defaultRandom().primaryKey(),
     name: text('name').notNull(),
@@ -105,6 +105,8 @@ export const bookMetadata = pgTable('book_metadata', {
   pageCount: integer('page_count'),
   seriesName: text('series_name'),
   seriesNumber: real('series_number'),
+  seriesTotal: integer('series_total'),
+  rating: integer('rating'),
   coverPath: text('cover_path'),
   coverMime: text('cover_mime')
 });
@@ -124,17 +126,17 @@ export const bookAuthors = pgTable(
   (t) => [primaryKey({ columns: [t.bookId, t.authorId] })]
 );
 
-export const bookCategories = pgTable(
-  'book_categories',
+export const bookGenres = pgTable(
+  'book_genres',
   {
     bookId: uuid('book_id')
       .notNull()
       .references(() => books.id, { onDelete: 'cascade' }),
-    categoryId: uuid('category_id')
+    genreId: uuid('genre_id')
       .notNull()
-      .references(() => categories.id, { onDelete: 'cascade' })
+      .references(() => genres.id, { onDelete: 'cascade' })
   },
-  (t) => [primaryKey({ columns: [t.bookId, t.categoryId] })]
+  (t) => [primaryKey({ columns: [t.bookId, t.genreId] })]
 );
 
 export const bookTags = pgTable(
@@ -205,6 +207,7 @@ export const readingSessions = pgTable('reading_sessions', {
 export const stagedBooks = pgTable('staged_books', {
   id: uuid('id').defaultRandom().primaryKey(),
   title: text('title').notNull(),
+  subtitle: text('subtitle'),
   author: text('author'),
   subject: text('subject'),
   description: text('description'),
@@ -218,6 +221,12 @@ export const stagedBooks = pgTable('staged_books', {
   language: text('language'),
   relation: text('relation'),
   coverage: text('coverage'),
+  seriesName: text('series_name'),
+  seriesNumber: real('series_number'),
+  seriesTotal: integer('series_total'),
+  pageCount: integer('page_count'),
+  rating: integer('rating'),
+  tags: text('tags'),
   coverImage: bytea('cover_image'),
   coverMime: text('cover_mime'),
   fileName: text('file_name').notNull(),
@@ -237,7 +246,8 @@ export const userSettings = pgTable('user_settings', {
     .unique()
     .references(() => user.id, { onDelete: 'cascade' }),
   fileNamingPattern: text('file_naming_pattern').notNull().default('{authors}/{title}{ext}'),
-  writeMetadataToFile: boolean('write_metadata_to_file').notNull().default(false)
+  writeMetadataToFile: boolean('write_metadata_to_file').notNull().default(false),
+  bookdropPath: text('bookdrop_path')
 });
 
 export * from './auth.schema';

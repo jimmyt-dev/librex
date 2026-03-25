@@ -17,15 +17,15 @@ func GetSettings(w http.ResponseWriter, r *http.Request) {
 
 	var s models.UserSettings
 	err := db.DB.QueryRow(r.Context(),
-		`SELECT id, user_id, file_naming_pattern, write_metadata_to_file FROM user_settings WHERE user_id = $1`,
-		userID).Scan(&s.ID, &s.UserID, &s.FileNamingPattern, &s.WriteMetadataToFile)
+		`SELECT id, user_id, file_naming_pattern, write_metadata_to_file, bookdrop_path FROM user_settings WHERE user_id = $1`,
+		userID).Scan(&s.ID, &s.UserID, &s.FileNamingPattern, &s.WriteMetadataToFile, &s.BookdropPath)
 	if err != nil {
 		// Auto-create default settings
 		err = db.DB.QueryRow(r.Context(),
 			`INSERT INTO user_settings (user_id, file_naming_pattern, write_metadata_to_file)
 			VALUES ($1, $2, false)
-			RETURNING id, user_id, file_naming_pattern, write_metadata_to_file`,
-			userID, defaultFileNamingPattern).Scan(&s.ID, &s.UserID, &s.FileNamingPattern, &s.WriteMetadataToFile)
+			RETURNING id, user_id, file_naming_pattern, write_metadata_to_file, bookdrop_path`,
+			userID, defaultFileNamingPattern).Scan(&s.ID, &s.UserID, &s.FileNamingPattern, &s.WriteMetadataToFile, &s.BookdropPath)
 		if err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
@@ -39,6 +39,7 @@ func GetSettings(w http.ResponseWriter, r *http.Request) {
 type settingsUpdate struct {
 	FileNamingPattern   *string `json:"fileNamingPattern"`
 	WriteMetadataToFile *bool   `json:"writeMetadataToFile"`
+	BookdropPath        *string `json:"bookdropPath"`
 }
 
 // UpdateSettings updates the user's settings.
@@ -57,8 +58,8 @@ func UpdateSettings(w http.ResponseWriter, r *http.Request) {
 		`INSERT INTO user_settings (user_id, file_naming_pattern, write_metadata_to_file)
 		VALUES ($1, $2, false)
 		ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
-		RETURNING id, user_id, file_naming_pattern, write_metadata_to_file`,
-		userID, defaultFileNamingPattern).Scan(&s.ID, &s.UserID, &s.FileNamingPattern, &s.WriteMetadataToFile)
+		RETURNING id, user_id, file_naming_pattern, write_metadata_to_file, bookdrop_path`,
+		userID, defaultFileNamingPattern).Scan(&s.ID, &s.UserID, &s.FileNamingPattern, &s.WriteMetadataToFile, &s.BookdropPath)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
@@ -70,10 +71,17 @@ func UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	if body.WriteMetadataToFile != nil {
 		s.WriteMetadataToFile = *body.WriteMetadataToFile
 	}
+	if body.BookdropPath != nil {
+		if *body.BookdropPath == "" {
+			s.BookdropPath = nil
+		} else {
+			s.BookdropPath = body.BookdropPath
+		}
+	}
 
 	_, err = db.DB.Exec(r.Context(),
-		`UPDATE user_settings SET file_naming_pattern = $1, write_metadata_to_file = $2 WHERE id = $3`,
-		s.FileNamingPattern, s.WriteMetadataToFile, s.ID)
+		`UPDATE user_settings SET file_naming_pattern = $1, write_metadata_to_file = $2, bookdrop_path = $3 WHERE id = $4`,
+		s.FileNamingPattern, s.WriteMetadataToFile, s.BookdropPath, s.ID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return

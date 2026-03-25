@@ -77,13 +77,13 @@ func main() {
 		r.Get("/{id}/books", handlers.ListAuthorBooks)
 	})
 
-	r.Route("/api/categories", func(r chi.Router) {
-		r.Get("/", handlers.ListCategories)
-		r.Post("/", handlers.CreateCategory)
-		r.Get("/{id}", handlers.GetCategory)
-		r.Put("/{id}", handlers.UpdateCategory)
-		r.Delete("/{id}", handlers.DeleteCategory)
-		r.Get("/{id}/books", handlers.ListCategoryBooks)
+	r.Route("/api/genres", func(r chi.Router) {
+		r.Get("/", handlers.ListGenres)
+		r.Post("/", handlers.CreateGenre)
+		r.Get("/{id}", handlers.GetGenre)
+		r.Put("/{id}", handlers.UpdateGenre)
+		r.Delete("/{id}", handlers.DeleteGenre)
+		r.Get("/{id}/books", handlers.ListGenreBooks)
 	})
 
 	r.Route("/api/tags", func(r chi.Router) {
@@ -94,6 +94,8 @@ func main() {
 		r.Delete("/{id}", handlers.DeleteTag)
 		r.Get("/{id}/books", handlers.ListTagBooks)
 	})
+
+	r.Post("/api/books/bulk-update", handlers.BulkUpdateBooks)
 
 	r.Get("/api/series", handlers.ListSeries)
 

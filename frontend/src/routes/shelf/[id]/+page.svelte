@@ -2,7 +2,10 @@
   import { headerState } from '$lib/state/header.svelte';
   import { page } from '$app/state';
   import { shelvesState } from '$lib/api/shelves.svelte';
+  import { viewSettings } from '$lib/state/view-settings.svelte';
   import BookCard from '$lib/components/book-card.svelte';
+  import BookTable from '$lib/components/book-table.svelte';
+  import BookViewControls from '$lib/components/book-view-controls.svelte';
   import SelectionToolbar from '$lib/components/selection-toolbar.svelte';
   import { SvelteSet } from 'svelte/reactivity';
 
@@ -13,6 +16,7 @@
       : shelvesState.items.find((s) => s.id === shelfId)
   );
   let books = $derived(shelvesState.get(shelfId));
+  let sortedBooks = $derived(viewSettings.sort(books));
 
   let isLoading = $state(false);
   let errorMsg = $state<string | null>(null);
@@ -83,16 +87,28 @@
       </p>
     </div>
   {:else}
-    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
-      {#each books as book (book.id)}
-        <BookCard
-          {book}
-          selected={selectedIds.has(book.id)}
-          selectMode={selectedIds.size > 0}
-          onselect={toggleSelect}
-        />
-      {/each}
+    <div class="flex justify-end">
+      <BookViewControls />
     </div>
+    {#if viewSettings.mode === 'grid'}
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+        {#each sortedBooks as book (book.id)}
+          <BookCard
+            {book}
+            selected={selectedIds.has(book.id)}
+            selectMode={selectedIds.size > 0}
+            onselect={toggleSelect}
+          />
+        {/each}
+      </div>
+    {:else}
+      <BookTable
+        books={sortedBooks}
+        {selectedIds}
+        selectMode={selectedIds.size > 0}
+        onselect={toggleSelect}
+      />
+    {/if}
   {/if}
 </div>
 

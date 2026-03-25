@@ -19,7 +19,7 @@ import (
 const bookCols = `b.id, b.library_id, b.user_id, b.file_path, b.added_on,
 	m.title, m.subtitle, m.description, m.publisher, m.published_date,
 	m.isbn_13, m.isbn_10, m.language, m.page_count,
-	m.series_name, m.series_number, m.cover_path, m.cover_mime`
+	m.series_name, m.series_number, m.series_total, m.rating, m.cover_path, m.cover_mime`
 
 func scanBook(scan func(dest ...any) error) (models.Book, error) {
 	var b models.Book
@@ -28,13 +28,13 @@ func scanBook(scan func(dest ...any) error) (models.Book, error) {
 		&b.Metadata.Title, &b.Metadata.Subtitle, &b.Metadata.Description,
 		&b.Metadata.Publisher, &b.Metadata.PublishedDate,
 		&b.Metadata.ISBN13, &b.Metadata.ISBN10, &b.Metadata.Language, &b.Metadata.PageCount,
-		&b.Metadata.SeriesName, &b.Metadata.SeriesNumber,
+		&b.Metadata.SeriesName, &b.Metadata.SeriesNumber, &b.Metadata.SeriesTotal, &b.Metadata.Rating,
 		&b.Metadata.CoverPath, &b.Metadata.CoverMime,
 	)
 	if err == nil {
 		b.Metadata.BookID = b.ID
 		b.Authors = []models.Author{}
-		b.Categories = []models.Category{}
+		b.Genres = []models.Genre{}
 		b.Tags = []models.Tag{}
 	}
 	return b, err
@@ -180,13 +180,15 @@ type metadataUpdate struct {
 	PageCount     *int     `json:"pageCount"`
 	SeriesName    string   `json:"seriesName"`
 	SeriesNumber  *float64 `json:"seriesNumber"`
+	SeriesTotal   *int     `json:"seriesTotal"`
+	Rating        *int     `json:"rating"`
 }
 
 type bookUpdate struct {
-	Metadata   *metadataUpdate `json:"metadata"`
-	Authors    *[]string       `json:"authors"`
-	Categories *[]string       `json:"categories"`
-	Tags       *[]string       `json:"tags"`
+	Metadata *metadataUpdate `json:"metadata"`
+	Authors  *[]string       `json:"authors"`
+	Genres   *[]string       `json:"genres"`
+	Tags     *[]string       `json:"tags"`
 }
 
 // UpdateBook updates the metadata and relations of a book.
@@ -215,12 +217,12 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 			`UPDATE book_metadata SET
 				title=$1, subtitle=$2, description=$3, publisher=$4, published_date=$5,
 				isbn_13=$6, isbn_10=$7, language=$8, page_count=$9,
-				series_name=$10, series_number=$11
-			WHERE book_id = $12`,
+				series_name=$10, series_number=$11, series_total=$12, rating=$13
+			WHERE book_id = $14`,
 			m.Title, nilIfEmpty(m.Subtitle),
 			nilIfEmpty(m.Description), nilIfEmpty(m.Publisher), nilIfEmpty(m.PublishedDate),
 			nilIfEmpty(m.ISBN13), nilIfEmpty(m.ISBN10), nilIfEmpty(m.Language), m.PageCount,
-			nilIfEmpty(m.SeriesName), m.SeriesNumber,
+			nilIfEmpty(m.SeriesName), m.SeriesNumber, m.SeriesTotal, m.Rating,
 			id)
 		if err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
@@ -242,18 +244,18 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 		existing.Authors = authors
 	}
 
-	// Update categories
-	if body.Categories != nil {
-		cats, err := findOrCreateCategories(r, *body.Categories, userID)
+	// Update genres
+	if body.Genres != nil {
+		genres, err := findOrCreateGenres(r, *body.Genres, userID)
 		if err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		if err := linkBookCategories(r, id, cats); err != nil {
+		if err := linkBookGenres(r, id, genres); err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		existing.Categories = cats
+		existing.Genres = genres
 	}
 
 	// Update tags
@@ -271,7 +273,7 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Refetch relations if not explicitly updated
-	if body.Authors == nil || body.Categories == nil || body.Tags == nil {
+	if body.Authors == nil || body.Genres == nil || body.Tags == nil {
 		books := []models.Book{existing}
 		if err := attachBookRelations(r, books); err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
@@ -290,9 +292,9 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 		for i, a := range existing.Authors {
 			authorNames[i] = a.Name
 		}
-		catNames := make([]string, len(existing.Categories))
-		for i, c := range existing.Categories {
-			catNames[i] = c.Name
+		genreNames := make([]string, len(existing.Genres))
+		for i, g := range existing.Genres {
+			genreNames[i] = g.Name
 		}
 		wm := metadata.WriteMeta{
 			Title:       existing.Metadata.Title,
@@ -301,7 +303,7 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 			Publisher:   ptrStr(existing.Metadata.Publisher),
 			Date:        ptrStr(existing.Metadata.PublishedDate),
 			Language:    ptrStr(existing.Metadata.Language),
-			Subject:     strings.Join(catNames, ", "),
+			Subject:     strings.Join(genreNames, ", "),
 		}
 		// Best-effort: don't fail the request if file write fails
 		_ = metadata.Write(existing.FilePath, wm)
@@ -450,7 +452,7 @@ func ListSeries(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(series)
 }
 
-// attachBookRelations populates Authors, Categories, and Tags on a slice of books.
+// attachBookRelations populates Authors, Genres, and Tags on a slice of books.
 func attachBookRelations(r *http.Request, books []models.Book) error {
 	if len(books) == 0 {
 		return nil
@@ -458,14 +460,14 @@ func attachBookRelations(r *http.Request, books []models.Book) error {
 	if err := attachAuthors(r, books); err != nil {
 		return err
 	}
-	if err := attachCategories(r, books); err != nil {
+	if err := attachGenres(r, books); err != nil {
 		return err
 	}
 	return attachTags(r, books)
 }
 
-// attachCategories populates the Categories field on a slice of books.
-func attachCategories(r *http.Request, books []models.Book) error {
+// attachGenres populates the Genres field on a slice of books.
+func attachGenres(r *http.Request, books []models.Book) error {
 	if len(books) == 0 {
 		return nil
 	}
@@ -476,29 +478,29 @@ func attachCategories(r *http.Request, books []models.Book) error {
 	}
 
 	rows, err := db.DB.Query(r.Context(),
-		`SELECT bc.book_id, c.id, c.name, c.user_id
-		FROM book_categories bc
-		JOIN categories c ON c.id = bc.category_id
-		WHERE bc.book_id = ANY($1)
-		ORDER BY c.name`, ids)
+		`SELECT bg.book_id, g.id, g.name, g.user_id
+		FROM book_genres bg
+		JOIN genres g ON g.id = bg.genre_id
+		WHERE bg.book_id = ANY($1)
+		ORDER BY g.name`, ids)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 
-	byBook := map[string][]models.Category{}
+	byBook := map[string][]models.Genre{}
 	for rows.Next() {
 		var bookID string
-		var c models.Category
-		if err := rows.Scan(&bookID, &c.ID, &c.Name, &c.UserID); err != nil {
+		var g models.Genre
+		if err := rows.Scan(&bookID, &g.ID, &g.Name, &g.UserID); err != nil {
 			return err
 		}
-		byBook[bookID] = append(byBook[bookID], c)
+		byBook[bookID] = append(byBook[bookID], g)
 	}
 
 	for i := range books {
-		if cats, ok := byBook[books[i].ID]; ok {
-			books[i].Categories = cats
+		if genres, ok := byBook[books[i].ID]; ok {
+			books[i].Genres = genres
 		}
 	}
 	return nil
@@ -544,38 +546,38 @@ func attachTags(r *http.Request, books []models.Book) error {
 	return nil
 }
 
-// findOrCreateCategories takes a list of category names and returns their records.
-func findOrCreateCategories(r *http.Request, names []string, userID string) ([]models.Category, error) {
-	cats := make([]models.Category, 0, len(names))
+// findOrCreateGenres takes a list of genre names and returns their records.
+func findOrCreateGenres(r *http.Request, names []string, userID string) ([]models.Genre, error) {
+	result := make([]models.Genre, 0, len(names))
 	for _, name := range names {
 		name = trimStr(name)
 		if name == "" {
 			continue
 		}
-		var c models.Category
+		var g models.Genre
 		err := db.DB.QueryRow(r.Context(),
-			`INSERT INTO categories (name, user_id) VALUES ($1, $2)
+			`INSERT INTO genres (name, user_id) VALUES ($1, $2)
 			ON CONFLICT (name, user_id) DO UPDATE SET name = EXCLUDED.name
 			RETURNING id, name, user_id`,
-			name, userID).Scan(&c.ID, &c.Name, &c.UserID)
+			name, userID).Scan(&g.ID, &g.Name, &g.UserID)
 		if err != nil {
 			return nil, err
 		}
-		cats = append(cats, c)
+		result = append(result, g)
 	}
-	return cats, nil
+	return result, nil
 }
 
-// linkBookCategories replaces all category associations for a book.
-func linkBookCategories(r *http.Request, bookID string, cats []models.Category) error {
-	_, err := db.DB.Exec(r.Context(), "DELETE FROM book_categories WHERE book_id = $1", bookID)
+// linkBookGenres replaces all genre associations for a book.
+func linkBookGenres(r *http.Request, bookID string, genres []models.Genre) error {
+	_, err := db.DB.Exec(r.Context(), "DELETE FROM book_genres WHERE book_id = $1", bookID)
 	if err != nil {
 		return err
 	}
-	for _, c := range cats {
+	for _, g := range genres {
 		_, err := db.DB.Exec(r.Context(),
-			"INSERT INTO book_categories (book_id, category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-			bookID, c.ID)
+			"INSERT INTO book_genres (book_id, genre_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+			bookID, g.ID)
 		if err != nil {
 			return err
 		}
@@ -764,6 +766,265 @@ func MoveBooks(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(results)
+}
+
+type bulkUpdateBody struct {
+	BookIDs []string `json:"bookIds"`
+	// Metadata fields — nil means "don't change"
+	SeriesName  *string  `json:"seriesName"`
+	Publisher   *string  `json:"publisher"`
+	Language    *string  `json:"language"`
+	SeriesTotal *int     `json:"seriesTotal"`
+	Rating      *int     `json:"rating"`
+	// Array fields with mode
+	Authors     *[]string `json:"authors"`
+	AuthorsMode string    `json:"authorsMode"` // "replace" or "merge"
+	Genres      *[]string `json:"genres"`
+	GenresMode  string    `json:"genresMode"`
+	Tags        *[]string `json:"tags"`
+	TagsMode    string    `json:"tagsMode"`
+}
+
+// BulkUpdateBooks updates metadata across multiple books at once.
+// POST /api/books/bulk-update
+func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+
+	var body bulkUpdateBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.BookIDs) == 0 {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Pre-resolve array values once
+	var newAuthors []models.Author
+	var newGenres []models.Genre
+	var newTags []models.Tag
+	var err error
+
+	if body.Authors != nil {
+		newAuthors, err = findOrCreateAuthors(r, *body.Authors, userID)
+		if err != nil {
+			http.Error(w, "db error", http.StatusInternalServerError)
+			return
+		}
+	}
+	if body.Genres != nil {
+		newGenres, err = findOrCreateGenres(r, *body.Genres, userID)
+		if err != nil {
+			http.Error(w, "db error", http.StatusInternalServerError)
+			return
+		}
+	}
+	if body.Tags != nil {
+		newTags, err = findOrCreateTags(r, *body.Tags, userID)
+		if err != nil {
+			http.Error(w, "db error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	type result struct {
+		BookID string `json:"bookId"`
+		Error  string `json:"error,omitempty"`
+	}
+	results := make([]result, 0, len(body.BookIDs))
+
+	for _, bookID := range body.BookIDs {
+		res := result{BookID: bookID}
+
+		// Verify ownership
+		var exists bool
+		if err := db.DB.QueryRow(r.Context(),
+			"SELECT EXISTS(SELECT 1 FROM books WHERE id = $1 AND user_id = $2)",
+			bookID, userID).Scan(&exists); err != nil || !exists {
+			res.Error = "book not found"
+			results = append(results, res)
+			continue
+		}
+
+		// Update scalar metadata fields
+		if body.SeriesName != nil || body.Publisher != nil || body.Language != nil || body.SeriesTotal != nil || body.Rating != nil {
+			_, err := db.DB.Exec(r.Context(),
+				`UPDATE book_metadata SET
+					series_name  = COALESCE($1, series_name),
+					publisher    = COALESCE($2, publisher),
+					language     = COALESCE($3, language),
+					series_total = COALESCE($4, series_total),
+					rating       = COALESCE($5, rating)
+				WHERE book_id = $6`,
+				nilIfEmptyPtr(body.SeriesName), nilIfEmptyPtr(body.Publisher), nilIfEmptyPtr(body.Language),
+				body.SeriesTotal, body.Rating,
+				bookID)
+			if err != nil {
+				res.Error = "db error"
+				results = append(results, res)
+				continue
+			}
+		}
+
+		// Authors
+		if body.Authors != nil {
+			var finalAuthors []models.Author
+			if body.AuthorsMode == "merge" {
+				existing, _ := getBookAuthors(r, bookID)
+				finalAuthors = mergeAuthors(existing, newAuthors)
+			} else {
+				finalAuthors = newAuthors
+			}
+			if err := linkBookAuthors(r, bookID, finalAuthors); err != nil {
+				res.Error = "db error"
+				results = append(results, res)
+				continue
+			}
+		}
+
+		// Genres
+		if body.Genres != nil {
+			var finalGenres []models.Genre
+			if body.GenresMode == "merge" {
+				existing, _ := getBookGenres(r, bookID)
+				finalGenres = mergeGenres(existing, newGenres)
+			} else {
+				finalGenres = newGenres
+			}
+			if err := linkBookGenres(r, bookID, finalGenres); err != nil {
+				res.Error = "db error"
+				results = append(results, res)
+				continue
+			}
+		}
+
+		// Tags
+		if body.Tags != nil {
+			var finalTags []models.Tag
+			if body.TagsMode == "merge" {
+				existing, _ := getBookTags(r, bookID)
+				finalTags = mergeTags(existing, newTags)
+			} else {
+				finalTags = newTags
+			}
+			if err := linkBookTags(r, bookID, finalTags); err != nil {
+				res.Error = "db error"
+				results = append(results, res)
+				continue
+			}
+		}
+
+		results = append(results, res)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
+func nilIfEmptyPtr(s *string) *string {
+	if s == nil || *s == "" {
+		return nil
+	}
+	return s
+}
+
+func getBookAuthors(r *http.Request, bookID string) ([]models.Author, error) {
+	rows, err := db.DB.Query(r.Context(),
+		`SELECT a.id, a.name, a.user_id FROM authors a JOIN book_authors ba ON ba.author_id = a.id WHERE ba.book_id = $1`,
+		bookID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []models.Author
+	for rows.Next() {
+		var a models.Author
+		if err := rows.Scan(&a.ID, &a.Name, &a.UserID); err != nil {
+			return nil, err
+		}
+		result = append(result, a)
+	}
+	return result, nil
+}
+
+func getBookGenres(r *http.Request, bookID string) ([]models.Genre, error) {
+	rows, err := db.DB.Query(r.Context(),
+		`SELECT g.id, g.name, g.user_id FROM genres g JOIN book_genres bg ON bg.genre_id = g.id WHERE bg.book_id = $1`,
+		bookID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []models.Genre
+	for rows.Next() {
+		var g models.Genre
+		if err := rows.Scan(&g.ID, &g.Name, &g.UserID); err != nil {
+			return nil, err
+		}
+		result = append(result, g)
+	}
+	return result, nil
+}
+
+func getBookTags(r *http.Request, bookID string) ([]models.Tag, error) {
+	rows, err := db.DB.Query(r.Context(),
+		`SELECT t.id, t.name, t.user_id FROM tags t JOIN book_tags bt ON bt.tag_id = t.id WHERE bt.book_id = $1`,
+		bookID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []models.Tag
+	for rows.Next() {
+		var t models.Tag
+		if err := rows.Scan(&t.ID, &t.Name, &t.UserID); err != nil {
+			return nil, err
+		}
+		result = append(result, t)
+	}
+	return result, nil
+}
+
+func mergeAuthors(existing, incoming []models.Author) []models.Author {
+	seen := map[string]bool{}
+	result := make([]models.Author, 0, len(existing)+len(incoming))
+	for _, a := range existing {
+		seen[a.ID] = true
+		result = append(result, a)
+	}
+	for _, a := range incoming {
+		if !seen[a.ID] {
+			result = append(result, a)
+		}
+	}
+	return result
+}
+
+func mergeGenres(existing, incoming []models.Genre) []models.Genre {
+	seen := map[string]bool{}
+	result := make([]models.Genre, 0, len(existing)+len(incoming))
+	for _, g := range existing {
+		seen[g.ID] = true
+		result = append(result, g)
+	}
+	for _, g := range incoming {
+		if !seen[g.ID] {
+			result = append(result, g)
+		}
+	}
+	return result
+}
+
+func mergeTags(existing, incoming []models.Tag) []models.Tag {
+	seen := map[string]bool{}
+	result := make([]models.Tag, 0, len(existing)+len(incoming))
+	for _, t := range existing {
+		seen[t.ID] = true
+		result = append(result, t)
+	}
+	for _, t := range incoming {
+		if !seen[t.ID] {
+			result = append(result, t)
+		}
+	}
+	return result
 }
 
 func trimStr(s string) string {

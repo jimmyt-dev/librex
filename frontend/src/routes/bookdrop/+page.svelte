@@ -4,6 +4,12 @@
   headerState.title = 'Bookdrop';
   headerState.subtitle = null;
   headerState.counts = [];
+  import { apiFetch } from '$lib/api/client';
+  import {
+    fetchAuthorSuggestions,
+    fetchGenreSuggestions,
+    fetchTagSuggestions
+  } from '$lib/api/suggestions';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { librariesState } from '$lib/api/libraries.svelte';
@@ -14,10 +20,14 @@
   import RotateCW from '@lucide/svelte/icons/rotate-cw';
   import { Spinner } from '$lib/components/ui/spinner';
   import { Checkbox } from '$lib/components/ui/checkbox';
+  import TagInput from '$lib/components/tag-input.svelte';
+  import ArrayField from '$lib/components/array-field.svelte';
+  import StarRating from '$lib/components/star-rating.svelte';
 
   interface StagedBook {
     id: string;
     title: string;
+    subtitle: string | null;
     author: string | null;
     subject: string | null;
     description: string | null;
@@ -31,6 +41,12 @@
     language: string | null;
     relation: string | null;
     coverage: string | null;
+    seriesName: string | null;
+    seriesNumber: number | null;
+    seriesTotal: number | null;
+    pageCount: number | null;
+    rating: number | null;
+    tags: string | null;
     hasCover: boolean;
     fileName: string;
     ext: string;
@@ -40,6 +56,18 @@
 
   function coverUrl(id: string) {
     return `/api/bookdrop/staged/${id}/cover`;
+  }
+
+  function subjectToTags(subject: string | null): string[] {
+    if (!subject) return [];
+    return subject
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  function tagsToSubject(tags: string[]): string {
+    return tags.join(', ');
   }
 
   let stagedBooks = $state<StagedBook[]>([]);
@@ -55,14 +83,20 @@
   let sheetOpen = $state(false);
   let editingBook = $state<StagedBook | null>(null);
   let editTitle = $state('');
-  let editAuthor = $state('');
-  let editSubject = $state('');
+  let editSubtitle = $state('');
+  let editAuthors = $state<string[]>([]);
+  let editGenres = $state<string[]>([]);
+  let editTags = $state<string[]>([]);
   let editDescription = $state('');
   let editPublisher = $state('');
-  let editContributor = $state('');
   let editDate = $state('');
   let editIdentifier = $state('');
   let editLanguage = $state('');
+  let editSeriesName = $state('');
+  let editSeriesNumber = $state('');
+  let editSeriesTotal = $state('');
+  let editPageCount = $state('');
+  let editRating = $state('');
   let isSaving = $state(false);
 
   // Per-book library selection
@@ -90,23 +124,17 @@
     isImporting = true;
     errorMsg = null;
     try {
-      const res = await fetch('/api/bookdrop/import', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(items)
-      });
-      if (!res.ok) throw new Error('Import request failed');
-
-      const results: { stagedBookId: string; error?: string }[] = await res.json();
+      const results: { stagedBookId: string; error?: string }[] = await apiFetch(
+        '/api/bookdrop/import',
+        { method: 'POST', body: JSON.stringify(items) }
+      );
 
       const succeeded = new Set(results.filter((r) => !r.error).map((r) => r.stagedBookId));
       const failed = results.filter((r) => r.error);
 
-      // Remove successfully imported books from local state
       stagedBooks = stagedBooks.filter((b) => !succeeded.has(b.id));
       selectedIds = new SvelteSet([...selectedIds].filter((id) => !succeeded.has(id)));
 
-      // Refresh affected libraries (counts + book lists)
       const affectedLibraries = new Set(
         items.filter((i) => succeeded.has(i.stagedBookId)).map((i) => i.libraryId)
       );
@@ -138,7 +166,16 @@
 
   // Bulk edit sheet
   let bulkSheetOpen = $state(false);
-  let bulkAuthor = $state('');
+  let bulkSeriesName = $state('');
+  let bulkPublisher = $state('');
+  let bulkLanguage = $state('');
+  let bulkSeriesTotal = $state('');
+  let bulkAuthors = $state<string[]>([]);
+  let bulkAuthorsMode = $state<'replace' | 'merge'>('merge');
+  let bulkGenres = $state<string[]>([]);
+  let bulkGenresMode = $state<'replace' | 'merge'>('merge');
+  let bulkTags = $state<string[]>([]);
+  let bulkTagsMode = $state<'replace' | 'merge'>('merge');
   let isBulkSaving = $state(false);
 
   // Bulk add to library
@@ -153,26 +190,71 @@
 
   function openBulkEdit() {
     sheetOpen = false;
-    bulkAuthor = '';
+    bulkSeriesName = '';
+    bulkPublisher = '';
+    bulkLanguage = '';
+    bulkSeriesTotal = '';
+    bulkAuthors = [];
+    bulkAuthorsMode = 'merge';
+    bulkGenres = [];
+    bulkGenresMode = 'merge';
+    bulkTags = [];
+    bulkTagsMode = 'merge';
     selectedLibraryId = '';
     bulkSheetOpen = true;
+  }
+
+  function bulkHasChanges() {
+    return (
+      bulkSeriesName.trim() !== '' ||
+      bulkPublisher.trim() !== '' ||
+      bulkLanguage.trim() !== '' ||
+      bulkSeriesTotal !== '' ||
+      bulkAuthors.length > 0 ||
+      bulkGenres.length > 0 ||
+      bulkTags.length > 0 ||
+      !!selectedLibraryId
+    );
   }
 
   async function saveBulkEdit() {
     isBulkSaving = true;
     try {
-      if (bulkAuthor.trim()) {
-        const items = [...selectedIds].map((id) => ({ id, author: bulkAuthor }));
-        const res = await fetch('/api/bookdrop/staged', {
+      const hasFieldUpdate =
+        bulkSeriesName.trim() ||
+        bulkPublisher.trim() ||
+        bulkLanguage.trim() ||
+        bulkSeriesTotal !== '' ||
+        bulkAuthors.length > 0 ||
+        bulkGenres.length > 0 ||
+        bulkTags.length > 0;
+
+      if (hasFieldUpdate) {
+        const payload: Record<string, unknown> = { ids: [...selectedIds] };
+        if (bulkSeriesName.trim()) payload.seriesName = bulkSeriesName.trim();
+        if (bulkPublisher.trim()) payload.publisher = bulkPublisher.trim();
+        if (bulkLanguage.trim()) payload.language = bulkLanguage.trim();
+        if (bulkSeriesTotal !== '') payload.seriesTotal = parseInt(bulkSeriesTotal);
+        if (bulkAuthors.length > 0) {
+          payload.authors = bulkAuthors;
+          payload.authorsMode = bulkAuthorsMode;
+        }
+        if (bulkGenres.length > 0) {
+          payload.genres = bulkGenres;
+          payload.genresMode = bulkGenresMode;
+        }
+        if (bulkTags.length > 0) {
+          payload.tags = bulkTags;
+          payload.tagsMode = bulkTagsMode;
+        }
+
+        stagedBooks = await apiFetch('/api/bookdrop/staged', {
           method: 'PUT',
-          headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(items)
+          body: JSON.stringify(payload)
         });
-        if (!res.ok) throw new Error('Bulk update failed');
-        stagedBooks = await res.json();
       }
+
       if (selectedLibraryId) {
-        // Assign the chosen library to all selected books then import
         for (const id of selectedIds) bookLibraryMap.set(id, selectedLibraryId);
         bookLibraryMap = new SvelteMap(bookLibraryMap);
         await handleAddAllToLibraries();
@@ -186,19 +268,11 @@
     }
   }
 
-  function getToken() {
-    return localStorage.getItem('bearer_token') || '';
-  }
-
   async function loadStaged() {
     isLoading = true;
     errorMsg = null;
     try {
-      const res = await fetch('/api/bookdrop/staged', {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
-      if (!res.ok) throw new Error('Failed to load staged books');
-      stagedBooks = await res.json();
+      stagedBooks = await apiFetch('/api/bookdrop/staged');
     } catch (err: unknown) {
       errorMsg = err instanceof Error ? err.message : 'Failed to load staged books.';
     } finally {
@@ -210,12 +284,7 @@
     isScanning = true;
     errorMsg = null;
     try {
-      const res = await fetch('/api/bookdrop/scan', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
-      if (!res.ok) throw new Error('Failed to scan bookdrop');
-      stagedBooks = await res.json();
+      stagedBooks = await apiFetch('/api/bookdrop/scan', { method: 'POST' });
     } catch (err: unknown) {
       errorMsg = err instanceof Error ? err.message : 'An error occurred while scanning.';
     } finally {
@@ -244,14 +313,20 @@
   function openEdit(book: StagedBook) {
     editingBook = book;
     editTitle = book.title;
-    editAuthor = book.author ?? '';
-    editSubject = book.subject ?? '';
+    editSubtitle = book.subtitle ?? '';
+    editAuthors = subjectToTags(book.author);
+    editGenres = subjectToTags(book.subject);
+    editTags = subjectToTags(book.tags);
     editDescription = book.description ?? '';
     editPublisher = book.publisher ?? '';
-    editContributor = book.contributor ?? '';
     editDate = book.date ?? '';
     editIdentifier = book.identifier ?? '';
     editLanguage = book.language ?? '';
+    editSeriesName = book.seriesName ?? '';
+    editSeriesNumber = book.seriesNumber?.toString() ?? '';
+    editSeriesTotal = book.seriesTotal?.toString() ?? '';
+    editPageCount = book.pageCount?.toString() ?? '';
+    editRating = book.rating?.toString() ?? '';
     sheetOpen = true;
   }
 
@@ -259,26 +334,26 @@
     if (!editingBook) return;
     isSaving = true;
     try {
-      const res = await fetch(`/api/bookdrop/staged/${editingBook.id}`, {
+      const updated: StagedBook = await apiFetch(`/api/bookdrop/staged/${editingBook.id}`, {
         method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({
           title: editTitle,
-          author: editAuthor || null,
-          subject: editSubject || null,
+          subtitle: editSubtitle || null,
+          author: editAuthors.length > 0 ? tagsToSubject(editAuthors) : null,
+          subject: editGenres.length > 0 ? tagsToSubject(editGenres) : null,
+          tags: editTags.length > 0 ? tagsToSubject(editTags) : null,
           description: editDescription || null,
           publisher: editPublisher || null,
-          contributor: editContributor || null,
           date: editDate || null,
           identifier: editIdentifier || null,
-          language: editLanguage || null
+          language: editLanguage || null,
+          seriesName: editSeriesName || null,
+          seriesNumber: editSeriesNumber ? parseFloat(editSeriesNumber) : null,
+          seriesTotal: editSeriesTotal ? parseInt(editSeriesTotal) : null,
+          pageCount: editPageCount ? parseInt(editPageCount) : null,
+          rating: editRating ? parseInt(editRating) : null
         })
       });
-      if (!res.ok) throw new Error('Failed to save');
-      const updated: StagedBook = await res.json();
       stagedBooks = stagedBooks.map((b) => (b.id === updated.id ? updated : b));
       sheetOpen = false;
     } catch {
@@ -289,15 +364,14 @@
   }
 
   async function handleDelete(id: string) {
-    const res = await fetch(`/api/bookdrop/staged/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${getToken()}` }
-    });
-    if (res.ok) {
+    try {
+      await apiFetch(`/api/bookdrop/staged/${id}`, { method: 'DELETE' });
       stagedBooks = stagedBooks.filter((b) => b.id !== id);
       selectedIds.delete(id);
       selectedIds = new SvelteSet(selectedIds);
       if (editingBook?.id === id) sheetOpen = false;
+    } catch {
+      // silently ignore
     }
   }
 
@@ -305,10 +379,9 @@
     const ids = [...selectedIds];
     const results = await Promise.all(
       ids.map((id) =>
-        fetch(`/api/bookdrop/staged/${id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${getToken()}` }
-        }).then((r) => (r.ok ? id : null))
+        apiFetch(`/api/bookdrop/staged/${id}`, { method: 'DELETE' })
+          .then(() => id)
+          .catch(() => null)
       )
     );
     const deleted = new Set(results.filter((id) => id !== null));
@@ -355,7 +428,7 @@
       <Button size="sm" onclick={openBulkEdit}>Bulk Edit</Button>
       <div class="flex">
         <Select.Root type="single" bind:value={selectedLibraryId}>
-          <Select.Trigger class="w- h-8">
+          <Select.Trigger class="h-8">
             {selectedLibraryTitle}
           </Select.Trigger>
           <Select.Content>
@@ -487,12 +560,21 @@
   {/if}
 </div>
 
-<!-- Bulk edit sheet (bottom) -->
+<!-- Bulk edit sheet -->
 <Sheet.Root
   bind:open={bulkSheetOpen}
   onOpenChange={(o) => {
     if (!o) {
-      bulkAuthor = '';
+      bulkSeriesName = '';
+      bulkPublisher = '';
+      bulkLanguage = '';
+      bulkSeriesTotal = '';
+      bulkAuthors = [];
+      bulkAuthorsMode = 'merge';
+      bulkGenres = [];
+      bulkGenresMode = 'merge';
+      bulkTags = [];
+      bulkTagsMode = 'merge';
       selectedLibraryId = '';
       isBulkSaving = false;
     }
@@ -500,7 +582,7 @@
 >
   <Sheet.Portal>
     <Sheet.Overlay />
-    <Sheet.Content side="bottom" class="mx-auto max-w-2xl">
+    <Sheet.Content side="right" class="w-96 overflow-y-auto">
       <Sheet.Header>
         <Sheet.Title>Bulk Edit</Sheet.Title>
         <Sheet.Description class="text-xs text-muted-foreground">
@@ -508,13 +590,42 @@
           keep existing values.
         </Sheet.Description>
       </Sheet.Header>
-      <div class="grid grid-cols-2 gap-4 px-4 py-6">
+      <div class="flex flex-col gap-4 px-4 py-6">
+        <!-- Text fields -->
+        <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Text Fields</p>
         <div class="flex flex-col gap-1.5">
-          <label for="bulk-author" class="text-sm font-medium">Author</label>
-          <Input id="bulk-author" bind:value={bulkAuthor} placeholder="Set author for all…" />
+          <label for="bulk-series" class="text-sm font-medium">Series Name</label>
+          <Input id="bulk-series" bind:value={bulkSeriesName} placeholder="Leave empty to skip" />
         </div>
         <div class="flex flex-col gap-1.5">
-          <label class="text-sm font-medium" for="bulk-library">Add to Library</label>
+          <label for="bulk-publisher" class="text-sm font-medium">Publisher</label>
+          <Input id="bulk-publisher" bind:value={bulkPublisher} placeholder="Leave empty to skip" />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label for="bulk-language" class="text-sm font-medium">Language</label>
+          <Input id="bulk-language" bind:value={bulkLanguage} placeholder="e.g. en" />
+        </div>
+
+        <!-- Number fields -->
+        <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Number Fields</p>
+        <div class="flex flex-col gap-1.5">
+          <label for="bulk-series-total" class="text-sm font-medium">Series Total</label>
+          <Input id="bulk-series-total" type="number" bind:value={bulkSeriesTotal} placeholder="—" />
+        </div>
+
+        <div class="h-px bg-border"></div>
+
+        <!-- Array fields -->
+        <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Array Fields</p>
+
+        <ArrayField label="Authors" bind:values={bulkAuthors} bind:mode={bulkAuthorsMode} placeholder="Type and press Enter to add each item." fetchSuggestions={fetchAuthorSuggestions} />
+        <ArrayField label="Genres" bind:values={bulkGenres} bind:mode={bulkGenresMode} placeholder="Type and press Enter to add each item." fetchSuggestions={fetchGenreSuggestions} />
+        <ArrayField label="Tags" bind:values={bulkTags} bind:mode={bulkTagsMode} placeholder="Type and press Enter to add each item." fetchSuggestions={fetchTagSuggestions} />
+
+        <div class="h-px bg-border"></div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-medium" for="bulk-library">Add to Library &amp; Import</label>
           <Select.Root name="bulk-library" type="single" bind:value={selectedLibraryId}>
             <Select.Trigger>
               {selectedLibraryTitle}
@@ -525,6 +636,9 @@
               {/each}
             </Select.Content>
           </Select.Root>
+          <p class="text-xs text-muted-foreground">
+            Selecting a library will import all selected books immediately after saving.
+          </p>
         </div>
       </div>
       <Sheet.Footer>
@@ -533,10 +647,7 @@
             <Button variant="outline" {...props}>Cancel</Button>
           {/snippet}
         </Sheet.Close>
-        <Button
-          onclick={saveBulkEdit}
-          disabled={isBulkSaving || (!bulkAuthor.trim() && !selectedLibraryId)}
-        >
+        <Button onclick={saveBulkEdit} disabled={isBulkSaving || !bulkHasChanges()}>
           {isBulkSaving ? 'Saving…' : 'Apply'}
         </Button>
       </Sheet.Footer>
@@ -551,21 +662,27 @@
     if (!o) {
       editingBook = null;
       editTitle = '';
-      editAuthor = '';
-      editSubject = '';
+      editSubtitle = '';
+      editAuthors = [];
+      editGenres = [];
+      editTags = [];
       editDescription = '';
       editPublisher = '';
-      editContributor = '';
       editDate = '';
       editIdentifier = '';
       editLanguage = '';
+      editSeriesName = '';
+      editSeriesNumber = '';
+      editSeriesTotal = '';
+      editPageCount = '';
+      editRating = '';
       isSaving = false;
     }
   }}
 >
   <Sheet.Portal>
     <Sheet.Overlay />
-    <Sheet.Content side="right" class="w-96">
+    <Sheet.Content side="right" class="w-96 overflow-y-auto">
       {#if editingBook}
         <Sheet.Header>
           <Sheet.Title>Edit Book</Sheet.Title>
@@ -586,12 +703,12 @@
             <Input id="edit-title" bind:value={editTitle} />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="edit-author" class="text-sm font-medium">Author</label>
-            <Input id="edit-author" bind:value={editAuthor} placeholder="Unknown" />
+            <label for="edit-subtitle" class="text-sm font-medium">Subtitle</label>
+            <Input id="edit-subtitle" bind:value={editSubtitle} />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="edit-subject" class="text-sm font-medium">Subject</label>
-            <Input id="edit-subject" bind:value={editSubject} placeholder="Genre / topics" />
+            <label class="text-sm font-medium">Authors</label>
+            <TagInput bind:values={editAuthors} placeholder="Add author…" fetchSuggestions={fetchAuthorSuggestions} />
           </div>
           <div class="flex flex-col gap-1.5">
             <label for="edit-description" class="text-sm font-medium">Description</label>
@@ -601,14 +718,10 @@
             <label for="edit-publisher" class="text-sm font-medium">Publisher</label>
             <Input id="edit-publisher" bind:value={editPublisher} />
           </div>
-          <div class="flex flex-col gap-1.5">
-            <label for="edit-contributor" class="text-sm font-medium">Contributor</label>
-            <Input id="edit-contributor" bind:value={editContributor} />
-          </div>
           <div class="grid grid-cols-2 gap-4">
             <div class="flex flex-col gap-1.5">
-              <label for="edit-date" class="text-sm font-medium">Date</label>
-              <Input id="edit-date" bind:value={editDate} placeholder="YYYY or YYYY-MM-DD" />
+              <label for="edit-date" class="text-sm font-medium">Published Date</label>
+              <Input id="edit-date" bind:value={editDate} placeholder="YYYY" />
             </div>
             <div class="flex flex-col gap-1.5">
               <label for="edit-language" class="text-sm font-medium">Language</label>
@@ -616,8 +729,37 @@
             </div>
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="edit-identifier" class="text-sm font-medium">Identifier (ISBN)</label>
+            <label for="edit-identifier" class="text-sm font-medium">ISBN</label>
             <Input id="edit-identifier" bind:value={editIdentifier} />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label for="edit-page-count" class="text-sm font-medium">Page Count</label>
+            <Input id="edit-page-count" type="number" bind:value={editPageCount} />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-medium">Series</label>
+            <div class="grid grid-cols-[1fr_4rem] gap-2">
+              <Input bind:value={editSeriesName} placeholder="Series name" />
+              <Input type="number" bind:value={editSeriesNumber} placeholder="#" />
+            </div>
+            <div class="grid grid-cols-2 gap-2 mt-1">
+              <div class="flex flex-col gap-1">
+                <label class="text-xs text-muted-foreground">Total Books</label>
+                <Input type="number" bind:value={editSeriesTotal} placeholder="Total" />
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-medium">Rating</label>
+            <StarRating bind:value={editRating} />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-medium">Genres</label>
+            <TagInput bind:values={editGenres} placeholder="Add genre…" fetchSuggestions={fetchGenreSuggestions} />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-medium">Tags</label>
+            <TagInput bind:values={editTags} placeholder="Add tag…" fetchSuggestions={fetchTagSuggestions} />
           </div>
         </div>
         <Sheet.Footer>

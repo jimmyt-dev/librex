@@ -9,10 +9,12 @@
   import XIcon from '@lucide/svelte/icons/x';
   import LibraryBigIcon from '@lucide/svelte/icons/library-big';
   import FolderSyncIcon from '@lucide/svelte/icons/folder-sync';
+  import PencilIcon from '@lucide/svelte/icons/pencil';
   import { toast } from 'svelte-sonner';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import SquareCheckBig from '@lucide/svelte/icons/square-check-big';
   import { Checkbox } from '$lib/components/ui/checkbox';
+  import BookBulkEditSheet from '$lib/components/book-bulk-edit-sheet.svelte';
 
   let {
     selectedIds,
@@ -30,6 +32,7 @@
   let deleteFile = $state(false);
   let deleting = $state(false);
   let moving = $state(false);
+  let bulkEditOpen = $state(false);
 
   let count = $derived(selectedIds.size);
 
@@ -158,6 +161,21 @@
         </Tooltip.Root>
       </Tooltip.Provider>
 
+      <!-- Bulk Edit -->
+      <Tooltip.Provider delayDuration={400}>
+        <Tooltip.Root>
+          <Tooltip.Trigger
+            class={buttonVariants({ variant: 'outline', size: 'icon' })}
+            onclick={() => (bulkEditOpen = true)}
+          >
+            <PencilIcon class="size-4" />
+          </Tooltip.Trigger>
+          <Tooltip.Portal>
+            <Tooltip.Content>Bulk Edit</Tooltip.Content>
+          </Tooltip.Portal>
+        </Tooltip.Root>
+      </Tooltip.Provider>
+
       <!-- Move to Naming Pattern -->
       <Tooltip.Provider delayDuration={400}>
         <Tooltip.Root>
@@ -194,6 +212,8 @@
     <div></div>
   </div>
 {/if}
+
+<BookBulkEditSheet bind:open={bulkEditOpen} {selectedIds} {books} />
 
 <AlertDialog.Root
   bind:open={deleteOpen}

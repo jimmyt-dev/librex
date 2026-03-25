@@ -1,3 +1,4 @@
+import { apiFetch } from './client';
 import type { Book } from './books.svelte';
 
 export type Shelf = {
@@ -7,22 +8,15 @@ export type Shelf = {
   books: number;
 };
 
-function getToken() {
-  return localStorage.getItem('bearer_token') || '';
-}
-
 class ShelvesState {
   items = $state<Shelf[]>([]);
   unshelvedCount = $state(0);
   private byShelf = $state<Record<string, Book[]>>({});
 
   fetchAll = async () => {
-    const res = await fetch('/api/shelves', {
-      headers: { Authorization: `Bearer ${getToken()}` }
-    });
-    if (res.ok) {
+    try {
       const dbItems: { id: string; name: string; icon: string | null; books: number }[] =
-        await res.json();
+        await apiFetch('/api/shelves');
 
       this.items = dbItems.map((s) => ({
         id: s.id,
@@ -30,18 +24,19 @@ class ShelvesState {
         icon: s.icon ?? undefined,
         books: s.books
       }));
+      
+      await this.fetchUnshelvedCount();
+    } catch (e) {
+      console.error('Failed to fetch shelves', e);
     }
-
-    await this.fetchUnshelvedCount();
   };
 
   fetchUnshelvedCount = async () => {
-    const res = await fetch('/api/shelves/unshelved', {
-      headers: { Authorization: `Bearer ${getToken()}` }
-    });
-    if (res.ok) {
-      const books: Book[] = await res.json();
+    try {
+      const books: Book[] = await apiFetch('/api/shelves/unshelved');
       this.unshelvedCount = books.length;
+    } catch (e) {
+      console.error('Failed to fetch unshelved count', e);
     }
   };
 
@@ -56,12 +51,11 @@ class ShelvesState {
   async fetchBooksForShelf(shelfId: string): Promise<void> {
     const url =
       shelfId === 'unshelved' ? '/api/shelves/unshelved' : `/api/shelves/${shelfId}/books`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${getToken()}` }
-    });
-    if (res.ok) {
-      const books: Book[] = await res.json();
+    try {
+      const books: Book[] = await apiFetch(url);
       this.byShelf = { ...this.byShelf, [shelfId]: books };
+    } catch (e) {
+      console.error(`Failed to fetch books for shelf ${shelfId}`, e);
     }
   }
 
@@ -78,18 +72,10 @@ class ShelvesState {
   }
 
   create = async (name: string, icon?: string) => {
-    const res = await fetch('/api/shelves', {
+    await apiFetch('/api/shelves', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${getToken()}`,
-        'Content-Type': 'application/json'
-      },
       body: JSON.stringify({ name, icon: icon ?? null })
     });
-    if (!res.ok) {
-      const msg = await res.text();
-      throw new Error(msg || 'Failed to create shelf');
-    }
     await this.fetchAll();
   };
 
@@ -97,44 +83,29 @@ class ShelvesState {
     if (id === 'unshelved') return;
 
     this.items = this.items.filter((s) => s.id !== id);
-
-    const res = await fetch(`/api/shelves/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${getToken()}` }
-    });
-
-    if (!res.ok) {
-      const msg = await res.text();
+    try {
+      await apiFetch(`/api/shelves/${id}`, { method: 'DELETE' });
+    } catch (e) {
       await this.fetchAll();
-      throw new Error(msg || 'Failed to delete shelf');
+      throw e;
     }
   };
 
   addBooks = async (shelfId: string, bookIds: string[]) => {
-    const res = await fetch(`/api/shelves/${shelfId}/books`, {
+    await apiFetch(`/api/shelves/${shelfId}/books`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${getToken()}`,
-        'Content-Type': 'application/json'
-      },
       body: JSON.stringify({ bookIds })
     });
-    if (!res.ok) throw new Error('Failed to add books to shelf');
     this.invalidate(shelfId);
     this.invalidate('unshelved');
     await this.fetchAll();
   };
 
   removeBooks = async (shelfId: string, bookIds: string[]) => {
-    const res = await fetch(`/api/shelves/${shelfId}/books`, {
+    await apiFetch(`/api/shelves/${shelfId}/books`, {
       method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${getToken()}`,
-        'Content-Type': 'application/json'
-      },
       body: JSON.stringify({ bookIds })
     });
-    if (!res.ok) throw new Error('Failed to remove books from shelf');
     this.invalidate(shelfId);
     this.invalidate('unshelved');
     await this.fetchAll();

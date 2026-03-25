@@ -117,7 +117,7 @@ func resolveSegment(segment string, vars map[string]string) (string, bool) {
 }
 
 // buildPatternData constructs PatternData from staged book fields.
-func buildPatternData(title string, author *string, date *string, publisher *string, language *string, ext string) PatternData {
+func buildPatternData(title string, author *string, date *string, publisher *string, language *string, seriesName *string, seriesNumber *float64, ext string) PatternData {
 	d := PatternData{
 		Authors: "Unknown",
 		Title:   title,
@@ -137,6 +137,12 @@ func buildPatternData(title string, author *string, date *string, publisher *str
 	}
 	if language != nil && *language != "" {
 		d.Language = *language
+	}
+	if seriesName != nil && *seriesName != "" {
+		d.Series = *seriesName
+	}
+	if seriesNumber != nil && *seriesNumber != 0 {
+		d.SeriesIndex = formatSeriesIndex(*seriesNumber)
 	}
 	return d
 }

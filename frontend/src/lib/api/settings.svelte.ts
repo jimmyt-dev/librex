@@ -1,13 +1,12 @@
+import { apiFetch } from './client';
+
 export type UserSettings = {
   id: string;
   userId: string;
   fileNamingPattern: string;
   writeMetadataToFile: boolean;
+  bookdropPath: string | null;
 };
-
-function getToken() {
-  return localStorage.getItem('bearer_token') || '';
-}
 
 class SettingsState {
   settings = $state<UserSettings | null>(null);
@@ -16,31 +15,29 @@ class SettingsState {
   async fetch(): Promise<void> {
     this.loading = true;
     try {
-      const res = await fetch('/api/settings', {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
-      if (res.ok) {
-        this.settings = await res.json();
-      }
+      this.settings = await apiFetch('/api/settings');
+    } catch (e) {
+      console.error('Failed to fetch settings', e);
     } finally {
       this.loading = false;
     }
   }
 
-  async update(data: { fileNamingPattern?: string; writeMetadataToFile?: boolean }): Promise<boolean> {
-    const res = await fetch('/api/settings', {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${getToken()}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(data)
-    });
-    if (res.ok) {
-      this.settings = await res.json();
+  async update(data: {
+    fileNamingPattern?: string;
+    writeMetadataToFile?: boolean;
+    bookdropPath?: string;
+  }): Promise<boolean> {
+    try {
+      this.settings = await apiFetch('/api/settings', {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      });
       return true;
+    } catch (e) {
+      console.error('Failed to update settings', e);
+      return false;
     }
-    return false;
   }
 }
 

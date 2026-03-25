@@ -88,6 +88,15 @@
     </button>
   {/if}
 
+  <!-- Series Number Badge -->
+  {#if book.metadata.seriesNumber}
+    <div
+      class="absolute top-1.5 right-1.5 z-10 rounded-full bg-muted px-2 py-0.5 text-xs font-medium"
+    >
+      {book.metadata.seriesNumber}
+    </div>
+  {/if}
+
   <div
     class="focus-none flex flex-col overflow-hidden rounded-md border bg-card text-card-foreground shadow-sm transition-all"
     class:ring-2={selected}

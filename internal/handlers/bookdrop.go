@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -36,18 +37,20 @@ func nilIfEmpty(s string) *string {
 
 // stagedBookCols selects all fields for list/get responses.
 // cover_image is excluded; cover_image IS NOT NULL is used to set has_cover.
-const stagedBookCols = `id, title, author, subject, description, publisher, contributor,
+const stagedBookCols = `id, title, subtitle, author, subject, description, publisher, contributor,
 	date, type, format, identifier, source, language, relation, coverage,
+	series_name, series_number, series_total, page_count, rating, tags,
 	cover_image IS NOT NULL AS has_cover,
 	file_name, ext, original_path, user_id`
 
 func scanStagedBook(scan func(dest ...any) error) (models.StagedBook, error) {
 	var b models.StagedBook
 	err := scan(
-		&b.ID, &b.Title, &b.Author,
+		&b.ID, &b.Title, &b.Subtitle, &b.Author,
 		&b.Subject, &b.Description, &b.Publisher, &b.Contributor,
 		&b.Date, &b.Type, &b.Format, &b.Identifier,
 		&b.Source, &b.Language, &b.Relation, &b.Coverage,
+		&b.SeriesName, &b.SeriesNumber, &b.SeriesTotal, &b.PageCount, &b.Rating, &b.Tags,
 		&b.HasCover,
 		&b.FileName, &b.Ext, &b.OriginalPath, &b.UserID,
 	)
@@ -60,7 +63,17 @@ func ScanBookdrop(w http.ResponseWriter, r *http.Request) {
 
 	targetDir := r.URL.Query().Get("path")
 	if targetDir == "" {
-		targetDir = "/Users/jimmy/Documents/Code Shit/reliquary/data/bookdrop"
+		// Fall back to the user's saved bookdrop path
+		var saved *string
+		_ = db.DB.QueryRow(r.Context(),
+			"SELECT bookdrop_path FROM user_settings WHERE user_id = $1", userID).Scan(&saved)
+		if saved != nil && *saved != "" {
+			targetDir = *saved
+		}
+	}
+	if targetDir == "" {
+		http.Error(w, "no bookdrop path configured", http.StatusBadRequest)
+		return
 	}
 
 	cleanedDir := filepath.Clean(targetDir)
@@ -76,24 +89,39 @@ func ScanBookdrop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entries, err := os.ReadDir(cleanedDir)
+	type bookFile struct {
+		name         string
+		originalPath string
+	}
+	var files []bookFile
+	err = filepath.WalkDir(cleanedDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil // skip unreadable entries
+		}
+		if d.IsDir() {
+			if strings.HasPrefix(d.Name(), ".") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasPrefix(d.Name(), ".") {
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(d.Name()))
+		if validBookExts[ext] {
+			files = append(files, bookFile{name: d.Name(), originalPath: path})
+		}
+		return nil
+	})
 	if err != nil {
 		http.Error(w, "failed to read bookdrop directory", http.StatusInternalServerError)
 		return
 	}
 
-	for _, entry := range entries {
-		if entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
-			continue
-		}
-
-		ext := strings.ToLower(filepath.Ext(entry.Name()))
-		if !validBookExts[ext] {
-			continue
-		}
-
-		baseName := entry.Name()
-		originalPath := filepath.Join(cleanedDir, baseName)
+	for _, f := range files {
+		baseName := f.name
+		originalPath := f.originalPath
+		ext := strings.ToLower(filepath.Ext(baseName))
 
 		var count int
 		if err := db.DB.QueryRow(r.Context(),
@@ -215,20 +243,27 @@ func GetStagedBookCover(w http.ResponseWriter, r *http.Request) {
 }
 
 type stagedBookUpdate struct {
-	Title       *string `json:"title"`
-	Author      *string `json:"author"`
-	Subject     *string `json:"subject"`
-	Description *string `json:"description"`
-	Publisher   *string `json:"publisher"`
-	Contributor *string `json:"contributor"`
-	Date        *string `json:"date"`
-	Type        *string `json:"type"`
-	Format      *string `json:"format"`
-	Identifier  *string `json:"identifier"`
-	Source      *string `json:"source"`
-	Language    *string `json:"language"`
-	Relation    *string `json:"relation"`
-	Coverage    *string `json:"coverage"`
+	Title        *string  `json:"title"`
+	Subtitle     *string  `json:"subtitle"`
+	Author       *string  `json:"author"`
+	Subject      *string  `json:"subject"`
+	Description  *string  `json:"description"`
+	Publisher    *string  `json:"publisher"`
+	Contributor  *string  `json:"contributor"`
+	Date         *string  `json:"date"`
+	Type         *string  `json:"type"`
+	Format       *string  `json:"format"`
+	Identifier   *string  `json:"identifier"`
+	Source       *string  `json:"source"`
+	Language     *string  `json:"language"`
+	Relation     *string  `json:"relation"`
+	Coverage     *string  `json:"coverage"`
+	SeriesName   *string  `json:"seriesName"`
+	SeriesNumber *float64 `json:"seriesNumber"`
+	SeriesTotal  *int     `json:"seriesTotal"`
+	PageCount    *int     `json:"pageCount"`
+	Rating       *int     `json:"rating"`
+	Tags         *string  `json:"tags"`
 }
 
 // UpdateStagedBook updates the editable metadata of a staged book.
@@ -253,6 +288,9 @@ func UpdateStagedBook(w http.ResponseWriter, r *http.Request) {
 
 	if body.Title != nil {
 		existing.Title = *body.Title
+	}
+	if body.Subtitle != nil {
+		existing.Subtitle = body.Subtitle
 	}
 	if body.Author != nil {
 		existing.Author = body.Author
@@ -293,17 +331,39 @@ func UpdateStagedBook(w http.ResponseWriter, r *http.Request) {
 	if body.Coverage != nil {
 		existing.Coverage = body.Coverage
 	}
+	if body.SeriesName != nil {
+		existing.SeriesName = body.SeriesName
+	}
+	if body.SeriesNumber != nil {
+		existing.SeriesNumber = body.SeriesNumber
+	}
+	if body.SeriesTotal != nil {
+		existing.SeriesTotal = body.SeriesTotal
+	}
+	if body.PageCount != nil {
+		existing.PageCount = body.PageCount
+	}
+	if body.Rating != nil {
+		existing.Rating = body.Rating
+	}
+	if body.Tags != nil {
+		existing.Tags = body.Tags
+	}
 
 	_, err = db.DB.Exec(r.Context(),
 		`UPDATE staged_books SET
-			title=$1, author=$2, subject=$3, description=$4, publisher=$5, contributor=$6,
-			date=$7, type=$8, format=$9, identifier=$10, source=$11, language=$12,
-			relation=$13, coverage=$14
-		WHERE id = $15 AND user_id = $16`,
-		existing.Title, existing.Author,
+			title=$1, subtitle=$2, author=$3, subject=$4, description=$5, publisher=$6,
+			contributor=$7, date=$8, type=$9, format=$10, identifier=$11, source=$12,
+			language=$13, relation=$14, coverage=$15,
+			series_name=$16, series_number=$17, series_total=$18, page_count=$19, rating=$20,
+			tags=$21
+		WHERE id = $22 AND user_id = $23`,
+		existing.Title, existing.Subtitle, existing.Author,
 		existing.Subject, existing.Description, existing.Publisher, existing.Contributor,
 		existing.Date, existing.Type, existing.Format, existing.Identifier,
 		existing.Source, existing.Language, existing.Relation, existing.Coverage,
+		existing.SeriesName, existing.SeriesNumber, existing.SeriesTotal, existing.PageCount, existing.Rating,
+		existing.Tags,
 		id, userID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
@@ -314,18 +374,26 @@ func UpdateStagedBook(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(existing)
 }
 
-type bulkUpdateItem struct {
-	ID     string  `json:"id"`
-	Title  *string `json:"title"`
-	Author *string `json:"author"`
+type stagedBulkUpdate struct {
+	IDs         []string `json:"ids"`
+	SeriesName  *string  `json:"seriesName"`
+	Publisher   *string  `json:"publisher"`
+	Language    *string  `json:"language"`
+	SeriesTotal *int     `json:"seriesTotal"`
+	Authors     []string `json:"authors"`
+	AuthorsMode string   `json:"authorsMode"` // "replace" or "merge"
+	Genres      []string `json:"genres"`
+	GenresMode  string   `json:"genresMode"`
+	Tags        []string `json:"tags"`
+	TagsMode    string   `json:"tagsMode"`
 }
 
-// BulkUpdateStagedBooks updates multiple staged books at once.
+// BulkUpdateStagedBooks applies the same field(s) to multiple staged books at once.
 func BulkUpdateStagedBooks(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 
-	var items []bulkUpdateItem
-	if err := json.NewDecoder(r.Body).Decode(&items); err != nil {
+	var body stagedBulkUpdate
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.IDs) == 0 {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -337,20 +405,60 @@ func BulkUpdateStagedBooks(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 
-	for _, item := range items {
-		if item.Title != nil && item.Author != nil {
-			_, err = tx.Exec(r.Context(),
-				"UPDATE staged_books SET title = $1, author = $2 WHERE id = $3 AND user_id = $4",
-				*item.Title, *item.Author, item.ID, userID)
-		} else if item.Title != nil {
-			_, err = tx.Exec(r.Context(),
-				"UPDATE staged_books SET title = $1 WHERE id = $2 AND user_id = $3",
-				*item.Title, item.ID, userID)
-		} else if item.Author != nil {
-			_, err = tx.Exec(r.Context(),
-				"UPDATE staged_books SET author = $1 WHERE id = $2 AND user_id = $3",
-				*item.Author, item.ID, userID)
+	for _, id := range body.IDs {
+		// For array fields with merge mode, read existing value first
+		var existingAuthor, existingSubject, existingTags *string
+		if (len(body.Authors) > 0 && body.AuthorsMode == "merge") ||
+			(len(body.Genres) > 0 && body.GenresMode == "merge") ||
+			(len(body.Tags) > 0 && body.TagsMode == "merge") {
+			_ = tx.QueryRow(r.Context(),
+				"SELECT author, subject, tags FROM staged_books WHERE id = $1 AND user_id = $2",
+				id, userID).Scan(&existingAuthor, &existingSubject, &existingTags)
 		}
+
+		var newAuthor, newSubject, newTags *string
+
+		if len(body.Authors) > 0 {
+			if body.AuthorsMode == "merge" {
+				merged := mergeCSV(existingAuthor, body.Authors)
+				newAuthor = &merged
+			} else {
+				joined := strings.Join(body.Authors, ", ")
+				newAuthor = &joined
+			}
+		}
+		if len(body.Genres) > 0 {
+			if body.GenresMode == "merge" {
+				merged := mergeCSV(existingSubject, body.Genres)
+				newSubject = &merged
+			} else {
+				joined := strings.Join(body.Genres, ", ")
+				newSubject = &joined
+			}
+		}
+		if len(body.Tags) > 0 {
+			if body.TagsMode == "merge" {
+				merged := mergeCSV(existingTags, body.Tags)
+				newTags = &merged
+			} else {
+				joined := strings.Join(body.Tags, ", ")
+				newTags = &joined
+			}
+		}
+
+		_, err = tx.Exec(r.Context(),
+			`UPDATE staged_books SET
+				series_name  = COALESCE($1, series_name),
+				publisher    = COALESCE($2, publisher),
+				language     = COALESCE($3, language),
+				series_total = COALESCE($4, series_total),
+				author       = COALESCE($5, author),
+				subject      = COALESCE($6, subject),
+				tags         = COALESCE($7, tags)
+			WHERE id = $8 AND user_id = $9`,
+			body.SeriesName, body.Publisher, body.Language, body.SeriesTotal,
+			newAuthor, newSubject, newTags,
+			id, userID)
 		if err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
@@ -363,6 +471,29 @@ func BulkUpdateStagedBooks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	listStagedBooks(w, r, userID)
+}
+
+// mergeCSV merges incoming strings into an existing comma-separated list, deduplicating.
+func mergeCSV(existing *string, incoming []string) string {
+	seen := map[string]bool{}
+	var result []string
+	if existing != nil && *existing != "" {
+		for _, s := range strings.Split(*existing, ",") {
+			s = strings.TrimSpace(s)
+			if s != "" && !seen[s] {
+				seen[s] = true
+				result = append(result, s)
+			}
+		}
+	}
+	for _, s := range incoming {
+		s = strings.TrimSpace(s)
+		if s != "" && !seen[s] {
+			seen[s] = true
+			result = append(result, s)
+		}
+	}
+	return strings.Join(result, ", ")
 }
 
 // DeleteStagedBook removes a staged book by ID.
@@ -511,7 +642,7 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 
 		// Build destination path using file naming pattern
 		pattern := getEffectivePattern(r, item.LibraryID, userID)
-		patternData := buildPatternData(book.Title, book.Author, book.Date, book.Publisher, book.Language, book.Ext)
+		patternData := buildPatternData(book.Title, book.Author, book.Date, book.Publisher, book.Language, book.SeriesName, book.SeriesNumber, book.Ext)
 		relativePath := resolveFilePattern(pattern, patternData)
 		destPath := uniqueDest(filepath.Join(libraryFolder, relativePath))
 
@@ -563,14 +694,15 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 		// Insert book_metadata row
 		_, err = db.DB.Exec(r.Context(),
 			`INSERT INTO book_metadata (
-				book_id, title, description, publisher, published_date, language,
+				book_id, title, subtitle, description, publisher, published_date, language,
+				series_name, series_number, series_total, page_count, rating,
 				cover_path, cover_mime
-			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-			bookID, book.Title,
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+			bookID, book.Title, book.Subtitle,
 			book.Description, book.Publisher, book.Date, book.Language,
+			book.SeriesName, book.SeriesNumber, book.SeriesTotal, book.PageCount, book.Rating,
 			coverPath, coverMimeVal)
 		if err != nil {
-			// Clean up the books row
 			_, _ = db.DB.Exec(r.Context(), "DELETE FROM books WHERE id = $1", bookID)
 			_ = moveFile(destPath, book.OriginalPath)
 			res.Error = fmt.Sprintf("db error: %v", err)
@@ -587,12 +719,21 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Link categories from subject
+		// Link genres from subject
 		if book.Subject != nil && *book.Subject != "" {
-			catNames := strings.Split(*book.Subject, ",")
-			cats, err := findOrCreateCategories(r, catNames, userID)
+			genreNames := strings.Split(*book.Subject, ",")
+			genres, err := findOrCreateGenres(r, genreNames, userID)
 			if err == nil {
-				_ = linkBookCategories(r, bookID, cats)
+				_ = linkBookGenres(r, bookID, genres)
+			}
+		}
+
+		// Link tags
+		if book.Tags != nil && *book.Tags != "" {
+			tagNames := strings.Split(*book.Tags, ",")
+			tags, err := findOrCreateTags(r, tagNames, userID)
+			if err == nil {
+				_ = linkBookTags(r, bookID, tags)
 			}
 		}
 

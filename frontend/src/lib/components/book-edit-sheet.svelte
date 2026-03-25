@@ -1,4 +1,11 @@
 <script lang="ts">
+  import { apiFetch } from '$lib/api/client';
+  import {
+    fetchAuthorSuggestions,
+    fetchGenreSuggestions,
+    fetchTagSuggestions,
+    fetchSeriesSuggestions
+  } from '$lib/api/suggestions';
   import { bookEditState } from '$lib/state/book-edit.svelte';
   import { booksState } from '$lib/api/books.svelte';
   import { untrack } from 'svelte';
@@ -6,12 +13,8 @@
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import TagInput from '$lib/components/tag-input.svelte';
-
-  function getToken() {
-    return localStorage.getItem('bearer_token') || '';
-  }
-
-  const headers = () => ({ Authorization: `Bearer ${getToken()}` });
+  import StarRating from '$lib/components/star-rating.svelte';
+  import { toast } from 'svelte-sonner';
 
   let editTitle = $state('');
   let editSubtitle = $state('');
@@ -25,7 +28,9 @@
   let editPageCount = $state('');
   let editSeriesName = $state('');
   let editSeriesNumber = $state('');
-  let editCategories = $state<string[]>([]);
+  let editSeriesTotal = $state('');
+  let editRating = $state('');
+  let editGenres = $state<string[]>([]);
   let editTags = $state<string[]>([]);
   let seriesSuggestions = $state<string[]>([]);
   let showSeriesDropdown = $state(false);
@@ -48,7 +53,9 @@
     editPageCount = book.metadata.pageCount?.toString() ?? '';
     editSeriesName = book.metadata.seriesName ?? '';
     editSeriesNumber = book.metadata.seriesNumber?.toString() ?? '';
-    editCategories = book.categories.map((c) => c.name);
+    editSeriesTotal = book.metadata.seriesTotal?.toString() ?? '';
+    editRating = book.metadata.rating?.toString() ?? '';
+    editGenres = book.genres.map((g) => g.name);
     editTags = book.tags.map((t) => t.name);
     seriesSuggestions = [];
     showSeriesDropdown = false;
@@ -61,8 +68,7 @@
         const bookId = bookEditState.book?.id;
         if (!bookId) return;
         // Fetch fresh data from API to avoid stale snapshots
-        fetch(`/api/books/${bookId}`, { headers: headers() })
-          .then((res) => (res.ok ? res.json() : null))
+        apiFetch(`/api/books/${bookId}`)
           .then((fresh) => {
             if (fresh && bookEditState.open) {
               bookEditState.book = fresh;
@@ -74,71 +80,61 @@
     }
   });
 
-  async function fetchAuthorSuggestions(q: string): Promise<string[]> {
-    const res = await fetch(`/api/authors?q=${encodeURIComponent(q)}`, { headers: headers() });
-    if (!res.ok) return [];
-    const data: { name: string }[] = await res.json();
-    return data.map((a) => a.name);
-  }
-
-  async function fetchCategorySuggestions(q: string): Promise<string[]> {
-    const res = await fetch(`/api/categories?q=${encodeURIComponent(q)}`, { headers: headers() });
-    if (!res.ok) return [];
-    const data: { name: string }[] = await res.json();
-    return data.map((c) => c.name);
-  }
-
-  async function fetchTagSuggestions(q: string): Promise<string[]> {
-    const res = await fetch(`/api/tags?q=${encodeURIComponent(q)}`, { headers: headers() });
-    if (!res.ok) return [];
-    const data: { name: string }[] = await res.json();
-    return data.map((t) => t.name);
-  }
-
-  async function fetchSeriesSuggestions(q: string): Promise<string[]> {
-    const res = await fetch(`/api/series?q=${encodeURIComponent(q)}`, { headers: headers() });
-    if (!res.ok) return [];
-    return await res.json();
-  }
-
   async function saveEdit() {
     if (!bookEditState.book) return;
+    const book = bookEditState.book;
+    const originalBook = JSON.parse(JSON.stringify(book));
+    
+    // Construct updated book
+    const updated: any = {
+      ...book,
+      metadata: {
+        ...book.metadata,
+        title: editTitle.trim(),
+        subtitle: editSubtitle.trim(),
+        description: editDescription.trim(),
+        publisher: editPublisher.trim(),
+        publishedDate: editPublishedDate.trim(),
+        isbn13: editISBN13.trim(),
+        isbn10: editISBN10.trim(),
+        language: editLanguage.trim(),
+        pageCount: editPageCount ? parseInt(editPageCount) : null,
+        seriesName: editSeriesName.trim(),
+        seriesNumber: editSeriesNumber ? parseFloat(editSeriesNumber) : null,
+        seriesTotal: editSeriesTotal ? parseInt(editSeriesTotal) : null,
+        rating: editRating ? parseInt(editRating) : null
+      },
+      authors: editAuthors.map(name => ({ id: '', name })), // Placeholder IDs
+      genres: editGenres.map(name => ({ id: '', name })),
+      tags: editTags.map(name => ({ id: '', name }))
+    };
+
+    // Optimistic update
+    booksState.upsert(updated);
+    bookEditState.close();
+    
     isSaving = true;
     errorMsg = null;
     try {
-      const res = await fetch(`/api/books/${bookEditState.book.id}`, {
+      const serverUpdated = await apiFetch(`/api/books/${book.id}`, {
         method: 'PUT',
-        headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          metadata: {
-            title: editTitle.trim(),
-            subtitle: editSubtitle.trim(),
-            description: editDescription.trim(),
-            publisher: editPublisher.trim(),
-            publishedDate: editPublishedDate.trim(),
-            isbn13: editISBN13.trim(),
-            isbn10: editISBN10.trim(),
-            language: editLanguage.trim(),
-            pageCount: editPageCount ? parseInt(editPageCount) : null,
-            seriesName: editSeriesName.trim(),
-            seriesNumber: editSeriesNumber ? parseFloat(editSeriesNumber) : null
-          },
+          metadata: updated.metadata,
           authors: editAuthors,
-          categories: editCategories,
+          genres: editGenres,
           tags: editTags
         })
       });
-      if (!res.ok) throw new Error('Failed to save');
-      const updated = await res.json();
-      booksState.upsert(updated);
-      bookEditState.book = updated;
-      bookEditState.close();
+      booksState.upsert(serverUpdated);
     } catch {
-      errorMsg = 'Failed to save changes.';
+      // Revert
+      booksState.upsert(originalBook);
+      toast.error('Failed to save changes.');
     } finally {
       isSaving = false;
     }
   }
+  export const _isSheet = true;
 </script>
 
 <Sheet.Root bind:open={bookEditState.open}>
@@ -278,13 +274,23 @@
               </div>
               <Input type="number" bind:value={editSeriesNumber} placeholder="#" />
             </div>
+            <div class="grid grid-cols-2 gap-2 mt-1">
+              <div class="flex flex-col gap-1">
+                <label class="text-xs text-muted-foreground">Total Books</label>
+                <Input type="number" bind:value={editSeriesTotal} placeholder="Total" />
+              </div>
+            </div>
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-medium">Categories</label>
+            <label class="text-sm font-medium">Rating</label>
+            <StarRating bind:value={editRating} />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-medium">Genres</label>
             <TagInput
-              bind:values={editCategories}
-              placeholder="Add category..."
-              fetchSuggestions={fetchCategorySuggestions}
+              bind:values={editGenres}
+              placeholder="Add genre..."
+              fetchSuggestions={fetchGenreSuggestions}
             />
           </div>
           <div class="flex flex-col gap-1.5">
