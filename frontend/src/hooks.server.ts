@@ -27,12 +27,7 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers: res.headers });
   }
 
-  let session = null;
-  try {
-    session = await auth.api.getSession({ headers: event.request.headers });
-  } catch {
-    // treat as unauthenticated
-  }
+  const session = await auth.api.getSession({ headers: event.request.headers });
 
   if (session) {
     event.locals.session = session.session;

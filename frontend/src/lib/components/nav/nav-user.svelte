@@ -71,7 +71,8 @@
         class="size-12 hover:bg-sidebar-accent!"
         onclick={async () => {
           await authClient.signOut();
-          window.location.reload();
+          localStorage.removeItem('bearer_token');
+          window.location.href = '/login';
         }}
       >
         <LogOutIcon class="size-4" />

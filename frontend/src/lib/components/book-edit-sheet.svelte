@@ -39,28 +39,31 @@
   let isSaving = $state(false);
   let errorMsg = $state<string | null>(null);
 
-  let dirty = $derived.by(() => {
+  let dirtyFields = $derived.by(() => {
     const b = bookEditState.book;
-    if (!b) return false;
-    return (
-      editTitle !== b.metadata.title ||
-      editSubtitle !== (b.metadata.subtitle ?? '') ||
-      editDescription !== (b.metadata.description ?? '') ||
-      editPublisher !== (b.metadata.publisher ?? '') ||
-      editPublishedDate !== (b.metadata.publishedDate ?? '') ||
-      editISBN13 !== (b.metadata.isbn13 ?? '') ||
-      editISBN10 !== (b.metadata.isbn10 ?? '') ||
-      editLanguage !== (b.metadata.language ?? '') ||
-      editPageCount !== (b.metadata.pageCount?.toString() ?? '') ||
-      editSeriesName !== (b.metadata.seriesName ?? '') ||
-      editSeriesNumber !== (b.metadata.seriesNumber?.toString() ?? '') ||
-      editSeriesTotal !== (b.metadata.seriesTotal?.toString() ?? '') ||
-      editRating !== (b.metadata.rating?.toString() ?? '') ||
-      JSON.stringify(editAuthors) !== JSON.stringify(b.authors.map((a) => a.name)) ||
-      JSON.stringify(editGenres) !== JSON.stringify(b.genres.map((g) => g.name)) ||
-      JSON.stringify(editTags) !== JSON.stringify(b.tags.map((t) => t.name))
-    );
+    if (!b) return {} as Record<string, boolean>;
+    return {
+      title: editTitle !== b.metadata.title,
+      subtitle: editSubtitle !== (b.metadata.subtitle ?? ''),
+      authors: JSON.stringify(editAuthors) !== JSON.stringify(b.authors.map((a) => a.name)),
+      description: editDescription !== (b.metadata.description ?? ''),
+      publisher: editPublisher !== (b.metadata.publisher ?? ''),
+      publishedDate: editPublishedDate !== (b.metadata.publishedDate ?? ''),
+      isbn13: editISBN13 !== (b.metadata.isbn13 ?? ''),
+      isbn10: editISBN10 !== (b.metadata.isbn10 ?? ''),
+      language: editLanguage !== (b.metadata.language ?? ''),
+      pageCount: editPageCount !== (b.metadata.pageCount?.toString() ?? ''),
+      series:
+        editSeriesName !== (b.metadata.seriesName ?? '') ||
+        editSeriesNumber !== (b.metadata.seriesNumber?.toString() ?? '') ||
+        editSeriesTotal !== (b.metadata.seriesTotal?.toString() ?? ''),
+      rating: editRating !== (b.metadata.rating?.toString() ?? ''),
+      genres: JSON.stringify(editGenres) !== JSON.stringify(b.genres.map((g) => g.name)),
+      tags: JSON.stringify(editTags) !== JSON.stringify(b.tags.map((t) => t.name))
+    };
   });
+
+  let dirty = $derived(Object.values(dirtyFields).some(Boolean));
 
   function resetToBook() {
     const book = bookEditState.book;
@@ -108,7 +111,7 @@
     if (!bookEditState.book) return;
     const book = bookEditState.book;
     const originalBook = JSON.parse(JSON.stringify(book));
-    
+
     // Construct updated book
     const updated: any = {
       ...book,
@@ -128,15 +131,15 @@
         seriesTotal: editSeriesTotal ? parseInt(editSeriesTotal) : null,
         rating: editRating ? parseInt(editRating) : null
       },
-      authors: editAuthors.map(name => ({ id: '', name })), // Placeholder IDs
-      genres: editGenres.map(name => ({ id: '', name })),
-      tags: editTags.map(name => ({ id: '', name }))
+      authors: editAuthors.map((name) => ({ id: '', name })), // Placeholder IDs
+      genres: editGenres.map((name) => ({ id: '', name })),
+      tags: editTags.map((name) => ({ id: '', name }))
     };
 
     // Optimistic update
     booksState.upsert(updated);
     bookEditState.close();
-    
+
     isSaving = true;
     errorMsg = null;
     try {
@@ -184,15 +187,27 @@
             <p class="text-sm text-destructive">{errorMsg}</p>
           {/if}
           <div class="flex flex-col gap-1.5">
-            <label for="edit-title" class="text-sm font-medium">Title</label>
+            <label for="edit-title" class="flex items-center gap-1.5 text-sm font-medium">
+              Title{#if dirtyFields.title}<span
+                  class="inline-block size-1.5 rounded-full bg-primary"
+                ></span>{/if}
+            </label>
             <Input id="edit-title" bind:value={editTitle} />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="edit-subtitle" class="text-sm font-medium">Subtitle</label>
+            <label for="edit-subtitle" class="flex items-center gap-1.5 text-sm font-medium">
+              Subtitle{#if dirtyFields.subtitle}<span
+                  class="inline-block size-1.5 rounded-full bg-primary"
+                ></span>{/if}
+            </label>
             <Input id="edit-subtitle" bind:value={editSubtitle} />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-medium">Authors</label>
+            <label class="flex items-center gap-1.5 text-sm font-medium">
+              Authors{#if dirtyFields.authors}<span
+                  class="inline-block size-1.5 rounded-full bg-primary"
+                ></span>{/if}
+            </label>
             <TagInput
               bind:values={editAuthors}
               placeholder="Add author..."
@@ -200,39 +215,71 @@
             />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="edit-description" class="text-sm font-medium">Description</label>
+            <label for="edit-description" class="flex items-center gap-1.5 text-sm font-medium">
+              Description{#if dirtyFields.description}<span
+                  class="inline-block size-1.5 rounded-full bg-primary"
+                ></span>{/if}
+            </label>
             <Input id="edit-description" bind:value={editDescription} placeholder="Synopsis" />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="edit-publisher" class="text-sm font-medium">Publisher</label>
+            <label for="edit-publisher" class="flex items-center gap-1.5 text-sm font-medium">
+              Publisher{#if dirtyFields.publisher}<span
+                  class="inline-block size-1.5 rounded-full bg-primary"
+                ></span>{/if}
+            </label>
             <Input id="edit-publisher" bind:value={editPublisher} />
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div class="flex flex-col gap-1.5">
-              <label for="edit-date" class="text-sm font-medium">Published Date</label>
+              <label for="edit-date" class="flex items-center gap-1.5 text-sm font-medium">
+                Published Date{#if dirtyFields.publishedDate}<span
+                    class="inline-block size-1.5 rounded-full bg-primary"
+                  ></span>{/if}
+              </label>
               <Input id="edit-date" bind:value={editPublishedDate} placeholder="YYYY" />
             </div>
             <div class="flex flex-col gap-1.5">
-              <label for="edit-language" class="text-sm font-medium">Language</label>
+              <label for="edit-language" class="flex items-center gap-1.5 text-sm font-medium">
+                Language{#if dirtyFields.language}<span
+                    class="inline-block size-1.5 rounded-full bg-primary"
+                  ></span>{/if}
+              </label>
               <Input id="edit-language" bind:value={editLanguage} placeholder="en" />
             </div>
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div class="flex flex-col gap-1.5">
-              <label for="edit-isbn13" class="text-sm font-medium">ISBN-13</label>
+              <label for="edit-isbn13" class="flex items-center gap-1.5 text-sm font-medium">
+                ISBN-13{#if dirtyFields.isbn13}<span
+                    class="inline-block size-1.5 rounded-full bg-primary"
+                  ></span>{/if}
+              </label>
               <Input id="edit-isbn13" bind:value={editISBN13} />
             </div>
             <div class="flex flex-col gap-1.5">
-              <label for="edit-isbn10" class="text-sm font-medium">ISBN-10</label>
+              <label for="edit-isbn10" class="flex items-center gap-1.5 text-sm font-medium">
+                ISBN-10{#if dirtyFields.isbn10}<span
+                    class="inline-block size-1.5 rounded-full bg-primary"
+                  ></span>{/if}
+              </label>
               <Input id="edit-isbn10" bind:value={editISBN10} />
             </div>
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="edit-page-count" class="text-sm font-medium">Page Count</label>
+            <label for="edit-page-count" class="flex items-center gap-1.5 text-sm font-medium">
+              Page Count{#if dirtyFields.pageCount}<span
+                  class="inline-block size-1.5 rounded-full bg-primary"
+                ></span>{/if}
+            </label>
             <Input id="edit-page-count" type="number" bind:value={editPageCount} />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-medium">Series</label>
+            <label class="flex items-center gap-1.5 text-sm font-medium">
+              Series{#if dirtyFields.series}<span
+                  class="inline-block size-1.5 rounded-full bg-primary"
+                ></span>{/if}
+            </label>
             <div class="grid grid-cols-[1fr_4rem] gap-2">
               <div class="relative">
                 <Input
@@ -280,10 +327,13 @@
                   <div
                     class="absolute top-full right-0 left-0 z-50 mt-1 max-h-32 overflow-y-auto rounded-lg border bg-popover shadow-md"
                   >
-                    {#each seriesSuggestions as s, i}
+                    {#each seriesSuggestions as s, i (i)}
                       <button
                         type="button"
-                        class="w-full px-2.5 py-1.5 text-left text-sm hover:bg-accent {i === seriesHighlightIndex ? 'bg-accent' : ''}"
+                        class="w-full px-2.5 py-1.5 text-left text-sm hover:bg-accent {i ===
+                        seriesHighlightIndex
+                          ? 'bg-accent'
+                          : ''}"
                         onmousedown={() => {
                           editSeriesName = s;
                           showSeriesDropdown = false;
@@ -298,7 +348,7 @@
               </div>
               <Input type="number" bind:value={editSeriesNumber} placeholder="#" />
             </div>
-            <div class="grid grid-cols-2 gap-2 mt-1">
+            <div class="mt-1 grid grid-cols-2 gap-2">
               <div class="flex flex-col gap-1">
                 <label class="text-xs text-muted-foreground">Total Books</label>
                 <Input type="number" bind:value={editSeriesTotal} placeholder="Total" />
@@ -306,11 +356,19 @@
             </div>
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-medium">Rating</label>
+            <label class="flex items-center gap-1.5 text-sm font-medium">
+              Rating{#if dirtyFields.rating}<span
+                  class="inline-block size-1.5 rounded-full bg-primary"
+                ></span>{/if}
+            </label>
             <StarRating bind:value={editRating} />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-medium">Genres</label>
+            <label class="flex items-center gap-1.5 text-sm font-medium">
+              Genres{#if dirtyFields.genres}<span
+                  class="inline-block size-1.5 rounded-full bg-primary"
+                ></span>{/if}
+            </label>
             <TagInput
               bind:values={editGenres}
               placeholder="Add genre..."
@@ -318,7 +376,10 @@
             />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-medium">Tags</label>
+            <label class="flex items-center gap-1.5 text-sm font-medium">
+              Tags{#if dirtyFields.tags}<span class="inline-block size-1.5 rounded-full bg-primary"
+                ></span>{/if}
+            </label>
             <TagInput
               bind:values={editTags}
               placeholder="Add tag..."
@@ -333,8 +394,9 @@
             {/snippet}
           </Sheet.Close>
           {#if dirty}
-            <Button variant="ghost" size="icon" onclick={resetToBook} title="Revert changes">
+            <Button variant="ghost" onclick={resetToBook}>
               <RotateCcwIcon class="size-4" />
+              Revert
             </Button>
           {/if}
           <Button onclick={saveEdit} disabled={isSaving || !editTitle.trim()}>

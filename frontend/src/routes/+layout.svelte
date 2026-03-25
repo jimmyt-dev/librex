@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { invalidateAll } from '$app/navigation';
+  import { invalidateAll, goto } from '$app/navigation';
+import { authClient } from '$lib/auth-client';
   import favicon from '$lib/assets/favicon.svg';
   import { ModeWatcher } from 'mode-watcher';
   import { Toaster } from '$lib/components/ui/sonner/index.js';
@@ -23,7 +24,15 @@
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
-<svelte:window onpageshow={(e) => { if (e.persisted) invalidateAll(); }} />
+<svelte:window onpageshow={async (e) => {
+  if (!e.persisted) return;
+  const session = await authClient.getSession();
+  if (!session.data?.session) {
+    goto('/login');
+  } else {
+    invalidateAll();
+  }
+}} />
 
 <ModeWatcher />
 <Toaster richColors />

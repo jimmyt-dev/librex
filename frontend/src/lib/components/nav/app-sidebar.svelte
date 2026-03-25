@@ -223,7 +223,8 @@
       <h1
         class="scroll-m-20 overflow-hidden p-2 text-4xl font-extrabold tracking-tight opacity-100 transition-opacity duration-300 group-data-[state=collapsed]:opacity-0 lg:text-5xl"
       >
-        Reliquary
+        <!-- Reliquary -->
+        Librex
       </h1>
     </a>
   </Sidebar.Header>
