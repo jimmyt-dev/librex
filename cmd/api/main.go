@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -118,5 +119,10 @@ func main() {
 		r.Post("/import", handlers.ImportBooks)
 	})
 
-	http.ListenAndServe(":5322", r)
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		port = "5321"
+	}
+	log.Printf("Starting server on :%s", port)
+	http.ListenAndServe(":"+port, r)
 }

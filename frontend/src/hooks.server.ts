@@ -6,7 +6,7 @@ import { auth } from '$lib/server/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 
 const PUBLIC_PATHS = ['/login', '/register', '/api/auth'];
-const API_URL = env.API_URL ?? 'http://localhost:5321';
+const API_URL = env.API_URL ?? `http://localhost:${env.API_PORT ?? '5321'}`;
 
 const handleBetterAuth: Handle = async ({ event, resolve }) => {
   const { pathname } = event.url;
@@ -27,7 +27,12 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers: res.headers });
   }
 
-  const session = await auth.api.getSession({ headers: event.request.headers });
+  let session = null;
+  try {
+    session = await auth.api.getSession({ headers: event.request.headers });
+  } catch {
+    // treat as unauthenticated
+  }
 
   if (session) {
     event.locals.session = session.session;

@@ -3,13 +3,25 @@ import tailwindcss from '@tailwindcss/vite';
 import { playwright } from '@vitest/browser-playwright';
 import devtoolsJson from 'vite-plugin-devtools-json';
 import { defineConfig } from 'vitest/config';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { resolve, dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+dotenv.config({ path: resolve(__dirname, '../.env') });
+
+const apiPort = process.env.API_PORT || '5321';
+const target = process.env.API_URL || `http://localhost:${apiPort}`;
 
 export default defineConfig({
   plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:5322',
+        target,
+
         bypass: (req) => {
           // Allow SvelteKit to handle better-auth routes instead of the Go proxy
           if (req.url && (req.url === '/api/auth' || req.url.startsWith('/api/auth/'))) {

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { invalidateAll } from '$app/navigation';
   import favicon from '$lib/assets/favicon.svg';
   import { ModeWatcher } from 'mode-watcher';
   import { Toaster } from '$lib/components/ui/sonner/index.js';
@@ -22,6 +23,7 @@
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
+<svelte:window onpageshow={(e) => { if (e.persisted) invalidateAll(); }} />
 
 <ModeWatcher />
 <Toaster richColors />

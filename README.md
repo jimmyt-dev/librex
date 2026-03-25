@@ -1,103 +1,112 @@
-# Reliquary
+# Reliquary 📚
 
-A self-hosted book management application — a modern, open-source alternative to Calibre and Booklore.
+Reliquary is a modern, self-hosted book management application designed as an open-source alternative to Calibre and Booklore. It provides a clean, responsive web interface for organizing personal book collections, tracking reading progress, and managing metadata.
 
-Reliquary lets you organise your personal library into libraries and shelves, track reading progress, and manage metadata — all from a clean, responsive web interface you host yourself.
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Frontend | SvelteKit, TypeScript, Tailwind CSS v4 |
-| UI Components | shadcn-svelte, bits-ui, Lucide icons |
-| Backend | Go, Chi router |
-| Database | SQLite via Drizzle ORM + LibSQL |
-| Auth | Better Auth (email/password) |
+![Reliquary Screenshot](https://raw.githubusercontent.com/j-m-m-y/reliquary/main/screenshot.png) *(Placeholder: Update with real screenshot)*
 
 ## Features
 
-- **Authentication** — email/password sign up, sign in, and sign out
-- **Protected routes** — all pages require authentication; handled centrally in SvelteKit hooks
-- **Sidebar navigation** — collapsible sidebar with Libraries and Shelves sections, dark/light mode
-- **Dark mode** — system-aware dark mode via `mode-watcher`
-- **Self-hostable** — SQLite database, no external services required
+- **Multi-Library Support**: Organize your books into logical libraries and custom shelves.
+- **Reading Progress**: Track exactly where you are in every book with reading sessions.
+- **Metadata Management**: Automatic extraction from EPUB and PDF files.
+- **Bookdrop Workflow**: Scan directories for new books and import them with a review step.
+- **Modern Tech Stack**: Built with Svelte 5 (Runes), Go, and PostgreSQL.
+- **Self-Hosted**: Full control over your data and files.
 
-## Getting Started
+## Installation (Docker)
 
-### Prerequisites
+The easiest way to run Reliquary is using Docker Compose.
 
-- Node.js 20+ and [pnpm](https://pnpm.io)
-- Go 1.22+
-
-### Frontend
-
-```bash
-cd frontend
-pnpm install
-```
-
-Copy the example environment file and fill in the values:
+### 1. Prepare Environment
+Copy `.env.example` to `.env` and fill in your values.
 
 ```bash
 cp .env.example .env
 ```
 
-```env
-DATABASE_URL=file:../reliquary.db   # path to the SQLite database
-ORIGIN=http://localhost:5173        # base URL of your instance
-BETTER_AUTH_SECRET=                 # random 32+ character secret
-```
+**Key Variables:**
+- `POSTGRES_PASSWORD`: A secure password for the database.
+- `BETTER_AUTH_SECRET`: A random 32+ character secret (Generate with `openssl rand -hex 32`).
+- `ORIGIN`: The public URL of your instance (e.g., `http://localhost:3000`).
+- `BOOKS_PATH`: Path to your book library on the host machine.
 
-Run database migrations:
-
-```bash
-pnpm db:push
-```
-
-Start the dev server:
+### 2. Deployment
+Reliquary includes a PostgreSQL database in its Compose stack. If you set `DATABASE_URL` manually in your `.env`, it will prioritize that over the internal service.
 
 ```bash
-pnpm dev
+docker compose up -d
 ```
 
-### Backend
+Reliquary will be available at `http://localhost:3000` (or whatever you set in `ORIGIN`).
+
+---
+
+## Development Setup
+
+Reliquary consists of a Go backend and a SvelteKit frontend.
+
+### Prerequisites
+
+- **Go**: 1.25+
+- **Node.js**: 22+
+- **pnpm**: 9+
+- **PostgreSQL**: 16+
+
+### 1. Infrastructure
+Copy `.env.dev.example` to `.env` in the root and start the database.
 
 ```bash
-go run ./cmd/api
+cp .env.dev.example .env
+docker compose up -d postgres
 ```
 
-The API runs on port **5321** by default.
-
-For hot reload during development, install [Air](https://github.com/air-verse/air) and run:
-
+### 2. Backend (Go)
+The backend handles file operations and metadata extraction.
 ```bash
+# Install dependencies
+go mod download
+
+# Run with hot-reload (requires Air)
 air
 ```
+*The Go API runs on `http://localhost:5321` by default.*
+
+### 3. Frontend (SvelteKit)
+The frontend handles the UI and authentication.
+```bash
+cd frontend
+pnpm install
+
+# Sync database schema
+pnpm db:push
+
+# Start development server
+pnpm dev
+```
+*The dev server runs on `http://localhost:5173`.*
+
+---
+
+## Key Commands
+
+| Command | Location | Description |
+|---|---|---|
+| `air` | Root | Start Go backend with hot-reload |
+| `pnpm dev` | `frontend/` | Start SvelteKit dev server |
+| `pnpm db:push` | `frontend/` | Sync schema to database |
+| `pnpm db:studio` | `frontend/` | Open Drizzle Studio |
+| `pnpm lint` | `frontend/` | Run ESLint and Prettier |
+| `pnpm check` | `frontend/` | Run Svelte-check |
 
 ## Project Structure
 
-```
-reliquary/
-├── cmd/
-│   └── api/
-│       └── main.go          # Go API entry point
-├── frontend/
-│   ├── src/
-│   │   ├── routes/          # SvelteKit pages and server actions
-│   │   │   ├── login/
-│   │   │   ├── register/
-│   │   │   └── +page.svelte # Dashboard
-│   │   ├── lib/
-│   │   │   ├── components/  # UI components (sidebar, nav, shadcn)
-│   │   │   └── server/
-│   │   │       ├── auth.ts  # Better Auth configuration
-│   │   │       └── db/      # Drizzle schema and client
-│   │   └── hooks.server.ts  # Auth middleware / route protection
-│   └── drizzle.config.ts
-├── go.mod
-└── reliquary.db
-```
+- `cmd/api/`: Go application entry point.
+- `internal/`: Backend logic (handlers, models, database access).
+- `frontend/`: SvelteKit application.
+  - `src/lib/api/`: Reactive API client classes (Svelte 5 runes).
+  - `src/lib/server/db/`: Drizzle schema and database configuration.
+- `books/`: Default directory for book storage (configurable).
 
-## Status
+## License
 
-Reliquary is in early development. The foundation — authentication, navigation, and database schema — is in place. Book management features (importing, metadata editing, reading progress) are actively being built.
+MIT
