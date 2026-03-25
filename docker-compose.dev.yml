@@ -1,0 +1,21 @@
+services:
+  postgres:
+    container_name: reliquary_dev_postgres
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-reliquary}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-reliquary}
+      POSTGRES_DB: ${POSTGRES_DB:-reliquary}
+    ports:
+      - "5434:5432"
+    volumes:
+      - reliquary_dev_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-reliquary} -d ${POSTGRES_DB:-reliquary}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  reliquary_dev_postgres_data:

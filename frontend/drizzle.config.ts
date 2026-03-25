@@ -1,8 +1,8 @@
 import { defineConfig } from 'drizzle-kit';
 import * as dotenv from 'dotenv';
 import { resolve } from 'path';
-
-dotenv.config({ path: resolve(__dirname, '../.env') });
+const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+dotenv.config({ path: resolve(__dirname, `../.env${isDev ? '.dev' : ''}`) });
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL is not set. Check if ../.env exists and contains the variable.');

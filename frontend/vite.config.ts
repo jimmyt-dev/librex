@@ -10,53 +10,56 @@ import { resolve, dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-dotenv.config({ path: resolve(__dirname, '../.env') });
+export default defineConfig(({ mode }) => {
+  const envPath = resolve(__dirname, `../.env${mode === 'development' ? '.dev' : ''}`);
+  dotenv.config({ path: envPath });
 
-const apiPort = process.env.API_PORT || '5321';
-const target = process.env.API_URL || `http://localhost:${apiPort}`;
+  const apiPort = process.env.API_PORT || '5321';
+  const target = process.env.API_URL || `http://localhost:${apiPort}`;
 
-export default defineConfig({
-  plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
-  server: {
-    proxy: {
-      '/api': {
-        target,
+  return {
+    plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
+    server: {
+      proxy: {
+        '/api': {
+          target,
 
-        bypass: (req) => {
-          // Allow SvelteKit to handle better-auth routes instead of the Go proxy
-          if (req.url && (req.url === '/api/auth' || req.url.startsWith('/api/auth/'))) {
-            return req.url;
+          bypass: (req) => {
+            // Allow SvelteKit to handle better-auth routes instead of the Go proxy
+            if (req.url && (req.url === '/api/auth' || req.url.startsWith('/api/auth/'))) {
+              return req.url;
+            }
           }
         }
       }
-    }
-  },
-  test: {
-    expect: { requireAssertions: true },
-    projects: [
-      {
-        extends: './vite.config.ts',
-        test: {
-          name: 'client',
-          browser: {
-            enabled: true,
-            provider: playwright(),
-            instances: [{ browser: 'chromium', headless: true }]
-          },
-          include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
-          exclude: ['src/lib/server/**']
-        }
-      },
+    },
+    test: {
+      expect: { requireAssertions: true },
+      projects: [
+        {
+          extends: './vite.config.ts',
+          test: {
+            name: 'client',
+            browser: {
+              enabled: true,
+              provider: playwright(),
+              instances: [{ browser: 'chromium', headless: true }]
+            },
+            include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
+            exclude: ['src/lib/server/**']
+          }
+        },
 
-      {
-        extends: './vite.config.ts',
-        test: {
-          name: 'server',
-          environment: 'node',
-          include: ['src/**/*.{test,spec}.{js,ts}'],
-          exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
+        {
+          extends: './vite.config.ts',
+          test: {
+            name: 'server',
+            environment: 'node',
+            include: ['src/**/*.{test,spec}.{js,ts}'],
+            exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
+          }
         }
-      }
-    ]
-  }
+      ]
+    }
+  };
 });

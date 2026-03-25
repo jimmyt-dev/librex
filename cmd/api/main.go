@@ -15,10 +15,8 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	_ = godotenv.Load(".env.dev")
+	_ = godotenv.Load(".env")
 	if err := db.Init(); err != nil {
 		panic(err)
 	}
@@ -121,7 +119,7 @@ func main() {
 
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = "5321"
+		port = "6001"
 	}
 	log.Printf("Starting server on :%s", port)
 	http.ListenAndServe(":"+port, r)

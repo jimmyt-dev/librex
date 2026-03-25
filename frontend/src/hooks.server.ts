@@ -6,7 +6,7 @@ import { auth } from '$lib/server/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 
 const PUBLIC_PATHS = ['/login', '/register', '/api/auth'];
-const API_URL = env.API_URL ?? `http://localhost:${env.API_PORT ?? '5321'}`;
+const API_URL = env.API_URL ?? `http://127.0.0.1:${env.API_PORT ?? '6001'}`;
 
 const handleBetterAuth: Handle = async ({ event, resolve }) => {
   const { pathname } = event.url;

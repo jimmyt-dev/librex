@@ -6,27 +6,23 @@ services:
     ports:
       - "${PORT:-3000}:3000"
     environment:
-      # Prioritize DATABASE_URL if set manually, fallback to the internal postgres service
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-reliquary}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-reliquary}}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - ORIGIN=${ORIGIN:-http://localhost:3000}
-      - API_PORT=${API_PORT:-5321}
+      - API_PORT=${API_PORT:-6001}
+      - FRONTEND_URL=http://localhost:3000
     volumes:
       - ${BOOKS_PATH:-./books}:/books
       - ${BOOKDROP_PATH:-./bookdrop}:/bookdrop
       - reliquary_data:/app/data
-    # Only wait for postgres if we're not using an external database
     depends_on:
       postgres:
         condition: service_healthy
-        required: false
 
   postgres:
     container_name: reliquary_postgres
     image: postgres:16-alpine
     restart: unless-stopped
-    # Use profiles so this service is only started if needed (or by default in standard compose up)
-    profiles: ["db", "default"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-reliquary}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
