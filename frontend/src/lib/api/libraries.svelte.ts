@@ -1,10 +1,12 @@
 import { apiFetch } from './client';
+import { booksState } from './books.svelte';
 
 export type Library = {
   id: string;
   title: string;
   url: string;
   icon?: string;
+  folder?: string;
   books: number;
   fileNamingPattern?: string | null;
 };
@@ -18,6 +20,7 @@ class LibrariesState {
         id: string;
         name: string;
         icon: string | null;
+        folder: string | null;
         bookCount: number;
         fileNamingPattern: string | null;
       }[] = await apiFetch('/api/libraries');
@@ -27,6 +30,7 @@ class LibrariesState {
         title: l.name,
         url: '#',
         icon: l.icon ?? undefined,
+        folder: l.folder ?? undefined,
         books: l.bookCount,
         fileNamingPattern: l.fileNamingPattern
       }));
@@ -35,8 +39,8 @@ class LibrariesState {
     }
   };
 
-  create = async (name: string, folder: string, icon?: string, fileNamingPattern?: string) => {
-    await apiFetch('/api/libraries', {
+  create = async (name: string, folder: string, icon?: string, fileNamingPattern?: string): Promise<string> => {
+    const lib: { id: string } = await apiFetch('/api/libraries', {
       method: 'POST',
       body: JSON.stringify({
         name,
@@ -45,6 +49,13 @@ class LibrariesState {
         fileNamingPattern: fileNamingPattern || null
       })
     });
+    await this.fetchAll();
+    return lib.id;
+  };
+
+  scan = async (id: string) => {
+    await apiFetch(`/api/libraries/${id}/scan`, { method: 'POST' });
+    booksState.invalidate(id);
     await this.fetchAll();
   };
 

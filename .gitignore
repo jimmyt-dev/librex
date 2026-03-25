@@ -1,4 +1,5 @@
 .env
+.env.prod
 *.db
 *.db-journal
 *.db-shm
@@ -14,3 +15,5 @@ dist/
 tmp/
 
 data/
+books/
+bookdrop/

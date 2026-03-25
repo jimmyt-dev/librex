@@ -15,6 +15,7 @@
   import TagInput from '$lib/components/tag-input.svelte';
   import StarRating from '$lib/components/star-rating.svelte';
   import { toast } from 'svelte-sonner';
+  import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 
   let editTitle = $state('');
   let editSubtitle = $state('');
@@ -37,6 +38,29 @@
   let seriesHighlightIndex = $state(-1);
   let isSaving = $state(false);
   let errorMsg = $state<string | null>(null);
+
+  let dirty = $derived.by(() => {
+    const b = bookEditState.book;
+    if (!b) return false;
+    return (
+      editTitle !== b.metadata.title ||
+      editSubtitle !== (b.metadata.subtitle ?? '') ||
+      editDescription !== (b.metadata.description ?? '') ||
+      editPublisher !== (b.metadata.publisher ?? '') ||
+      editPublishedDate !== (b.metadata.publishedDate ?? '') ||
+      editISBN13 !== (b.metadata.isbn13 ?? '') ||
+      editISBN10 !== (b.metadata.isbn10 ?? '') ||
+      editLanguage !== (b.metadata.language ?? '') ||
+      editPageCount !== (b.metadata.pageCount?.toString() ?? '') ||
+      editSeriesName !== (b.metadata.seriesName ?? '') ||
+      editSeriesNumber !== (b.metadata.seriesNumber?.toString() ?? '') ||
+      editSeriesTotal !== (b.metadata.seriesTotal?.toString() ?? '') ||
+      editRating !== (b.metadata.rating?.toString() ?? '') ||
+      JSON.stringify(editAuthors) !== JSON.stringify(b.authors.map((a) => a.name)) ||
+      JSON.stringify(editGenres) !== JSON.stringify(b.genres.map((g) => g.name)) ||
+      JSON.stringify(editTags) !== JSON.stringify(b.tags.map((t) => t.name))
+    );
+  });
 
   function resetToBook() {
     const book = bookEditState.book;
@@ -308,6 +332,11 @@
               <Button variant="outline" {...props}>Cancel</Button>
             {/snippet}
           </Sheet.Close>
+          {#if dirty}
+            <Button variant="ghost" size="icon" onclick={resetToBook} title="Revert changes">
+              <RotateCcwIcon class="size-4" />
+            </Button>
+          {/if}
           <Button onclick={saveEdit} disabled={isSaving || !editTitle.trim()}>
             {isSaving ? 'Saving…' : 'Save'}
           </Button>

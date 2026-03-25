@@ -18,6 +18,11 @@
   import FolderPicker from '$lib/components/folder-picker.svelte';
   import * as Dialog from '$lib/components/ui/dialog';
   import { buttonVariants } from '$lib/components/ui/button';
+  import { librariesState } from '$lib/api/libraries.svelte';
+  import { goto } from '$app/navigation';
+  import PlusIcon from '@lucide/svelte/icons/plus';
+  import Trash2Icon from '@lucide/svelte/icons/trash-2';
+  import LibraryIcon from '@lucide/svelte/icons/library';
 
   const DEFAULT_PATTERN = '{authors}/{title}{ext}';
 
@@ -26,6 +31,15 @@
   let bookdropPath = $state('');
   let folderDialogOpen = $state(false);
   let saving = $state(false);
+
+  // Libraries
+  let addLibOpen = $state(false);
+  let addLibFolderOpen = $state(false);
+  let newLibName = $state('');
+  let newLibFolder = $state('/books');
+  let newLibPattern = $state('');
+  let addingLib = $state(false);
+  let deletingLibId = $state<string | null>(null);
   let dirty = $derived(
     pattern !== (settingsState.settings?.fileNamingPattern ?? DEFAULT_PATTERN) ||
       writeMetadata !== (settingsState.settings?.writeMetadataToFile ?? false) ||
@@ -130,7 +144,43 @@
       writeMetadata = settingsState.settings?.writeMetadataToFile ?? false;
       bookdropPath = settingsState.settings?.bookdropPath ?? '';
     });
+    librariesState.fetchAll();
   });
+
+  async function addLibrary() {
+    if (!newLibName.trim() || !newLibFolder) return;
+    addingLib = true;
+    try {
+      const id = await librariesState.create(
+        newLibName.trim(),
+        newLibFolder,
+        undefined,
+        newLibPattern.trim() || undefined
+      );
+      addLibOpen = false;
+      newLibName = '';
+      newLibFolder = '/books';
+      newLibPattern = '';
+      toast.success('Library added. Scanning for books...');
+      await librariesState.scan(id);
+      toast.success('Scan complete.');
+      goto(`/library/${id}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to add library.');
+    }
+    addingLib = false;
+  }
+
+  async function deleteLibrary(id: string) {
+    deletingLibId = id;
+    try {
+      await librariesState.delete(id);
+      toast.success('Library removed.');
+    } catch {
+      toast.error('Failed to remove library.');
+    }
+    deletingLibId = null;
+  }
 
   async function saveSettings() {
     saving = true;
@@ -195,6 +245,54 @@
           {saving ? 'Saving...' : 'Save'}
         </Button>
       </div>
+    </div>
+  </section>
+
+  <Separator />
+
+  <!-- Libraries -->
+  <section>
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-semibold">Libraries</h2>
+        <p class="mt-1 text-sm text-muted-foreground">
+          Manage your book library folders. Each library is a directory of books.
+        </p>
+      </div>
+      <Button size="sm" onclick={() => (addLibOpen = true)}>
+        <PlusIcon class="mr-1.5 size-4" />
+        Add Library
+      </Button>
+    </div>
+
+    <div class="mt-4 flex flex-col gap-2">
+      {#if librariesState.items.length === 0}
+        <p class="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+          No libraries yet. Add one above.
+        </p>
+      {:else}
+        {#each librariesState.items as lib (lib.id)}
+          <div class="flex items-center gap-3 rounded-lg border px-3 py-2.5">
+            <LibraryIcon class="size-4 shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-medium">{lib.title}</p>
+              {#if lib.folder}
+                <p class="truncate text-xs text-muted-foreground">{lib.folder}</p>
+              {/if}
+            </div>
+            <span class="shrink-0 text-xs text-muted-foreground">{lib.books} books</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="size-7 shrink-0 text-muted-foreground hover:text-destructive"
+              onclick={() => deleteLibrary(lib.id)}
+              disabled={deletingLibId === lib.id}
+            >
+              <Trash2Icon class="size-3.5" />
+            </Button>
+          </div>
+        {/each}
+      {/if}
     </div>
   </section>
 
@@ -331,6 +429,76 @@
     <Dialog.Footer>
       <Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cancel</Dialog.Close>
       <Button onclick={() => (folderDialogOpen = false)} disabled={!bookdropPath}>
+        <FolderOpenIcon class="size-4" />
+        Select Folder
+      </Button>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>
+
+<!-- Add Library dialog -->
+<Dialog.Root bind:open={addLibOpen}>
+  <Dialog.Content class="sm:max-w-lg">
+    <Dialog.Header>
+      <Dialog.Title>Add Library</Dialog.Title>
+      <Dialog.Description>Give your library a name and choose its root folder.</Dialog.Description>
+    </Dialog.Header>
+    <div class="flex flex-col gap-4 py-2">
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-medium" for="lib-name">Name</label>
+        <Input id="lib-name" bind:value={newLibName} placeholder="My Library" />
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-medium">Folder</label>
+        <Button
+          type="button"
+          variant="outline"
+          class="w-full justify-start gap-2 font-normal {!newLibFolder ? 'text-muted-foreground' : ''}"
+          onclick={() => (addLibFolderOpen = true)}
+        >
+          {#if newLibFolder}
+            <FolderOpenIcon class="size-4 shrink-0" />
+            <span class="truncate">{newLibFolder}</span>
+          {:else}
+            <FolderIcon class="size-4 shrink-0" />
+            Select folder...
+          {/if}
+        </Button>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-medium" for="lib-pattern">
+          Naming Pattern <span class="font-normal text-muted-foreground">(optional)</span>
+        </label>
+        <Input
+          id="lib-pattern"
+          bind:value={newLibPattern}
+          placeholder="Leave empty to use default"
+          class="font-mono text-sm"
+        />
+      </div>
+    </div>
+    <Dialog.Footer>
+      <Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cancel</Dialog.Close>
+      <Button onclick={addLibrary} disabled={addingLib || !newLibName.trim() || !newLibFolder}>
+        {addingLib ? 'Adding...' : 'Add Library'}
+      </Button>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>
+
+<!-- Add Library folder picker dialog -->
+<Dialog.Root bind:open={addLibFolderOpen}>
+  <Dialog.Content class="sm:max-w-2xl">
+    <Dialog.Header>
+      <Dialog.Title>Select Library Folder</Dialog.Title>
+      <Dialog.Description>Choose the root folder for this library.</Dialog.Description>
+    </Dialog.Header>
+    {#key addLibFolderOpen}
+      <FolderPicker bind:value={newLibFolder} />
+    {/key}
+    <Dialog.Footer>
+      <Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cancel</Dialog.Close>
+      <Button onclick={() => (addLibFolderOpen = false)} disabled={!newLibFolder}>
         <FolderOpenIcon class="size-4" />
         Select Folder
       </Button>

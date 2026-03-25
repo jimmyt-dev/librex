@@ -15,5 +15,7 @@ export default defineConfig({
     url: process.env.DATABASE_URL
   },
   verbose: true,
-  strict: true
+  // strict prompts for confirmation in interactive terminals; disable so
+  // automated deployments (Docker entrypoint) can push without a TTY.
+  strict: false
 });

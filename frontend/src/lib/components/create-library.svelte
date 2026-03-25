@@ -11,12 +11,13 @@
   import XIcon from '@lucide/svelte/icons/x';
   import { librariesState } from '$lib/api/libraries.svelte';
   import { toast } from 'svelte-sonner';
+  import { goto } from '$app/navigation';
 
   let open = $state(false);
   let folderDialogOpen = $state(false);
   let name = $state('');
   let icon = $state('');
-  let folder = $state('');
+  let folder = $state('/books');
   let fileNamingPattern = $state('');
   let loading = $state(false);
   let errorMessage = $state('');
@@ -26,18 +27,21 @@
     loading = true;
     errorMessage = '';
     try {
-      await librariesState.create(
+      const id = await librariesState.create(
         name.trim(),
         folder.trim(),
         icon || undefined,
         fileNamingPattern.trim() || undefined
       );
-      toast.success(`Library "${name.trim()}" created successfully!`);
+      open = false;
       name = '';
       icon = '';
       folder = '';
       fileNamingPattern = '';
-      open = false;
+      toast.success('Library created. Scanning for books...');
+      await librariesState.scan(id);
+      toast.success('Scan complete.');
+      goto(`/library/${id}`);
     } catch (e) {
       errorMessage = e instanceof Error ? e.message : String(e);
       toast.error(errorMessage);
@@ -143,7 +147,9 @@
         Choose a directory from your file system to store books in.
       </Dialog.Description>
     </Dialog.Header>
-    <FolderPicker bind:value={folder} />
+    {#key folderDialogOpen}
+      <FolderPicker bind:value={folder} />
+    {/key}
     <Dialog.Footer>
       <Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cancel</Dialog.Close>
       <Button onclick={() => (folderDialogOpen = false)} disabled={!folder}>
