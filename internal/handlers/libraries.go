@@ -333,7 +333,7 @@ func scanLibraryFolder(r *http.Request, libraryID, folder, userID string) (scanR
 			authorNames := parseAuthorString(meta.Creator)
 			authors, err := findOrCreateAuthors(r, authorNames, userID)
 			if err == nil {
-				_ = linkBookAuthors(r, bookID, authors)
+				_ = linkBookAuthors(r, db.DB, bookID, authors)
 			}
 		}
 
@@ -342,7 +342,7 @@ func scanLibraryFolder(r *http.Request, libraryID, folder, userID string) (scanR
 			genreNames := strings.Split(meta.Subject, ",")
 			genres, err := findOrCreateGenres(r, genreNames, userID)
 			if err == nil {
-				_ = linkBookGenres(r, bookID, genres)
+				_ = linkBookGenres(r, db.DB, bookID, genres)
 			}
 		}
 	}

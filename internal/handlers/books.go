@@ -237,7 +237,7 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		if err := linkBookAuthors(r, id, authors); err != nil {
+		if err := linkBookAuthors(r, db.DB, id, authors); err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
@@ -251,7 +251,7 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		if err := linkBookGenres(r, id, genres); err != nil {
+		if err := linkBookGenres(r, db.DB, id, genres); err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
@@ -265,7 +265,7 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		if err := linkBookTags(r, id, tagList); err != nil {
+		if err := linkBookTags(r, db.DB, id, tagList); err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
@@ -569,13 +569,13 @@ func findOrCreateGenres(r *http.Request, names []string, userID string) ([]model
 }
 
 // linkBookGenres replaces all genre associations for a book.
-func linkBookGenres(r *http.Request, bookID string, genres []models.Genre) error {
-	_, err := db.DB.Exec(r.Context(), "DELETE FROM book_genres WHERE book_id = $1", bookID)
+func linkBookGenres(r *http.Request, q db.DBTX, bookID string, genres []models.Genre) error {
+	_, err := q.Exec(r.Context(), "DELETE FROM book_genres WHERE book_id = $1", bookID)
 	if err != nil {
 		return err
 	}
 	for _, g := range genres {
-		_, err := db.DB.Exec(r.Context(),
+		_, err := q.Exec(r.Context(),
 			"INSERT INTO book_genres (book_id, genre_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
 			bookID, g.ID)
 		if err != nil {
@@ -608,13 +608,13 @@ func findOrCreateTags(r *http.Request, names []string, userID string) ([]models.
 }
 
 // linkBookTags replaces all tag associations for a book.
-func linkBookTags(r *http.Request, bookID string, tags []models.Tag) error {
-	_, err := db.DB.Exec(r.Context(), "DELETE FROM book_tags WHERE book_id = $1", bookID)
+func linkBookTags(r *http.Request, q db.DBTX, bookID string, tags []models.Tag) error {
+	_, err := q.Exec(r.Context(), "DELETE FROM book_tags WHERE book_id = $1", bookID)
 	if err != nil {
 		return err
 	}
 	for _, t := range tags {
-		_, err := db.DB.Exec(r.Context(),
+		_, err := q.Exec(r.Context(),
 			"INSERT INTO book_tags (book_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
 			bookID, t.ID)
 		if err != nil {
@@ -824,6 +824,13 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	tx, err := db.DB.Begin(r.Context())
+	if err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback(r.Context())
+
 	type result struct {
 		BookID string `json:"bookId"`
 		Error  string `json:"error,omitempty"`
@@ -835,7 +842,7 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 
 		// Verify ownership
 		var exists bool
-		if err := db.DB.QueryRow(r.Context(),
+		if err := tx.QueryRow(r.Context(),
 			"SELECT EXISTS(SELECT 1 FROM books WHERE id = $1 AND user_id = $2)",
 			bookID, userID).Scan(&exists); err != nil || !exists {
 			res.Error = "book not found"
@@ -845,7 +852,7 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 
 		// Update scalar metadata fields
 		if body.SeriesName != nil || body.Publisher != nil || body.Language != nil || body.SeriesTotal != nil || body.Rating != nil {
-			_, err := db.DB.Exec(r.Context(),
+			_, err := tx.Exec(r.Context(),
 				`UPDATE book_metadata SET
 					series_name  = COALESCE($1, series_name),
 					publisher    = COALESCE($2, publisher),
@@ -867,12 +874,12 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 		if body.Authors != nil {
 			var finalAuthors []models.Author
 			if body.AuthorsMode == "merge" {
-				existing, _ := getBookAuthors(r, bookID)
+				existing, _ := getBookAuthors(r, tx, bookID)
 				finalAuthors = mergeAuthors(existing, newAuthors)
 			} else {
 				finalAuthors = newAuthors
 			}
-			if err := linkBookAuthors(r, bookID, finalAuthors); err != nil {
+			if err := linkBookAuthors(r, tx, bookID, finalAuthors); err != nil {
 				res.Error = "db error"
 				results = append(results, res)
 				continue
@@ -883,12 +890,12 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 		if body.Genres != nil {
 			var finalGenres []models.Genre
 			if body.GenresMode == "merge" {
-				existing, _ := getBookGenres(r, bookID)
+				existing, _ := getBookGenres(r, tx, bookID)
 				finalGenres = mergeGenres(existing, newGenres)
 			} else {
 				finalGenres = newGenres
 			}
-			if err := linkBookGenres(r, bookID, finalGenres); err != nil {
+			if err := linkBookGenres(r, tx, bookID, finalGenres); err != nil {
 				res.Error = "db error"
 				results = append(results, res)
 				continue
@@ -899,12 +906,12 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 		if body.Tags != nil {
 			var finalTags []models.Tag
 			if body.TagsMode == "merge" {
-				existing, _ := getBookTags(r, bookID)
+				existing, _ := getBookTags(r, tx, bookID)
 				finalTags = mergeTags(existing, newTags)
 			} else {
 				finalTags = newTags
 			}
-			if err := linkBookTags(r, bookID, finalTags); err != nil {
+			if err := linkBookTags(r, tx, bookID, finalTags); err != nil {
 				res.Error = "db error"
 				results = append(results, res)
 				continue
@@ -912,6 +919,11 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 		}
 
 		results = append(results, res)
+	}
+
+	if err := tx.Commit(r.Context()); err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -925,8 +937,8 @@ func nilIfEmptyPtr(s *string) *string {
 	return s
 }
 
-func getBookAuthors(r *http.Request, bookID string) ([]models.Author, error) {
-	rows, err := db.DB.Query(r.Context(),
+func getBookAuthors(r *http.Request, q db.DBTX, bookID string) ([]models.Author, error) {
+	rows, err := q.Query(r.Context(),
 		`SELECT a.id, a.name, a.user_id FROM authors a JOIN book_authors ba ON ba.author_id = a.id WHERE ba.book_id = $1`,
 		bookID)
 	if err != nil {
@@ -944,8 +956,8 @@ func getBookAuthors(r *http.Request, bookID string) ([]models.Author, error) {
 	return result, nil
 }
 
-func getBookGenres(r *http.Request, bookID string) ([]models.Genre, error) {
-	rows, err := db.DB.Query(r.Context(),
+func getBookGenres(r *http.Request, q db.DBTX, bookID string) ([]models.Genre, error) {
+	rows, err := q.Query(r.Context(),
 		`SELECT g.id, g.name, g.user_id FROM genres g JOIN book_genres bg ON bg.genre_id = g.id WHERE bg.book_id = $1`,
 		bookID)
 	if err != nil {
@@ -963,8 +975,8 @@ func getBookGenres(r *http.Request, bookID string) ([]models.Genre, error) {
 	return result, nil
 }
 
-func getBookTags(r *http.Request, bookID string) ([]models.Tag, error) {
-	rows, err := db.DB.Query(r.Context(),
+func getBookTags(r *http.Request, q db.DBTX, bookID string) ([]models.Tag, error) {
+	rows, err := q.Query(r.Context(),
 		`SELECT t.id, t.name, t.user_id FROM tags t JOIN book_tags bt ON bt.tag_id = t.id WHERE bt.book_id = $1`,
 		bookID)
 	if err != nil {

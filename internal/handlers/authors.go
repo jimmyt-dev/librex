@@ -227,13 +227,13 @@ func findOrCreateAuthors(r *http.Request, names []string, userID string) ([]mode
 }
 
 // linkBookAuthors replaces all author associations for a book.
-func linkBookAuthors(r *http.Request, bookID string, authors []models.Author) error {
-	_, err := db.DB.Exec(r.Context(), "DELETE FROM book_authors WHERE book_id = $1", bookID)
+func linkBookAuthors(r *http.Request, q db.DBTX, bookID string, authors []models.Author) error {
+	_, err := q.Exec(r.Context(), "DELETE FROM book_authors WHERE book_id = $1", bookID)
 	if err != nil {
 		return err
 	}
 	for _, a := range authors {
-		_, err := db.DB.Exec(r.Context(),
+		_, err := q.Exec(r.Context(),
 			"INSERT INTO book_authors (book_id, author_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
 			bookID, a.ID)
 		if err != nil {

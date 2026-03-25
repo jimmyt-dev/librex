@@ -659,12 +659,28 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Insert slim books row
-		var bookID string
-		err = db.DB.QueryRow(r.Context(),
-			`INSERT INTO books (library_id, user_id, file_path)
-			VALUES ($1, $2, $3) RETURNING id`,
-			item.LibraryID, userID, destPath).Scan(&bookID)
+		// Resolve cover and relations before opening the transaction
+		var coverImage []byte
+		var coverMimeStr *string
+		_ = db.DB.QueryRow(r.Context(),
+			"SELECT cover_image, cover_mime FROM staged_books WHERE id = $1",
+			item.StagedBookID).Scan(&coverImage, &coverMimeStr)
+
+		var authors []models.Author
+		if book.Author != nil && *book.Author != "" {
+			authors, _ = findOrCreateAuthors(r, parseAuthorString(*book.Author), userID)
+		}
+		var genres []models.Genre
+		if book.Subject != nil && *book.Subject != "" {
+			genres, _ = findOrCreateGenres(r, strings.Split(*book.Subject, ","), userID)
+		}
+		var tags []models.Tag
+		if book.Tags != nil && *book.Tags != "" {
+			tags, _ = findOrCreateTags(r, strings.Split(*book.Tags, ","), userID)
+		}
+
+		// All DB writes for this item are atomic; on failure move the file back
+		tx, err := db.DB.Begin(r.Context())
 		if err != nil {
 			_ = moveFile(destPath, book.OriginalPath)
 			res.Error = fmt.Sprintf("db error: %v", err)
@@ -672,14 +688,21 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Write cover to disk
+		var bookID string
+		err = tx.QueryRow(r.Context(),
+			`INSERT INTO books (library_id, user_id, file_path)
+			VALUES ($1, $2, $3) RETURNING id`,
+			item.LibraryID, userID, destPath).Scan(&bookID)
+		if err != nil {
+			tx.Rollback(r.Context())
+			_ = moveFile(destPath, book.OriginalPath)
+			res.Error = fmt.Sprintf("db error: %v", err)
+			results = append(results, res)
+			continue
+		}
+
 		var coverPath *string
 		var coverMimeVal *string
-		var coverImage []byte
-		var coverMimeStr *string
-		_ = db.DB.QueryRow(r.Context(),
-			"SELECT cover_image, cover_mime FROM staged_books WHERE id = $1",
-			item.StagedBookID).Scan(&coverImage, &coverMimeStr)
 		if len(coverImage) > 0 {
 			mime := "image/jpeg"
 			if coverMimeStr != nil && *coverMimeStr != "" {
@@ -691,8 +714,7 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Insert book_metadata row
-		_, err = db.DB.Exec(r.Context(),
+		_, err = tx.Exec(r.Context(),
 			`INSERT INTO book_metadata (
 				book_id, title, subtitle, description, publisher, published_date, language,
 				series_name, series_number, series_total, page_count, rating,
@@ -703,44 +725,34 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			book.SeriesName, book.SeriesNumber, book.SeriesTotal, book.PageCount, book.Rating,
 			coverPath, coverMimeVal)
 		if err != nil {
-			_, _ = db.DB.Exec(r.Context(), "DELETE FROM books WHERE id = $1", bookID)
+			tx.Rollback(r.Context())
 			_ = moveFile(destPath, book.OriginalPath)
 			res.Error = fmt.Sprintf("db error: %v", err)
 			results = append(results, res)
 			continue
 		}
 
-		// Link authors
-		if book.Author != nil && *book.Author != "" {
-			authorNames := parseAuthorString(*book.Author)
-			authors, err := findOrCreateAuthors(r, authorNames, userID)
-			if err == nil {
-				_ = linkBookAuthors(r, bookID, authors)
-			}
-		}
+		_ = linkBookAuthors(r, tx, bookID, authors)
+		_ = linkBookGenres(r, tx, bookID, genres)
+		_ = linkBookTags(r, tx, bookID, tags)
 
-		// Link genres from subject
-		if book.Subject != nil && *book.Subject != "" {
-			genreNames := strings.Split(*book.Subject, ",")
-			genres, err := findOrCreateGenres(r, genreNames, userID)
-			if err == nil {
-				_ = linkBookGenres(r, bookID, genres)
-			}
-		}
-
-		// Link tags
-		if book.Tags != nil && *book.Tags != "" {
-			tagNames := strings.Split(*book.Tags, ",")
-			tags, err := findOrCreateTags(r, tagNames, userID)
-			if err == nil {
-				_ = linkBookTags(r, bookID, tags)
-			}
-		}
-
-		// Remove from staged_books
-		_, _ = db.DB.Exec(r.Context(),
+		_, err = tx.Exec(r.Context(),
 			"DELETE FROM staged_books WHERE id = $1 AND user_id = $2",
 			item.StagedBookID, userID)
+		if err != nil {
+			tx.Rollback(r.Context())
+			_ = moveFile(destPath, book.OriginalPath)
+			res.Error = fmt.Sprintf("db error: %v", err)
+			results = append(results, res)
+			continue
+		}
+
+		if err := tx.Commit(r.Context()); err != nil {
+			_ = moveFile(destPath, book.OriginalPath)
+			res.Error = fmt.Sprintf("db error: %v", err)
+			results = append(results, res)
+			continue
+		}
 
 		results = append(results, res)
 	}
