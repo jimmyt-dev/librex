@@ -142,6 +142,10 @@ func DeleteLibrary(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	id := chi.URLParam(r, "id")
 
+	var folder *string
+	_ = db.DB.QueryRow(r.Context(),
+		"SELECT folder FROM libraries WHERE id = $1 AND user_id = $2", id, userID).Scan(&folder)
+
 	result, err := db.DB.Exec(r.Context(), "DELETE FROM libraries WHERE id = $1 AND user_id = $2", id, userID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
@@ -151,6 +155,10 @@ func DeleteLibrary(w http.ResponseWriter, r *http.Request) {
 	if result.RowsAffected() == 0 {
 		http.Error(w, "library not found", http.StatusNotFound)
 		return
+	}
+
+	if folder != nil && *folder != "" {
+		os.RemoveAll(filepath.Join(*folder, ".covers"))
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -259,8 +267,14 @@ func scanLibraryFolder(r *http.Request, libraryID, folder, userID string) (scanR
 	// 3. Remove books whose files no longer exist on disk
 	for fp, id := range dbFiles {
 		if !diskFiles[fp] {
+			var coverPath *string
+			_ = db.DB.QueryRow(r.Context(),
+				"SELECT cover_path FROM book_metadata WHERE book_id = $1", id).Scan(&coverPath)
 			_, _ = db.DB.Exec(r.Context(),
 				"DELETE FROM books WHERE id = $1 AND user_id = $2", id, userID)
+			if coverPath != nil && *coverPath != "" {
+				os.Remove(*coverPath)
+			}
 			result.Removed++
 		}
 	}
