@@ -7,7 +7,7 @@
     fetchSeriesSuggestions
   } from '$lib/api/suggestions';
   import { bookEditState } from '$lib/state/book-edit.svelte';
-  import { booksState } from '$lib/api/books.svelte';
+  import { booksState, type Book } from '$lib/api/books.svelte';
   import { untrack } from 'svelte';
   import * as Sheet from '$lib/components/ui/sheet';
   import { Button } from '$lib/components/ui/button';
@@ -16,6 +16,7 @@
   import StarRating from '$lib/components/star-rating.svelte';
   import { toast } from 'svelte-sonner';
   import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+  import { Label } from '$lib/components/ui/label';
 
   let editTitle = $state('');
   let editSubtitle = $state('');
@@ -113,7 +114,7 @@
     const originalBook = JSON.parse(JSON.stringify(book));
 
     // Construct updated book
-    const updated: any = {
+    const updated: Book = {
       ...book,
       metadata: {
         ...book.metadata,
@@ -187,27 +188,27 @@
             <p class="text-sm text-destructive">{errorMsg}</p>
           {/if}
           <div class="flex flex-col gap-1.5">
-            <label for="edit-title" class="flex items-center gap-1.5 text-sm font-medium">
+            <Label for="edit-title">
               Title{#if dirtyFields.title}<span
                   class="inline-block size-1.5 rounded-full bg-primary"
                 ></span>{/if}
-            </label>
+            </Label>
             <Input id="edit-title" bind:value={editTitle} />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="edit-subtitle" class="flex items-center gap-1.5 text-sm font-medium">
+            <Label for="edit-subtitle">
               Subtitle{#if dirtyFields.subtitle}<span
                   class="inline-block size-1.5 rounded-full bg-primary"
                 ></span>{/if}
-            </label>
+            </Label>
             <Input id="edit-subtitle" bind:value={editSubtitle} />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="flex items-center gap-1.5 text-sm font-medium">
+            <Label>
               Authors{#if dirtyFields.authors}<span
                   class="inline-block size-1.5 rounded-full bg-primary"
                 ></span>{/if}
-            </label>
+            </Label>
             <TagInput
               bind:values={editAuthors}
               placeholder="Add author..."
@@ -215,71 +216,71 @@
             />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="edit-description" class="flex items-center gap-1.5 text-sm font-medium">
+            <Label for="edit-description">
               Description{#if dirtyFields.description}<span
                   class="inline-block size-1.5 rounded-full bg-primary"
                 ></span>{/if}
-            </label>
+            </Label>
             <Input id="edit-description" bind:value={editDescription} placeholder="Synopsis" />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="edit-publisher" class="flex items-center gap-1.5 text-sm font-medium">
+            <Label for="edit-publisher">
               Publisher{#if dirtyFields.publisher}<span
                   class="inline-block size-1.5 rounded-full bg-primary"
                 ></span>{/if}
-            </label>
+            </Label>
             <Input id="edit-publisher" bind:value={editPublisher} />
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div class="flex flex-col gap-1.5">
-              <label for="edit-date" class="flex items-center gap-1.5 text-sm font-medium">
+              <Label for="edit-date">
                 Published Date{#if dirtyFields.publishedDate}<span
                     class="inline-block size-1.5 rounded-full bg-primary"
                   ></span>{/if}
-              </label>
+              </Label>
               <Input id="edit-date" bind:value={editPublishedDate} placeholder="YYYY" />
             </div>
             <div class="flex flex-col gap-1.5">
-              <label for="edit-language" class="flex items-center gap-1.5 text-sm font-medium">
+              <Label for="edit-language">
                 Language{#if dirtyFields.language}<span
                     class="inline-block size-1.5 rounded-full bg-primary"
                   ></span>{/if}
-              </label>
+              </Label>
               <Input id="edit-language" bind:value={editLanguage} placeholder="en" />
             </div>
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div class="flex flex-col gap-1.5">
-              <label for="edit-isbn13" class="flex items-center gap-1.5 text-sm font-medium">
+              <Label for="edit-isbn13">
                 ISBN-13{#if dirtyFields.isbn13}<span
                     class="inline-block size-1.5 rounded-full bg-primary"
                   ></span>{/if}
-              </label>
+              </Label>
               <Input id="edit-isbn13" bind:value={editISBN13} />
             </div>
             <div class="flex flex-col gap-1.5">
-              <label for="edit-isbn10" class="flex items-center gap-1.5 text-sm font-medium">
+              <Label for="edit-isbn10">
                 ISBN-10{#if dirtyFields.isbn10}<span
                     class="inline-block size-1.5 rounded-full bg-primary"
                   ></span>{/if}
-              </label>
+              </Label>
               <Input id="edit-isbn10" bind:value={editISBN10} />
             </div>
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="edit-page-count" class="flex items-center gap-1.5 text-sm font-medium">
+            <Label for="edit-page-count">
               Page Count{#if dirtyFields.pageCount}<span
                   class="inline-block size-1.5 rounded-full bg-primary"
                 ></span>{/if}
-            </label>
+            </Label>
             <Input id="edit-page-count" type="number" bind:value={editPageCount} />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="flex items-center gap-1.5 text-sm font-medium">
+            <Label>
               Series{#if dirtyFields.series}<span
                   class="inline-block size-1.5 rounded-full bg-primary"
                 ></span>{/if}
-            </label>
+            </Label>
             <div class="grid grid-cols-[1fr_4rem] gap-2">
               <div class="relative">
                 <Input
@@ -350,25 +351,25 @@
             </div>
             <div class="mt-1 grid grid-cols-2 gap-2">
               <div class="flex flex-col gap-1">
-                <label class="text-xs text-muted-foreground">Total Books</label>
+                <Label class="text-xs font-normal text-muted-foreground">Total Books</Label>
                 <Input type="number" bind:value={editSeriesTotal} placeholder="Total" />
               </div>
             </div>
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="flex items-center gap-1.5 text-sm font-medium">
+            <Label>
               Rating{#if dirtyFields.rating}<span
                   class="inline-block size-1.5 rounded-full bg-primary"
                 ></span>{/if}
-            </label>
+            </Label>
             <StarRating bind:value={editRating} />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="flex items-center gap-1.5 text-sm font-medium">
+            <Label>
               Genres{#if dirtyFields.genres}<span
                   class="inline-block size-1.5 rounded-full bg-primary"
                 ></span>{/if}
-            </label>
+            </Label>
             <TagInput
               bind:values={editGenres}
               placeholder="Add genre..."
@@ -376,10 +377,10 @@
             />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="flex items-center gap-1.5 text-sm font-medium">
+            <Label>
               Tags{#if dirtyFields.tags}<span class="inline-block size-1.5 rounded-full bg-primary"
                 ></span>{/if}
-            </label>
+            </Label>
             <TagInput
               bind:values={editTags}
               placeholder="Add tag..."

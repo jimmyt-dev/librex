@@ -24,6 +24,7 @@
   import TagInput from '$lib/components/tag-input.svelte';
   import ArrayField from '$lib/components/array-field.svelte';
   import StarRating from '$lib/components/star-rating.svelte';
+  import { Label } from '$lib/components/ui/label';
 
   interface StagedBook {
     id: string;
@@ -622,15 +623,15 @@
         <!-- Text fields -->
         <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Text Fields</p>
         <div class="flex flex-col gap-1.5">
-          <label for="bulk-series" class="text-sm font-medium">Series Name</label>
+          <Label for="bulk-series" class="text-sm font-medium">Series Name</Label>
           <Input id="bulk-series" bind:value={bulkSeriesName} placeholder="Leave empty to skip" />
         </div>
         <div class="flex flex-col gap-1.5">
-          <label for="bulk-publisher" class="text-sm font-medium">Publisher</label>
+          <Label for="bulk-publisher" class="text-sm font-medium">Publisher</Label>
           <Input id="bulk-publisher" bind:value={bulkPublisher} placeholder="Leave empty to skip" />
         </div>
         <div class="flex flex-col gap-1.5">
-          <label for="bulk-language" class="text-sm font-medium">Language</label>
+          <Label for="bulk-language" class="text-sm font-medium">Language</Label>
           <Input id="bulk-language" bind:value={bulkLanguage} placeholder="e.g. en" />
         </div>
 
@@ -639,7 +640,7 @@
           Number Fields
         </p>
         <div class="flex flex-col gap-1.5">
-          <label for="bulk-series-total" class="text-sm font-medium">Series Total</label>
+          <Label for="bulk-series-total" class="text-sm font-medium">Series Total</Label>
           <Input
             id="bulk-series-total"
             type="number"
@@ -680,7 +681,7 @@
         <div class="h-px bg-border"></div>
 
         <div class="flex flex-col gap-1.5">
-          <label class="text-sm font-medium" for="bulk-library">Add to Library &amp; Import</label>
+          <Label class="text-sm font-medium" for="bulk-library">Add to Library &amp; Import</Label>
           <Select.Root name="bulk-library" type="single" bind:value={selectedLibraryId}>
             <Select.Trigger>
               {selectedLibraryTitle}
@@ -754,15 +755,15 @@
             />
           {/if}
           <div class="flex flex-col gap-1.5">
-            <label for="edit-title" class="text-sm font-medium">Title</label>
+            <Label for="edit-title" class="text-sm font-medium">Title</Label>
             <Input id="edit-title" bind:value={editTitle} />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="edit-subtitle" class="text-sm font-medium">Subtitle</label>
+            <Label for="edit-subtitle" class="text-sm font-medium">Subtitle</Label>
             <Input id="edit-subtitle" bind:value={editSubtitle} />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-medium">Authors</label>
+            <Label class="text-sm font-medium">Authors</Label>
             <TagInput
               bind:values={editAuthors}
               placeholder="Add author…"
@@ -770,50 +771,50 @@
             />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="edit-description" class="text-sm font-medium">Description</label>
+            <Label for="edit-description" class="text-sm font-medium">Description</Label>
             <Input id="edit-description" bind:value={editDescription} placeholder="Synopsis" />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="edit-publisher" class="text-sm font-medium">Publisher</label>
+            <Label for="edit-publisher" class="text-sm font-medium">Publisher</Label>
             <Input id="edit-publisher" bind:value={editPublisher} />
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div class="flex flex-col gap-1.5">
-              <label for="edit-date" class="text-sm font-medium">Published Date</label>
+              <Label for="edit-date" class="text-sm font-medium">Published Date</Label>
               <Input id="edit-date" bind:value={editDate} placeholder="YYYY" />
             </div>
             <div class="flex flex-col gap-1.5">
-              <label for="edit-language" class="text-sm font-medium">Language</label>
+              <Label for="edit-language" class="text-sm font-medium">Language</Label>
               <Input id="edit-language" bind:value={editLanguage} placeholder="en" />
             </div>
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="edit-identifier" class="text-sm font-medium">ISBN</label>
+            <Label for="edit-identifier" class="text-sm font-medium">ISBN</Label>
             <Input id="edit-identifier" bind:value={editIdentifier} />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="edit-page-count" class="text-sm font-medium">Page Count</label>
+            <Label for="edit-page-count" class="text-sm font-medium">Page Count</Label>
             <Input id="edit-page-count" type="number" bind:value={editPageCount} />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-medium">Series</label>
+            <Label class="text-sm font-medium">Series</Label>
             <div class="grid grid-cols-[1fr_4rem] gap-2">
               <Input bind:value={editSeriesName} placeholder="Series name" />
               <Input type="number" bind:value={editSeriesNumber} placeholder="#" />
             </div>
             <div class="mt-1 grid grid-cols-2 gap-2">
               <div class="flex flex-col gap-1">
-                <label class="text-xs text-muted-foreground">Total Books</label>
+                <Label class="text-xs text-muted-foreground">Total Books</Label>
                 <Input type="number" bind:value={editSeriesTotal} placeholder="Total" />
               </div>
             </div>
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-medium">Rating</label>
+            <Label class="text-sm font-medium">Rating</Label>
             <StarRating bind:value={editRating} />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-medium">Genres</label>
+            <Label class="text-sm font-medium">Genres</Label>
             <TagInput
               bind:values={editGenres}
               placeholder="Add genre…"
@@ -821,7 +822,7 @@
             />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-medium">Tags</label>
+            <Label class="text-sm font-medium">Tags</Label>
             <TagInput
               bind:values={editTags}
               placeholder="Add tag…"

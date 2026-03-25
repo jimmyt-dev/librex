@@ -97,7 +97,7 @@
     )}
     onclick={() => inputEl?.focus()}
   >
-    {#each values as val}
+    {#each values as val (val)}
       <span
         class="inline-flex items-center gap-0.5 rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium"
       >
@@ -135,7 +135,7 @@
     <div
       class="absolute top-full right-0 left-0 z-50 mt-1 max-h-40 overflow-y-auto rounded-lg border bg-popover shadow-md"
     >
-      {#each suggestions as suggestion, i}
+      {#each suggestions as suggestion, i (suggestion)}
         <button
           type="button"
           class={cn(

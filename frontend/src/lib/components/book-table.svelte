@@ -14,6 +14,7 @@
   import LibraryBigIcon from '@lucide/svelte/icons/library-big';
   import DownloadIcon from '@lucide/svelte/icons/download';
   import TrashIcon from '@lucide/svelte/icons/trash-2';
+  import { Label } from '$lib/components/ui/label';
 
   let {
     books,
@@ -84,7 +85,7 @@
 
   let allSelected = $derived(books.length > 0 && books.every((b) => selectedIds.has(b.id)));
 
-  function toggleAll(e: MouseEvent) {
+  function toggleAll() {
     if (allSelected) {
       for (const b of books) onselect?.(b.id, false, false);
     } else {
@@ -117,8 +118,6 @@
     </thead>
     <tbody>
       {#each books as book (book.id)}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
         <tr
           class="border-b transition-colors last:border-0 hover:bg-muted/30 {selectedIds.has(
             book.id
@@ -243,10 +242,10 @@
         This will remove the book from your library. This action cannot be undone.
       </AlertDialog.Description>
     </AlertDialog.Header>
-    <label class="flex cursor-pointer items-center gap-2 text-sm">
+    <Label class="flex cursor-pointer items-center gap-2 text-sm">
       <Checkbox bind:checked={deleteFile} />
       Also delete the file from disk
-    </label>
+    </Label>
     <AlertDialog.Footer>
       <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
       <AlertDialog.Action onclick={confirmDelete} disabled={deleting}>

@@ -19,6 +19,7 @@
   import BookOpenTextIcon from '@lucide/svelte/icons/book-open-text'; // Import Read icon
   import Button from './ui/button/button.svelte';
   import { cn } from '$lib/utils';
+  import { Label } from './ui/label';
 
   let {
     book,
@@ -246,10 +247,10 @@
         This will remove the book from your library. This action cannot be undone.
       </AlertDialog.Description>
     </AlertDialog.Header>
-    <label class="flex cursor-pointer items-center gap-2 text-sm">
+    <Label class="flex cursor-pointer items-center gap-2 text-sm">
       <Checkbox bind:checked={deleteFile} />
       Also delete the file from disk
-    </label>
+    </Label>
     <AlertDialog.Footer>
       <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
       <AlertDialog.Action onclick={confirmDelete} disabled={deleting}>

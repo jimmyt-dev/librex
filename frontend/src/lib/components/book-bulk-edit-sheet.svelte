@@ -11,6 +11,7 @@
   import { Input } from '$lib/components/ui/input';
   import StarRating from '$lib/components/star-rating.svelte';
   import ArrayField from '$lib/components/array-field.svelte';
+  import { Label } from './ui/label';
 
   let {
     open = $bindable(false),
@@ -140,29 +141,29 @@
 
         <!-- Text fields -->
         <div class="flex flex-col gap-1.5">
-          <label for="bulk-series" class="text-sm font-medium">Series Name</label>
+          <Label for="bulk-series" class="text-sm font-medium">Series Name</Label>
           <Input id="bulk-series" bind:value={seriesName} placeholder="Leave empty to skip" />
         </div>
 
         <div class="grid grid-cols-2 gap-4">
           <div class="flex flex-col gap-1.5">
-            <label for="bulk-series-total" class="text-sm font-medium">Series Total</label>
+            <Label for="bulk-series-total" class="text-sm font-medium">Series Total</Label>
             <Input id="bulk-series-total" type="number" bind:value={seriesTotal} placeholder="—" />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label for="bulk-publisher" class="text-sm font-medium">Publisher</label>
+            <Label for="bulk-publisher" class="text-sm font-medium">Publisher</Label>
             <Input id="bulk-publisher" bind:value={publisher} placeholder="Leave empty to skip" />
           </div>
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <label for="bulk-language" class="text-sm font-medium">Language</label>
+          <Label for="bulk-language" class="text-sm font-medium">Language</Label>
           <Input id="bulk-language" bind:value={language} placeholder="e.g. en" />
         </div>
 
         <!-- Rating -->
         <div class="flex flex-col gap-1.5">
-          <label class="text-sm font-medium">Rating</label>
+          <Label class="text-sm font-medium">Rating</Label>
           <StarRating bind:value={rating} />
         </div>
 

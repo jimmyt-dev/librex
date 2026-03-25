@@ -6,6 +6,7 @@
   import { toast } from 'svelte-sonner';
   import LucideIcon from '$lib/components/lucide-icon.svelte';
   import { Checkbox } from '$lib/components/ui/checkbox';
+  import { Label } from './ui/label';
 
   function getToken() {
     return localStorage.getItem('bearer_token') || '';
@@ -106,7 +107,7 @@
     {:else}
       <div class="flex flex-col gap-1 py-2">
         {#each shelvesState.items as shelf (shelf.id)}
-          <label
+          <Label
             class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted"
           >
             <Checkbox
@@ -119,7 +120,7 @@
             {/if}
             <span>{shelf.title}</span>
             <span class="ml-auto text-xs text-muted-foreground">{shelf.books}</span>
-          </label>
+          </Label>
         {/each}
       </div>
     {/if}

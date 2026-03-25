@@ -1,7 +1,7 @@
 <script lang="ts">
   import { cn } from '$lib/utils.js';
   import Loader2Icon from '@lucide/svelte/icons/loader-2';
-  import type { SVGAttributes } from 'svelte/elements';
+  import type { LucideProps } from '@lucide/svelte';
 
   let {
     class: className,
@@ -11,7 +11,7 @@
     stroke,
     'aria-label': ariaLabel = 'Loading',
     ...restProps
-  }: SVGAttributes<SVGSVGElement> = $props();
+  }: LucideProps & { 'aria-label'?: string; role?: string } = $props();
 </script>
 
 <Loader2Icon

@@ -15,6 +15,7 @@
   import SquareCheckBig from '@lucide/svelte/icons/square-check-big';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import BookBulkEditSheet from '$lib/components/book-bulk-edit-sheet.svelte';
+  import { Label } from '$lib/components/ui/label';
 
   let {
     selectedIds,
@@ -235,10 +236,10 @@
       </AlertDialog.Description>
     </AlertDialog.Header>
 
-    <label class="flex cursor-pointer items-center gap-2 text-sm">
+    <Label class="flex cursor-pointer items-center gap-2 text-sm">
       <Checkbox bind:checked={deleteFile} />
       Also delete the files from disk
-    </label>
+    </Label>
 
     <AlertDialog.Footer>
       <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>

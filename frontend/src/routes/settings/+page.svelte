@@ -24,6 +24,7 @@
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import LibraryIcon from '@lucide/svelte/icons/library';
   import { dev } from '$app/environment';
+  import { Label } from '$lib/components/ui/label';
 
   const DEFAULT_PATTERN = '{authors}/{title}{ext}';
 
@@ -211,7 +212,7 @@
     </p>
     <div class="mt-4 flex flex-col gap-3">
       <div class="flex flex-col gap-1.5">
-        <label class="text-sm font-medium">Bookdrop Folder</label>
+        <Label class="text-sm font-medium">Bookdrop Folder</Label>
         <Button
           type="button"
           variant="outline"
@@ -312,7 +313,7 @@
 
     <div class="mt-4 flex flex-col gap-3">
       <div class="flex flex-col gap-1.5">
-        <label for="pattern" class="text-sm font-medium">Default Naming Pattern</label>
+        <Label for="pattern" class="text-sm font-medium">Default Naming Pattern</Label>
         <div class="flex gap-2">
           <Input id="pattern" bind:value={pattern} class="font-mono text-sm" />
           <Button variant="outline" size="icon" onclick={resetPattern} title="Reset to default">
@@ -326,7 +327,7 @@
         <p class="mt-0.5 font-mono text-sm break-all">{preview}</p>
       </div>
 
-      <label class="flex cursor-pointer items-center gap-2 text-sm">
+      <Label class="flex cursor-pointer items-center gap-2 text-sm">
         <Checkbox bind:checked={writeMetadata} />
         <div>
           <span class="font-medium">Write metadata to book files</span>
@@ -334,7 +335,7 @@
             When enabled, editing a book's metadata will also update the EPUB file itself.
           </p>
         </div>
-      </label>
+      </Label>
 
       <div class="flex justify-end">
         <Button onclick={saveSettings} disabled={saving || !dirty} size="sm">
@@ -355,7 +356,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each variables as v}
+            {#each variables as v (v.name)}
               <tr class="border-b last:border-0">
                 <td class="px-3 py-1.5 font-mono text-xs">{v.name}</td>
                 <td class="px-3 py-1.5 text-xs text-muted-foreground">{v.description}</td>
@@ -445,11 +446,11 @@
     </Dialog.Header>
     <div class="flex flex-col gap-4 py-2">
       <div class="flex flex-col gap-1.5">
-        <label class="text-sm font-medium" for="lib-name">Name</label>
+        <Label class="text-sm font-medium" for="lib-name">Name</Label>
         <Input id="lib-name" bind:value={newLibName} placeholder="My Library" />
       </div>
       <div class="flex flex-col gap-1.5">
-        <label class="text-sm font-medium">Folder</label>
+        <Label class="text-sm font-medium">Folder</Label>
         <Button
           type="button"
           variant="outline"
@@ -468,9 +469,9 @@
         </Button>
       </div>
       <div class="flex flex-col gap-1.5">
-        <label class="text-sm font-medium" for="lib-pattern">
+        <Label class="text-sm font-medium" for="lib-pattern">
           Naming Pattern <span class="font-normal text-muted-foreground">(optional)</span>
-        </label>
+        </Label>
         <Input
           id="lib-pattern"
           bind:value={newLibPattern}

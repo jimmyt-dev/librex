@@ -7,7 +7,7 @@
 </script>
 
 <div class="flex gap-1">
-  {#each [1, 2, 3, 4, 5] as star}
+  {#each [1, 2, 3, 4, 5] as star (star)}
     <button
       type="button"
       class="text-2xl leading-none transition-colors {(parseInt(value) || 0) >= star

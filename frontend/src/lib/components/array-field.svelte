@@ -1,5 +1,6 @@
 <script lang="ts">
   import TagInput from './tag-input.svelte';
+  import Label from './ui/label/label.svelte';
 
   let {
     label,
@@ -18,9 +19,9 @@
 
 <div class="flex flex-col gap-1.5">
   <div class="flex items-center justify-between">
-    <label class="text-sm font-medium">{label}</label>
+    <Label class="text-sm font-medium">{label}</Label>
     <div class="flex gap-1">
-      {#each ['merge', 'replace'] as const as m}
+      {#each ['merge', 'replace'] as const as m (m)}
         <button
           type="button"
           class="rounded px-2 py-0.5 text-xs capitalize {mode === m

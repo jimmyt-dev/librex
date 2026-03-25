@@ -3,6 +3,7 @@
   import { authClient } from '$lib/auth-client';
   import { Button } from '$lib/components/ui/button/index.js';
   import { Input } from '$lib/components/ui/input/index.js';
+  import { Label } from '$lib/components/ui/label';
 
   let email = $state('');
   let password = $state('');
@@ -44,7 +45,7 @@
     <div class="rounded-xl border border-border bg-card p-6 shadow-sm">
       <form onsubmit={handleSubmit} class="flex flex-col gap-4">
         <div class="flex flex-col gap-1.5">
-          <label for="email" class="text-sm font-medium text-foreground">Email</label>
+          <Label for="email" class="text-sm font-medium text-foreground">Email</Label>
           <Input
             id="email"
             type="email"
@@ -56,7 +57,7 @@
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <label for="password" class="text-sm font-medium text-foreground">Password</label>
+          <Label for="password" class="text-sm font-medium text-foreground">Password</Label>
           <Input
             id="password"
             type="password"
