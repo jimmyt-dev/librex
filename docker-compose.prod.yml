@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: reliquary
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - reliquary_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U reliquary"]
       interval: 5s
@@ -38,4 +38,4 @@ services:
         condition: service_healthy
 
 volumes:
-  postgres_data:
+  reliquary_data:

@@ -23,6 +23,7 @@
   import PlusIcon from '@lucide/svelte/icons/plus';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import LibraryIcon from '@lucide/svelte/icons/library';
+  import { dev } from '$app/environment';
 
   const DEFAULT_PATTERN = '{authors}/{title}{ext}';
 
@@ -36,7 +37,7 @@
   let addLibOpen = $state(false);
   let addLibFolderOpen = $state(false);
   let newLibName = $state('');
-  let newLibFolder = $state('/books');
+  let newLibFolder = $state(dev ? '/' : '/books');
   let newLibPattern = $state('');
   let addingLib = $state(false);
   let deletingLibId = $state<string | null>(null);
@@ -103,10 +104,7 @@
     return result;
   }
 
-  function resolveSegment(
-    segment: string,
-    vars: Record<string, string>
-  ): string | null {
+  function resolveSegment(segment: string, vars: Record<string, string>): string | null {
     let result = '';
     let hasEmpty = false;
     let i = 0;
@@ -217,7 +215,9 @@
         <Button
           type="button"
           variant="outline"
-          class="w-full justify-start gap-2 font-normal {!bookdropPath ? 'text-muted-foreground' : ''}"
+          class="w-full justify-start gap-2 font-normal {!bookdropPath
+            ? 'text-muted-foreground'
+            : ''}"
           onclick={() => (folderDialogOpen = true)}
         >
           {#if bookdropPath}
@@ -226,7 +226,10 @@
             <button
               type="button"
               class="ml-auto text-muted-foreground hover:text-foreground"
-              onclick={(e) => { e.stopPropagation(); bookdropPath = ''; }}
+              onclick={(e) => {
+                e.stopPropagation();
+                bookdropPath = '';
+              }}
             >
               <XIcon class="size-3" />
             </button>
@@ -267,7 +270,9 @@
 
     <div class="mt-4 flex flex-col gap-2">
       {#if librariesState.items.length === 0}
-        <p class="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+        <p
+          class="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground"
+        >
           No libraries yet. Add one above.
         </p>
       {:else}
@@ -310,12 +315,7 @@
         <label for="pattern" class="text-sm font-medium">Default Naming Pattern</label>
         <div class="flex gap-2">
           <Input id="pattern" bind:value={pattern} class="font-mono text-sm" />
-          <Button
-            variant="outline"
-            size="icon"
-            onclick={resetPattern}
-            title="Reset to default"
-          >
+          <Button variant="outline" size="icon" onclick={resetPattern} title="Reset to default">
             <RotateCcwIcon class="size-4" />
           </Button>
         </div>
@@ -453,7 +453,9 @@
         <Button
           type="button"
           variant="outline"
-          class="w-full justify-start gap-2 font-normal {!newLibFolder ? 'text-muted-foreground' : ''}"
+          class="w-full justify-start gap-2 font-normal {!newLibFolder
+            ? 'text-muted-foreground'
+            : ''}"
           onclick={() => (addLibFolderOpen = true)}
         >
           {#if newLibFolder}

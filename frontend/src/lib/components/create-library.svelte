@@ -12,12 +12,13 @@
   import { librariesState } from '$lib/api/libraries.svelte';
   import { toast } from 'svelte-sonner';
   import { goto } from '$app/navigation';
+  import { dev } from '$app/environment';
 
   let open = $state(false);
   let folderDialogOpen = $state(false);
   let name = $state('');
   let icon = $state('');
-  let folder = $state('/books');
+  let folder = $state(dev ? '/' : '/books');
   let fileNamingPattern = $state('');
   let loading = $state(false);
   let errorMessage = $state('');
@@ -115,7 +116,9 @@
           class="font-mono text-sm"
         />
         <p class="text-xs text-muted-foreground">
-          Override the default naming pattern for this library. Example: <code class="rounded bg-muted px-1">{'{authors}/{title}{ext}'}</code>
+          Override the default naming pattern for this library. Example: <code
+            class="rounded bg-muted px-1">{'{authors}/{title}{ext}'}</code
+          >
         </p>
       </div>
 
