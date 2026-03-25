@@ -4,6 +4,7 @@ export type Library = {
   url: string;
   icon?: string;
   books: number;
+  fileNamingPattern?: string | null;
 };
 
 class LibrariesState {
@@ -15,19 +16,25 @@ class LibrariesState {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     });
     if (res.ok) {
-      const dbItems: { id: string; name: string; icon: string | null; bookCount: number }[] =
-        await res.json();
+      const dbItems: {
+        id: string;
+        name: string;
+        icon: string | null;
+        bookCount: number;
+        fileNamingPattern: string | null;
+      }[] = await res.json();
       this.items = dbItems.map((l) => ({
         id: l.id,
         title: l.name,
         url: '#',
         icon: l.icon ?? undefined,
-        books: l.bookCount
+        books: l.bookCount,
+        fileNamingPattern: l.fileNamingPattern
       }));
     }
   };
 
-  create = async (name: string, folder: string, icon?: string) => {
+  create = async (name: string, folder: string, icon?: string, fileNamingPattern?: string) => {
     const token = localStorage.getItem('bearer_token') || '';
     const res = await fetch('/api/libraries', {
       method: 'POST',
@@ -35,7 +42,12 @@ class LibrariesState {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ name, folder, icon: icon ?? null })
+      body: JSON.stringify({
+        name,
+        folder,
+        icon: icon ?? null,
+        fileNamingPattern: fileNamingPattern || null
+      })
     });
     if (!res.ok) {
       const msg = await res.text();

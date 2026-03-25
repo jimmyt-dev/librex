@@ -8,6 +8,7 @@
   import TrashIcon from '@lucide/svelte/icons/trash-2';
   import XIcon from '@lucide/svelte/icons/x';
   import LibraryBigIcon from '@lucide/svelte/icons/library-big';
+  import FolderSyncIcon from '@lucide/svelte/icons/folder-sync';
   import { toast } from 'svelte-sonner';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import SquareCheckBig from '@lucide/svelte/icons/square-check-big';
@@ -28,6 +29,7 @@
   let deleteOpen = $state(false);
   let deleteFile = $state(false);
   let deleting = $state(false);
+  let moving = $state(false);
 
   let count = $derived(selectedIds.size);
 
@@ -55,10 +57,48 @@
     shelvesState.fetchAll();
   }
 
+  function getToken() {
+    return localStorage.getItem('bearer_token') || '';
+  }
+
+  async function moveBooks() {
+    moving = true;
+    const ids = [...selectedIds];
+    try {
+      const res = await fetch('/api/books/move', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ bookIds: ids })
+      });
+      if (!res.ok) throw new Error('Failed to move books');
+      const results: { bookId: string; error?: string }[] = await res.json();
+      const failed = results.filter((r) => r.error);
+      if (failed.length > 0) {
+        toast.error(`Failed to move ${failed.length} book${failed.length > 1 ? 's' : ''}.`);
+      } else {
+        toast.success(`Moved ${ids.length} book${ids.length > 1 ? 's' : ''} to naming pattern.`);
+      }
+      // Refresh book data
+      booksState.fetchAll();
+      for (const b of books) {
+        if (ids.includes(b.id)) {
+          booksState.fetchForLibrary(b.libraryId);
+        }
+      }
+    } catch {
+      toast.error('Failed to move books.');
+    } finally {
+      moving = false;
+    }
+  }
+
   let selectedTitles = $derived(
     books
       .filter((b) => selectedIds.has(b.id))
-      .map((b) => b.title)
+      .map((b) => b.metadata.title)
       .slice(0, 3)
   );
 </script>
@@ -114,6 +154,22 @@
           </Tooltip.Trigger>
           <Tooltip.Portal>
             <Tooltip.Content>Shelves</Tooltip.Content>
+          </Tooltip.Portal>
+        </Tooltip.Root>
+      </Tooltip.Provider>
+
+      <!-- Move to Naming Pattern -->
+      <Tooltip.Provider delayDuration={400}>
+        <Tooltip.Root>
+          <Tooltip.Trigger
+            class={buttonVariants({ variant: 'outline', size: 'icon' })}
+            onclick={moveBooks}
+            disabled={moving}
+          >
+            <FolderSyncIcon class="size-4" />
+          </Tooltip.Trigger>
+          <Tooltip.Portal>
+            <Tooltip.Content>Move to Naming Pattern</Tooltip.Content>
           </Tooltip.Portal>
         </Tooltip.Root>
       </Tooltip.Provider>

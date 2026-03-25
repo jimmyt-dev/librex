@@ -51,7 +51,7 @@
     try {
       await booksState.delete(book.id, deleteFile);
       shelvesState.removeBook(book.id);
-      toast.success(`"${book.title}" deleted.`);
+      toast.success(`"${book.metadata.title}" deleted.`);
       deleteOpen = false;
       librariesState.fetchAll();
       shelvesState.fetchAll();
@@ -83,7 +83,7 @@
         onCheckedChange={(v) => onselect?.(book.id, !!v, lastClickShift)}
         onclick={(e) => (lastClickShift = e.shiftKey)}
         class="border-2 border-white bg-white/70 shadow-md drop-shadow-sm backdrop-blur-sm data-[state=checked]:border-primary data-[state=checked]:bg-primary"
-        aria-label="Select {book.title}"
+        aria-label="Select {book.metadata.title}"
       />
     </button>
   {/if}
@@ -101,7 +101,7 @@
           class="border-accent"
           href="/books/{book.id}"
           size="icon-lg"
-          aria-label="View details for {book.title}"
+          aria-label="View details for {book.metadata.title}"
           onclick={(e) => e.stopPropagation()}
         >
           <InfoIcon class="size-4" />
@@ -110,7 +110,7 @@
         <Button
           class="border-accent"
           size="icon-lg"
-          aria-label="Read {book.title}"
+          aria-label="Read {book.metadata.title}"
           onclick={(e) => {
             e.stopPropagation();
             toast.info('Read functionality coming soon!');
@@ -119,10 +119,10 @@
           <BookOpenTextIcon class="size-4" />
         </Button>
       </div>
-      {#if book.cover}
+      {#if book.metadata.coverPath}
         <img
-          src={book.cover}
-          alt={book.title}
+          src={`/api/books/${book.id}/cover`}
+          alt={book.metadata.title}
           class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
         />
       {:else}
@@ -140,7 +140,7 @@
               'cursor-pointer!': selectMode
             })}
           >
-            <p class="truncate text-xs leading-tight font-medium">{book.title}</p>
+            <p class="truncate text-xs leading-tight font-medium">{book.metadata.title}</p>
             {#if book.authors.length > 0}
               <p class="truncate text-xs text-muted-foreground">
                 {book.authors.map((a) => a.name).join(', ')}
@@ -148,7 +148,7 @@
             {/if}
           </Tooltip.Trigger>
           <Tooltip.Portal>
-            <Tooltip.Content side="bottom">{book.title}</Tooltip.Content>
+            <Tooltip.Content side="bottom">{book.metadata.title}</Tooltip.Content>
           </Tooltip.Portal>
         </Tooltip.Root>
       </Tooltip.Provider>
@@ -192,7 +192,7 @@
                   const blob = await res.blob();
                   const disposition = res.headers.get('Content-Disposition') || '';
                   const match = disposition.match(/filename="(.+?)"/);
-                  const filename = match ? match[1] : book.title;
+                  const filename = match ? match[1] : book.metadata.title;
                   const a = document.createElement('a');
                   a.href = URL.createObjectURL(blob);
                   a.download = filename;
@@ -232,7 +232,7 @@
 >
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title>Delete "{book.title}"?</AlertDialog.Title>
+      <AlertDialog.Title>Delete "{book.metadata.title}"?</AlertDialog.Title>
       <AlertDialog.Description>
         This will remove the book from your library. This action cannot be undone.
       </AlertDialog.Description>

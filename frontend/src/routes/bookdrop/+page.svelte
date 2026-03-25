@@ -112,6 +112,7 @@
       );
       librariesState.fetchAll();
       shelvesState.fetchAll();
+      booksState.fetchAll();
       for (const libId of affectedLibraries) {
         booksState.invalidate(libId);
         booksState.fetchForLibrary(libId);

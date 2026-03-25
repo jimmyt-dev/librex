@@ -509,20 +509,18 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Build destination path: library_folder/author/filename
-		authorDir := "Unknown"
-		if book.Author != nil && *book.Author != "" {
-			authorDir = sanitizeName(*book.Author)
-		}
+		// Build destination path using file naming pattern
+		pattern := getEffectivePattern(r, item.LibraryID, userID)
+		patternData := buildPatternData(book.Title, book.Author, book.Date, book.Publisher, book.Language, book.Ext)
+		relativePath := resolveFilePattern(pattern, patternData)
+		destPath := uniqueDest(filepath.Join(libraryFolder, relativePath))
 
-		destDir := filepath.Join(libraryFolder, authorDir)
+		destDir := filepath.Dir(destPath)
 		if err := os.MkdirAll(destDir, 0755); err != nil {
-			res.Error = fmt.Sprintf("failed to create author directory: %v", err)
+			res.Error = fmt.Sprintf("failed to create directory: %v", err)
 			results = append(results, res)
 			continue
 		}
-
-		destPath := uniqueDest(filepath.Join(destDir, filepath.Base(book.OriginalPath)))
 
 		if err := moveFile(book.OriginalPath, destPath); err != nil {
 			res.Error = fmt.Sprintf("failed to move file: %v", err)
@@ -530,30 +528,50 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Fetch cover from staged_books
-		var coverImage []byte
-		var coverMime *string
-		_ = db.DB.QueryRow(r.Context(),
-			"SELECT cover_image, cover_mime FROM staged_books WHERE id = $1",
-			item.StagedBookID).Scan(&coverImage, &coverMime)
-
-		// Insert into books with full metadata
+		// Insert slim books row
 		var bookID string
 		err = db.DB.QueryRow(r.Context(),
-			`INSERT INTO books (
-				library_id, user_id, title, subject, description, publisher, contributor,
-				date, type, format, identifier, source, language, relation, coverage,
-				cover_image, cover_mime, file_path
-			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
-			RETURNING id`,
-			item.LibraryID, userID,
-			book.Title,
-			book.Subject, book.Description, book.Publisher, book.Contributor,
-			book.Date, book.Type, book.Format, book.Identifier,
-			book.Source, book.Language, book.Relation, book.Coverage,
-			coverImage, coverMime, destPath).Scan(&bookID)
+			`INSERT INTO books (library_id, user_id, file_path)
+			VALUES ($1, $2, $3) RETURNING id`,
+			item.LibraryID, userID, destPath).Scan(&bookID)
 		if err != nil {
-			// Move failed to record — try to move file back
+			_ = moveFile(destPath, book.OriginalPath)
+			res.Error = fmt.Sprintf("db error: %v", err)
+			results = append(results, res)
+			continue
+		}
+
+		// Write cover to disk
+		var coverPath *string
+		var coverMimeVal *string
+		var coverImage []byte
+		var coverMimeStr *string
+		_ = db.DB.QueryRow(r.Context(),
+			"SELECT cover_image, cover_mime FROM staged_books WHERE id = $1",
+			item.StagedBookID).Scan(&coverImage, &coverMimeStr)
+		if len(coverImage) > 0 {
+			mime := "image/jpeg"
+			if coverMimeStr != nil && *coverMimeStr != "" {
+				mime = *coverMimeStr
+			}
+			if cp, err := writeCoverToDisk(libraryFolder, bookID, coverImage, mime); err == nil {
+				coverPath = &cp
+				coverMimeVal = &mime
+			}
+		}
+
+		// Insert book_metadata row
+		_, err = db.DB.Exec(r.Context(),
+			`INSERT INTO book_metadata (
+				book_id, title, description, publisher, published_date, language,
+				cover_path, cover_mime
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+			bookID, book.Title,
+			book.Description, book.Publisher, book.Date, book.Language,
+			coverPath, coverMimeVal)
+		if err != nil {
+			// Clean up the books row
+			_, _ = db.DB.Exec(r.Context(), "DELETE FROM books WHERE id = $1", bookID)
 			_ = moveFile(destPath, book.OriginalPath)
 			res.Error = fmt.Sprintf("db error: %v", err)
 			results = append(results, res)
@@ -566,6 +584,15 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			authors, err := findOrCreateAuthors(r, authorNames, userID)
 			if err == nil {
 				_ = linkBookAuthors(r, bookID, authors)
+			}
+		}
+
+		// Link categories from subject
+		if book.Subject != nil && *book.Subject != "" {
+			catNames := strings.Split(*book.Subject, ",")
+			cats, err := findOrCreateCategories(r, catNames, userID)
+			if err == nil {
+				_ = linkBookCategories(r, bookID, cats)
 			}
 		}
 

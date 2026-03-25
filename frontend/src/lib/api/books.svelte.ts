@@ -3,25 +3,56 @@ export type BookAuthor = {
   name: string;
 };
 
+export type BookCategory = {
+  id: string;
+  name: string;
+};
+
+export type BookTag = {
+  id: string;
+  name: string;
+};
+
+export type BookMetadata = {
+  bookId: string;
+  title: string;
+  subtitle: string | null;
+  description: string | null;
+  publisher: string | null;
+  publishedDate: string | null;
+  isbn13: string | null;
+  isbn10: string | null;
+  language: string | null;
+  pageCount: number | null;
+  seriesName: string | null;
+  seriesNumber: number | null;
+  coverPath: string | null;
+  coverMime: string | null;
+};
+
+export type ReadingProgress = {
+  id: string;
+  userId: string;
+  bookId: string;
+  status: string;
+  progress: number;
+  lastReadAt: string | null;
+  dateStarted: string | null;
+  dateFinished: string | null;
+  personalRating: number | null;
+};
+
 export type Book = {
   id: string;
   libraryId: string;
-  title: string;
-  cover: string | null;
-  authors: BookAuthor[];
-  subject: string | null;
-  description: string | null;
-  publisher: string | null;
-  contributor: string | null;
-  date: string | null;
-  type: string | null;
-  format: string | null;
-  identifier: string | null;
-  source: string | null;
-  language: string | null;
-  relation: string | null;
-  coverage: string | null;
+  userId: string;
   filePath: string;
+  addedOn: string;
+  metadata: BookMetadata;
+  authors: BookAuthor[];
+  categories: BookCategory[];
+  tags: BookTag[];
+  progress?: ReadingProgress;
 };
 
 function getToken() {
@@ -60,12 +91,19 @@ class BooksState {
   }
 
   upsert(book: Book) {
+    // Update byLibrary
     const list = this.byLibrary[book.libraryId];
-    if (!list) return;
-    this.byLibrary = {
-      ...this.byLibrary,
-      [book.libraryId]: list.map((b) => (b.id === book.id ? book : b))
-    };
+    if (list) {
+      this.byLibrary = {
+        ...this.byLibrary,
+        [book.libraryId]: list.map((b) => (b.id === book.id ? book : b))
+      };
+    }
+    // Update all
+    const idx = this.all.findIndex((b) => b.id === book.id);
+    if (idx !== -1) {
+      this.all = this.all.map((b) => (b.id === book.id ? book : b));
+    }
   }
 
   remove(libraryId: string, bookId: string) {

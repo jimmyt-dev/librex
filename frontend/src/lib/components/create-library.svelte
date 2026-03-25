@@ -17,6 +17,7 @@
   let name = $state('');
   let icon = $state('');
   let folder = $state('');
+  let fileNamingPattern = $state('');
   let loading = $state(false);
   let errorMessage = $state('');
 
@@ -25,11 +26,17 @@
     loading = true;
     errorMessage = '';
     try {
-      await librariesState.create(name.trim(), folder.trim(), icon || undefined);
+      await librariesState.create(
+        name.trim(),
+        folder.trim(),
+        icon || undefined,
+        fileNamingPattern.trim() || undefined
+      );
       toast.success(`Library "${name.trim()}" created successfully!`);
       name = '';
       icon = '';
       folder = '';
+      fileNamingPattern = '';
       open = false;
     } catch (e) {
       errorMessage = e instanceof Error ? e.message : String(e);
@@ -93,6 +100,19 @@
             Select folder...
           {/if}
         </Button>
+      </div>
+
+      <div class="col-span-2 grid gap-3">
+        <Label for="library-pattern">File Naming Pattern (optional)</Label>
+        <Input
+          id="library-pattern"
+          bind:value={fileNamingPattern}
+          placeholder="Leave empty to use default"
+          class="font-mono text-sm"
+        />
+        <p class="text-xs text-muted-foreground">
+          Override the default naming pattern for this library. Example: <code class="rounded bg-muted px-1">{'{authors}/{title}{ext}'}</code>
+        </p>
       </div>
 
       {#if errorMessage}

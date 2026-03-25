@@ -11,6 +11,7 @@
   import { headerState } from '$lib/state/header.svelte';
   import './layout.css';
   import InboxIcon from '@lucide/svelte/icons/inbox';
+  import SettingsIcon from '@lucide/svelte/icons/settings';
   import { buttonVariants } from '$lib/components/ui/button';
   import BookEditSheet from '$lib/components/book-edit-sheet.svelte';
   import ShelfAssignDialog from '$lib/components/shelf-assign-dialog.svelte';
@@ -63,7 +64,10 @@
               </div>
             {/if}
           </div>
-          <div>
+          <div class="flex items-center gap-1.5">
+            <a href="/settings" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
+              <SettingsIcon class="size-4" />
+            </a>
             <a href="/bookdrop" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
               <InboxIcon class="size-4" />
             </a>

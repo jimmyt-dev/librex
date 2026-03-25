@@ -43,12 +43,17 @@ func main() {
 
 	r.Route("/api/books", func(r chi.Router) {
 		r.Get("/all", handlers.GetBookAll)
+		r.Post("/move", handlers.MoveBooks)
 		r.Get("/{id}", handlers.GetBook)
 		r.Put("/{id}", handlers.UpdateBook)
 		r.Delete("/{id}", handlers.DeleteBook)
 		r.Get("/{id}/cover", handlers.GetBookCover)
 		r.Get("/{id}/download", handlers.DownloadBook)
 		r.Get("/{id}/shelves", handlers.ListBookShelves)
+		r.Get("/{id}/progress", handlers.GetReadingProgress)
+		r.Put("/{id}/progress", handlers.UpdateReadingProgress)
+		r.Get("/{id}/sessions", handlers.ListReadingSessions)
+		r.Post("/{id}/sessions", handlers.CreateReadingSession)
 	})
 
 	r.Route("/api/shelves", func(r chi.Router) {
@@ -70,6 +75,31 @@ func main() {
 		r.Put("/{id}", handlers.UpdateAuthor)
 		r.Delete("/{id}", handlers.DeleteAuthor)
 		r.Get("/{id}/books", handlers.ListAuthorBooks)
+	})
+
+	r.Route("/api/categories", func(r chi.Router) {
+		r.Get("/", handlers.ListCategories)
+		r.Post("/", handlers.CreateCategory)
+		r.Get("/{id}", handlers.GetCategory)
+		r.Put("/{id}", handlers.UpdateCategory)
+		r.Delete("/{id}", handlers.DeleteCategory)
+		r.Get("/{id}/books", handlers.ListCategoryBooks)
+	})
+
+	r.Route("/api/tags", func(r chi.Router) {
+		r.Get("/", handlers.ListTags)
+		r.Post("/", handlers.CreateTag)
+		r.Get("/{id}", handlers.GetTag)
+		r.Put("/{id}", handlers.UpdateTag)
+		r.Delete("/{id}", handlers.DeleteTag)
+		r.Get("/{id}/books", handlers.ListTagBooks)
+	})
+
+	r.Get("/api/series", handlers.ListSeries)
+
+	r.Route("/api/settings", func(r chi.Router) {
+		r.Get("/", handlers.GetSettings)
+		r.Put("/", handlers.UpdateSettings)
 	})
 
 	r.Get("/api/directories", handlers.ListDirectories)

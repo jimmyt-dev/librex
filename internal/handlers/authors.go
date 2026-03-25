@@ -18,16 +18,33 @@ type authorWithCount struct {
 }
 
 // ListAuthors returns all authors for the authenticated user with book counts.
+// Supports ?q= for autocomplete filtering.
 func ListAuthors(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 
-	rows, err := db.DB.Query(r.Context(),
-		`SELECT a.id, a.name, a.user_id, COUNT(ba.book_id) AS book_count
-		FROM authors a
-		LEFT JOIN book_authors ba ON ba.author_id = a.id
-		WHERE a.user_id = $1
-		GROUP BY a.id
-		ORDER BY a.name`, userID)
+	q := r.URL.Query().Get("q")
+	var query string
+	var args []any
+
+	if q != "" {
+		query = `SELECT a.id, a.name, a.user_id, COUNT(ba.book_id) AS book_count
+			FROM authors a
+			LEFT JOIN book_authors ba ON ba.author_id = a.id
+			WHERE a.user_id = $1 AND a.name ILIKE $2
+			GROUP BY a.id
+			ORDER BY a.name`
+		args = []any{userID, "%" + q + "%"}
+	} else {
+		query = `SELECT a.id, a.name, a.user_id, COUNT(ba.book_id) AS book_count
+			FROM authors a
+			LEFT JOIN book_authors ba ON ba.author_id = a.id
+			WHERE a.user_id = $1
+			GROUP BY a.id
+			ORDER BY a.name`
+		args = []any{userID}
+	}
+
+	rows, err := db.DB.Query(r.Context(), query, args...)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
@@ -158,11 +175,9 @@ func ListAuthorBooks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := db.DB.Query(r.Context(),
-		`SELECT `+bookCols+`
-		FROM books b
-		JOIN book_authors ba ON ba.book_id = b.id
+		bookQuery+` JOIN book_authors ba ON ba.book_id = b.id
 		WHERE ba.author_id = $1
-		ORDER BY b.title`, id)
+		ORDER BY m.title`, id)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
@@ -179,8 +194,7 @@ func ListAuthorBooks(w http.ResponseWriter, r *http.Request) {
 		books = append(books, b)
 	}
 
-	// Attach authors to each book
-	if err := attachAuthors(r, books); err != nil {
+	if err := attachBookRelations(r, books); err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
 	}

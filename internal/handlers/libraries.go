@@ -17,19 +17,20 @@ import (
 )
 
 type libraryBody struct {
-	Name   string  `json:"name"`
-	Icon   *string `json:"icon"`
-	Folder *string `json:"folder"`
+	Name              string  `json:"name"`
+	Icon              *string `json:"icon"`
+	Folder            *string `json:"folder"`
+	FileNamingPattern *string `json:"fileNamingPattern"`
 }
 
 func ListLibraries(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	rows, err := db.DB.Query(r.Context(), `
-		SELECT l.id, l.name, l.icon, l.folder, l.user_id, COUNT(b.id) AS book_count
+		SELECT l.id, l.name, l.icon, l.folder, l.file_naming_pattern, l.user_id, COUNT(b.id) AS book_count
 		FROM libraries l
 		LEFT JOIN books b ON b.library_id = l.id
 		WHERE l.user_id = $1
-		GROUP BY l.id, l.name, l.icon, l.folder, l.user_id`, userID)
+		GROUP BY l.id, l.name, l.icon, l.folder, l.file_naming_pattern, l.user_id`, userID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
@@ -39,7 +40,7 @@ func ListLibraries(w http.ResponseWriter, r *http.Request) {
 	libraries := []models.Library{}
 	for rows.Next() {
 		var l models.Library
-		if err := rows.Scan(&l.ID, &l.Name, &l.Icon, &l.Folder, &l.UserID, &l.BookCount); err != nil {
+		if err := rows.Scan(&l.ID, &l.Name, &l.Icon, &l.Folder, &l.FileNamingPattern, &l.UserID, &l.BookCount); err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
@@ -55,8 +56,8 @@ func GetLibrary(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	var l models.Library
-	err := db.DB.QueryRow(r.Context(), "SELECT id, name, icon, folder, user_id FROM libraries WHERE id = $1 AND user_id = $2", id, userID).
-		Scan(&l.ID, &l.Name, &l.Icon, &l.Folder, &l.UserID)
+	err := db.DB.QueryRow(r.Context(), "SELECT id, name, icon, folder, file_naming_pattern, user_id FROM libraries WHERE id = $1 AND user_id = $2", id, userID).
+		Scan(&l.ID, &l.Name, &l.Icon, &l.Folder, &l.FileNamingPattern, &l.UserID)
 	if err != nil {
 		http.Error(w, "library not found", http.StatusNotFound)
 		return
@@ -86,8 +87,8 @@ func CreateLibrary(w http.ResponseWriter, r *http.Request) {
 
 	var id string
 	err := db.DB.QueryRow(r.Context(),
-		"INSERT INTO libraries (name, icon, folder, user_id) VALUES ($1, $2, $3, $4) RETURNING id",
-		body.Name, body.Icon, body.Folder, userID).Scan(&id)
+		"INSERT INTO libraries (name, icon, folder, file_naming_pattern, user_id) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+		body.Name, body.Icon, body.Folder, body.FileNamingPattern, userID).Scan(&id)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
@@ -95,7 +96,7 @@ func CreateLibrary(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(models.Library{ID: id, Name: body.Name, Icon: body.Icon, Folder: body.Folder, UserID: userID})
+	json.NewEncoder(w).Encode(models.Library{ID: id, Name: body.Name, Icon: body.Icon, Folder: body.Folder, FileNamingPattern: body.FileNamingPattern, UserID: userID})
 }
 
 func UpdateLibrary(w http.ResponseWriter, r *http.Request) {
@@ -103,8 +104,8 @@ func UpdateLibrary(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	var existing models.Library
-	err := db.DB.QueryRow(r.Context(), "SELECT id, name, icon, folder, user_id FROM libraries WHERE id = $1 AND user_id = $2", id, userID).
-		Scan(&existing.ID, &existing.Name, &existing.Icon, &existing.Folder, &existing.UserID)
+	err := db.DB.QueryRow(r.Context(), "SELECT id, name, icon, folder, file_naming_pattern, user_id FROM libraries WHERE id = $1 AND user_id = $2", id, userID).
+		Scan(&existing.ID, &existing.Name, &existing.Icon, &existing.Folder, &existing.FileNamingPattern, &existing.UserID)
 	if err != nil {
 		http.Error(w, "library not found", http.StatusNotFound)
 		return
@@ -126,15 +127,15 @@ func UpdateLibrary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, execErr := db.DB.Exec(r.Context(),
-		"UPDATE libraries SET name = $1, icon = $2, folder = $3 WHERE id = $4 AND user_id = $5",
-		body.Name, body.Icon, body.Folder, id, userID)
+		"UPDATE libraries SET name = $1, icon = $2, folder = $3, file_naming_pattern = $4 WHERE id = $5 AND user_id = $6",
+		body.Name, body.Icon, body.Folder, body.FileNamingPattern, id, userID)
 	if execErr != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.Library{ID: id, Name: body.Name, Icon: body.Icon, Folder: body.Folder, UserID: userID})
+	json.NewEncoder(w).Encode(models.Library{ID: id, Name: body.Name, Icon: body.Icon, Folder: body.Folder, FileNamingPattern: body.FileNamingPattern, UserID: userID})
 }
 
 func DeleteLibrary(w http.ResponseWriter, r *http.Request) {
@@ -172,8 +173,8 @@ func ScanLibrary(w http.ResponseWriter, r *http.Request) {
 
 	var lib models.Library
 	err := db.DB.QueryRow(r.Context(),
-		"SELECT id, name, icon, folder, user_id FROM libraries WHERE id = $1 AND user_id = $2", id, userID).
-		Scan(&lib.ID, &lib.Name, &lib.Icon, &lib.Folder, &lib.UserID)
+		"SELECT id, name, icon, folder, file_naming_pattern, user_id FROM libraries WHERE id = $1 AND user_id = $2", id, userID).
+		Scan(&lib.ID, &lib.Name, &lib.Icon, &lib.Folder, &lib.FileNamingPattern, &lib.UserID)
 	if err != nil {
 		http.Error(w, "library not found", http.StatusNotFound)
 		return
@@ -276,39 +277,58 @@ func scanLibraryFolder(r *http.Request, libraryID, folder, userID string) (scanR
 			title = strings.TrimSuffix(filepath.Base(fp), filepath.Ext(fp))
 		}
 
-		var coverImage []byte
-		var coverMime *string
-		if len(meta.CoverImage) > 0 {
-			coverImage = meta.CoverImage
-			coverMime = &meta.CoverMime
-		}
-
+		// Insert slim books row
 		var bookID string
 		err := db.DB.QueryRow(r.Context(),
-			`INSERT INTO books (
-				library_id, user_id, title, subject, description, publisher, contributor,
-				date, type, format, identifier, source, language, relation, coverage,
-				cover_image, cover_mime, file_path
-			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
-			RETURNING id`,
-			libraryID, userID,
-			title,
-			nilIfEmpty(meta.Subject), nilIfEmpty(meta.Description),
-			nilIfEmpty(meta.Publisher), nilIfEmpty(meta.Contributor),
-			nilIfEmpty(meta.Date), nilIfEmpty(meta.Type),
-			nilIfEmpty(meta.Format), nilIfEmpty(meta.Identifier),
-			nilIfEmpty(meta.Source), nilIfEmpty(meta.Language),
-			nilIfEmpty(meta.Relation), nilIfEmpty(meta.Coverage),
-			coverImage, coverMime, fp).Scan(&bookID)
-		if err == nil {
-			result.Added++
-			// Link authors from metadata
-			if meta.Creator != "" {
-				authorNames := parseAuthorString(meta.Creator)
-				authors, err := findOrCreateAuthors(r, authorNames, userID)
-				if err == nil {
-					_ = linkBookAuthors(r, bookID, authors)
-				}
+			`INSERT INTO books (library_id, user_id, file_path)
+			VALUES ($1, $2, $3) RETURNING id`,
+			libraryID, userID, fp).Scan(&bookID)
+		if err != nil {
+			continue
+		}
+
+		// Write cover to disk
+		var coverPath *string
+		var coverMimeVal *string
+		if len(meta.CoverImage) > 0 {
+			if cp, err := writeCoverToDisk(folder, bookID, meta.CoverImage, meta.CoverMime); err == nil {
+				coverPath = &cp
+				coverMimeVal = &meta.CoverMime
+			}
+		}
+
+		// Insert book_metadata row
+		_, metaErr := db.DB.Exec(r.Context(),
+			`INSERT INTO book_metadata (
+				book_id, title, description, publisher, published_date, language,
+				cover_path, cover_mime
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+			bookID, title,
+			nilIfEmpty(meta.Description), nilIfEmpty(meta.Publisher),
+			nilIfEmpty(meta.Date), nilIfEmpty(meta.Language),
+			coverPath, coverMimeVal)
+		if metaErr != nil {
+			_, _ = db.DB.Exec(r.Context(), "DELETE FROM books WHERE id = $1", bookID)
+			continue
+		}
+
+		result.Added++
+
+		// Link authors from metadata
+		if meta.Creator != "" {
+			authorNames := parseAuthorString(meta.Creator)
+			authors, err := findOrCreateAuthors(r, authorNames, userID)
+			if err == nil {
+				_ = linkBookAuthors(r, bookID, authors)
+			}
+		}
+
+		// Link categories from subject
+		if meta.Subject != "" {
+			catNames := strings.Split(meta.Subject, ",")
+			cats, err := findOrCreateCategories(r, catNames, userID)
+			if err == nil {
+				_ = linkBookCategories(r, bookID, cats)
 			}
 		}
 	}

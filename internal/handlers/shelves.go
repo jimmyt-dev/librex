@@ -149,7 +149,7 @@ func ListShelfBooks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := db.DB.Query(r.Context(),
-		"SELECT "+bookCols+" FROM books b JOIN book_shelves bs ON bs.book_id = b.id WHERE bs.shelf_id = $1 ORDER BY b.title",
+		bookQuery+` JOIN book_shelves bs ON bs.book_id = b.id WHERE bs.shelf_id = $1 ORDER BY m.title`,
 		shelfID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
@@ -167,6 +167,11 @@ func ListShelfBooks(w http.ResponseWriter, r *http.Request) {
 		books = append(books, b)
 	}
 
+	if err := attachBookRelations(r, books); err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(books)
 }
@@ -176,7 +181,7 @@ func ListUnshelvedBooks(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 
 	rows, err := db.DB.Query(r.Context(),
-		"SELECT "+bookCols+" FROM books b WHERE b.user_id = $1 AND NOT EXISTS (SELECT 1 FROM book_shelves bs WHERE bs.book_id = b.id) ORDER BY b.title",
+		bookQuery+` WHERE b.user_id = $1 AND NOT EXISTS (SELECT 1 FROM book_shelves bs WHERE bs.book_id = b.id) ORDER BY m.title`,
 		userID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
@@ -192,6 +197,11 @@ func ListUnshelvedBooks(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		books = append(books, b)
+	}
+
+	if err := attachBookRelations(r, books); err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
