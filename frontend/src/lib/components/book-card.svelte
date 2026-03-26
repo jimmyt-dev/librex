@@ -51,7 +51,6 @@
     deleting = true;
     try {
       await booksState.delete(book.id, deleteFile);
-      shelvesState.removeBook(book.id);
       toast.success(`"${book.metadata.title}" deleted.`);
       deleteOpen = false;
       librariesState.fetchAll();

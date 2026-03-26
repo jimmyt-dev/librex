@@ -39,7 +39,7 @@
 
   $effect(() => {
     const id = shelfId;
-    if (shelvesState.has(id)) return;
+    if (shelvesState.get(id).length > 0) return;
     isLoading = true;
     errorMsg = null;
     shelvesState

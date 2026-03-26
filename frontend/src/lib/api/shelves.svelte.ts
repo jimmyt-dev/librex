@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import type { Book } from './books.svelte';
+import { booksState, type Book } from './books.svelte';
 
 export type Shelf = {
   id: string;
@@ -10,8 +10,7 @@ export type Shelf = {
 
 class ShelvesState {
   items = $state<Shelf[]>([]);
-  unshelvedCount = $state(0);
-  private byShelf = $state<Record<string, Book[]>>({});
+  private booksByShelf = $state<Record<string, string[]>>({}); // shelfId -> bookIds[]
 
   fetchAll = async () => {
     try {
@@ -24,28 +23,22 @@ class ShelvesState {
         icon: s.icon ?? undefined,
         books: s.books
       }));
-
-      await this.fetchUnshelvedCount();
     } catch (e) {
       console.error('Failed to fetch shelves', e);
     }
   };
 
-  fetchUnshelvedCount = async () => {
-    try {
-      const books: Book[] = await apiFetch('/api/shelves/unshelved');
-      this.unshelvedCount = books.length;
-    } catch (e) {
-      console.error('Failed to fetch unshelved count', e);
-    }
-  };
+  unshelvedCount = $derived(
+    booksState.all.filter((b) => {
+      // Find if this book is in ANY of the shelf mappings
+      const isShelved = Object.values(this.booksByShelf).some((ids) => ids.includes(b.id));
+      return !isShelved;
+    }).length
+  );
 
   get(shelfId: string): Book[] {
-    return this.byShelf[shelfId] ?? [];
-  }
-
-  has(shelfId: string): boolean {
-    return shelfId in this.byShelf;
+    const ids = this.booksByShelf[shelfId] ?? [];
+    return ids.map((id) => booksState.find(id)).filter((b): b is Book => !!b);
   }
 
   async fetchBooksForShelf(shelfId: string): Promise<void> {
@@ -53,22 +46,21 @@ class ShelvesState {
       shelfId === 'unshelved' ? '/api/shelves/unshelved' : `/api/shelves/${shelfId}/books`;
     try {
       const books: Book[] = await apiFetch(url);
-      this.byShelf = { ...this.byShelf, [shelfId]: books };
+      // Update global books state with full book objects
+      for (const b of books) {
+        booksState.upsert(b);
+      }
+      // Store only the IDs in our local mapping
+      this.booksByShelf = { ...this.booksByShelf, [shelfId]: books.map((b) => b.id) };
     } catch (e) {
       console.error(`Failed to fetch books for shelf ${shelfId}`, e);
     }
   }
 
   invalidate(shelfId: string) {
-    delete this.byShelf[shelfId];
-  }
-
-  removeBook(bookId: string) {
-    const updated: Record<string, Book[]> = {};
-    for (const [key, books] of Object.entries(this.byShelf)) {
-      updated[key] = books.filter((b) => b.id !== bookId);
-    }
-    this.byShelf = updated;
+    const next = { ...this.booksByShelf };
+    delete next[shelfId];
+    this.booksByShelf = next;
   }
 
   create = async (name: string, icon?: string) => {
@@ -97,7 +89,6 @@ class ShelvesState {
       body: JSON.stringify({ bookIds })
     });
     this.invalidate(shelfId);
-    this.invalidate('unshelved');
     await this.fetchAll();
   };
 
@@ -107,7 +98,6 @@ class ShelvesState {
       body: JSON.stringify({ bookIds })
     });
     this.invalidate(shelfId);
-    this.invalidate('unshelved');
     await this.fetchAll();
   };
 }

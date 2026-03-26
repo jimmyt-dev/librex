@@ -291,13 +291,20 @@ func scanLibraryFolder(r *http.Request, libraryID, folder, userID string) (scanR
 			title = strings.TrimSuffix(filepath.Base(fp), filepath.Ext(fp))
 		}
 
+		// Use a transaction per book for atomicity
+		tx, err := db.DB.Begin(r.Context())
+		if err != nil {
+			continue
+		}
+
 		// Insert slim books row
 		var bookID string
-		err := db.DB.QueryRow(r.Context(),
+		err = tx.QueryRow(r.Context(),
 			`INSERT INTO books (library_id, user_id, file_path)
 			VALUES ($1, $2, $3) RETURNING id`,
 			libraryID, userID, fp).Scan(&bookID)
 		if err != nil {
+			tx.Rollback(r.Context())
 			continue
 		}
 
@@ -312,7 +319,7 @@ func scanLibraryFolder(r *http.Request, libraryID, folder, userID string) (scanR
 		}
 
 		// Insert book_metadata row
-		_, metaErr := db.DB.Exec(r.Context(),
+		_, metaErr := tx.Exec(r.Context(),
 			`INSERT INTO book_metadata (
 				book_id, title, description, publisher, published_date, language,
 				cover_path, cover_mime
@@ -322,29 +329,33 @@ func scanLibraryFolder(r *http.Request, libraryID, folder, userID string) (scanR
 			nilIfEmpty(meta.Date), nilIfEmpty(meta.Language),
 			coverPath, coverMimeVal)
 		if metaErr != nil {
-			_, _ = db.DB.Exec(r.Context(), "DELETE FROM books WHERE id = $1", bookID)
+			tx.Rollback(r.Context())
 			continue
 		}
-
-		result.Added++
 
 		// Link authors from metadata
 		if meta.Creator != "" {
 			authorNames := parseAuthorString(meta.Creator)
-			authors, err := findOrCreateAuthors(r, authorNames, userID)
+			authors, err := findOrCreateAuthorsTX(r, tx, authorNames, userID)
 			if err == nil {
-				_ = linkBookAuthors(r, db.DB, bookID, authors)
+				_ = linkBookAuthors(r, tx, bookID, authors)
 			}
 		}
 
 		// Link genres from subject
 		if meta.Subject != "" {
 			genreNames := strings.Split(meta.Subject, ",")
-			genres, err := findOrCreateGenres(r, genreNames, userID)
+			genres, err := findOrCreateGenresTX(r, tx, genreNames, userID)
 			if err == nil {
-				_ = linkBookGenres(r, db.DB, bookID, genres)
+				_ = linkBookGenres(r, tx, bookID, genres)
 			}
 		}
+
+		if err := tx.Commit(r.Context()); err != nil {
+			continue
+		}
+
+		result.Added++
 	}
 
 	return result, nil

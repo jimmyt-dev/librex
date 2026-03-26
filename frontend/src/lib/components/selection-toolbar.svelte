@@ -46,7 +46,6 @@
     for (const id of ids) {
       try {
         await booksState.delete(id, deleteFile);
-        shelvesState.removeBook(id);
       } catch {
         failed++;
       }

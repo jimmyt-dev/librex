@@ -217,28 +217,55 @@ func AddBooksToShelf(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	shelfID := chi.URLParam(r, "id")
 
-	var exists bool
-	if err := db.DB.QueryRow(r.Context(),
-		"SELECT EXISTS(SELECT 1 FROM shelves WHERE id = $1 AND user_id = $2)",
-		shelfID, userID).Scan(&exists); err != nil || !exists {
-		http.Error(w, "shelf not found", http.StatusNotFound)
-		return
-	}
-
 	var body shelfBooksBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.BookIDs) == 0 {
 		http.Error(w, "bookIds is required", http.StatusBadRequest)
 		return
 	}
 
-	for _, bookID := range body.BookIDs {
-		_, err := db.DB.Exec(r.Context(),
-			"INSERT INTO book_shelves (book_id, shelf_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-			bookID, shelfID)
-		if err != nil {
-			http.Error(w, "db error", http.StatusInternalServerError)
-			return
-		}
+	tx, err := db.DB.Begin(r.Context())
+	if err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	// Verify shelf ownership
+	var exists bool
+	if err := tx.QueryRow(r.Context(),
+		"SELECT EXISTS(SELECT 1 FROM shelves WHERE id = $1 AND user_id = $2)",
+		shelfID, userID).Scan(&exists); err != nil || !exists {
+		http.Error(w, "shelf not found", http.StatusNotFound)
+		return
+	}
+
+	// Verify book ownership for all provided IDs
+	var count int
+	err = tx.QueryRow(r.Context(),
+		"SELECT COUNT(*) FROM books WHERE id = ANY($1) AND user_id = $2",
+		body.BookIDs, userID).Scan(&count)
+	if err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+	if count != len(body.BookIDs) {
+		http.Error(w, "one or more books not found or unauthorized", http.StatusForbidden)
+		return
+	}
+
+	_, err = tx.Exec(r.Context(),
+		`INSERT INTO book_shelves (book_id, shelf_id)
+		 SELECT unnest($1::uuid[]), $2
+		 ON CONFLICT DO NOTHING`,
+		body.BookIDs, shelfID)
+	if err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tx.Commit(r.Context()); err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -249,24 +276,41 @@ func RemoveBooksFromShelf(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	shelfID := chi.URLParam(r, "id")
 
-	var exists bool
-	if err := db.DB.QueryRow(r.Context(),
-		"SELECT EXISTS(SELECT 1 FROM shelves WHERE id = $1 AND user_id = $2)",
-		shelfID, userID).Scan(&exists); err != nil || !exists {
-		http.Error(w, "shelf not found", http.StatusNotFound)
-		return
-	}
-
 	var body shelfBooksBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.BookIDs) == 0 {
 		http.Error(w, "bookIds is required", http.StatusBadRequest)
 		return
 	}
 
-	for _, bookID := range body.BookIDs {
-		_, _ = db.DB.Exec(r.Context(),
-			"DELETE FROM book_shelves WHERE book_id = $1 AND shelf_id = $2",
-			bookID, shelfID)
+	tx, err := db.DB.Begin(r.Context())
+	if err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	// Verify shelf ownership
+	var exists bool
+	if err := tx.QueryRow(r.Context(),
+		"SELECT EXISTS(SELECT 1 FROM shelves WHERE id = $1 AND user_id = $2)",
+		shelfID, userID).Scan(&exists); err != nil || !exists {
+		http.Error(w, "shelf not found", http.StatusNotFound)
+		return
+	}
+
+	// For removal, we don't strictly *need* to check book ownership as long as the shelf is yours,
+	// but it's safer and more consistent to do so.
+	_, err = tx.Exec(r.Context(),
+		"DELETE FROM book_shelves WHERE shelf_id = $1 AND book_id = ANY($2)",
+		shelfID, body.BookIDs)
+	if err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tx.Commit(r.Context()); err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
