@@ -10,11 +10,13 @@
   import LibraryBigIcon from '@lucide/svelte/icons/library-big';
   import FolderSyncIcon from '@lucide/svelte/icons/folder-sync';
   import PencilIcon from '@lucide/svelte/icons/pencil';
+  import PenLineIcon from '@lucide/svelte/icons/pen-line';
   import { toast } from 'svelte-sonner';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import SquareCheckBig from '@lucide/svelte/icons/square-check-big';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import BookBulkEditSheet from '$lib/components/book-bulk-edit-sheet.svelte';
+  import { bookEditState } from '$lib/state/book-edit.svelte';
   import { Label } from '$lib/components/ui/label';
 
   let {
@@ -173,6 +175,22 @@
           </Tooltip.Trigger>
           <Tooltip.Portal>
             <Tooltip.Content>Bulk Edit</Tooltip.Content>
+          </Tooltip.Portal>
+        </Tooltip.Root>
+      </Tooltip.Provider>
+
+      <!-- Edit Each -->
+      <Tooltip.Provider delayDuration={400}>
+        <Tooltip.Root>
+          <Tooltip.Trigger
+            class={buttonVariants({ variant: 'outline', size: 'icon' })}
+            onclick={() =>
+              bookEditState.openQueue(books.filter((b) => selectedIds.has(b.id)))}
+          >
+            <PenLineIcon class="size-4" />
+          </Tooltip.Trigger>
+          <Tooltip.Portal>
+            <Tooltip.Content>Edit Each</Tooltip.Content>
           </Tooltip.Portal>
         </Tooltip.Root>
       </Tooltip.Provider>

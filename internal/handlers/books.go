@@ -13,7 +13,6 @@ import (
 	"reliquary/internal/metadata"
 	"reliquary/internal/middleware"
 	"reliquary/internal/models"
-	"strings"
 )
 
 const bookCols = `b.id, b.library_id, b.user_id, b.file_path, b.added_on,
@@ -228,6 +227,21 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
+		// Reflect all new values so the response and write-to-file use updated metadata,
+		// not the pre-update snapshot that was fetched before the UPDATE ran.
+		existing.Metadata.Title = m.Title
+		existing.Metadata.Subtitle = nilIfEmpty(m.Subtitle)
+		existing.Metadata.Description = nilIfEmpty(m.Description)
+		existing.Metadata.Publisher = nilIfEmpty(m.Publisher)
+		existing.Metadata.PublishedDate = nilIfEmpty(m.PublishedDate)
+		existing.Metadata.ISBN13 = nilIfEmpty(m.ISBN13)
+		existing.Metadata.ISBN10 = nilIfEmpty(m.ISBN10)
+		existing.Metadata.Language = nilIfEmpty(m.Language)
+		existing.Metadata.PageCount = m.PageCount
+		existing.Metadata.SeriesName = nilIfEmpty(m.SeriesName)
+		existing.Metadata.SeriesNumber = m.SeriesNumber
+		existing.Metadata.SeriesTotal = m.SeriesTotal
+		existing.Metadata.Rating = m.Rating
 	}
 
 	// Update authors
@@ -298,12 +312,12 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 		}
 		wm := metadata.WriteMeta{
 			Title:       existing.Metadata.Title,
-			Authors:     authorNames,
-			Description: ptrStr(existing.Metadata.Description),
-			Publisher:   ptrStr(existing.Metadata.Publisher),
-			Date:        ptrStr(existing.Metadata.PublishedDate),
-			Language:    ptrStr(existing.Metadata.Language),
-			Subject:     strings.Join(genreNames, ", "),
+			Authors:     &authorNames,
+			Description: existing.Metadata.Description,
+			Publisher:   existing.Metadata.Publisher,
+			Date:        existing.Metadata.PublishedDate,
+			Language:    existing.Metadata.Language,
+			Subjects:    &genreNames,
 		}
 		// Best-effort: don't fail the request if file write fails
 		_ = metadata.Write(existing.FilePath, wm)
@@ -450,6 +464,48 @@ func ListSeries(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(series)
+}
+
+// ListPublishers returns a list of publishers for the user's books.
+func ListPublishers(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	q := r.URL.Query().Get("q")
+
+	var query string
+	var args []any
+	if q != "" {
+		query = `SELECT DISTINCT m.publisher FROM book_metadata m
+			JOIN books b ON b.id = m.book_id
+			WHERE b.user_id = $1 AND m.publisher IS NOT NULL AND m.publisher ILIKE $2
+			ORDER BY m.publisher`
+		args = []any{userID, "%" + q + "%"}
+	} else {
+		query = `SELECT DISTINCT m.publisher FROM book_metadata m
+			JOIN books b ON b.id = m.book_id
+			WHERE b.user_id = $1 AND m.publisher IS NOT NULL
+			ORDER BY m.publisher`
+		args = []any{userID}
+	}
+
+	rows, err := db.DB.Query(r.Context(), query, args...)
+	if err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	publishers := []string{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			http.Error(w, "db error", http.StatusInternalServerError)
+			return
+		}
+		publishers = append(publishers, name)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(publishers)
 }
 
 // attachBookRelations populates Authors, Genres, and Tags on a slice of books.
@@ -771,11 +827,11 @@ func MoveBooks(w http.ResponseWriter, r *http.Request) {
 type bulkUpdateBody struct {
 	BookIDs []string `json:"bookIds"`
 	// Metadata fields — nil means "don't change"
-	SeriesName  *string  `json:"seriesName"`
-	Publisher   *string  `json:"publisher"`
-	Language    *string  `json:"language"`
-	SeriesTotal *int     `json:"seriesTotal"`
-	Rating      *int     `json:"rating"`
+	SeriesName  *string `json:"seriesName"`
+	Publisher   *string `json:"publisher"`
+	Language    *string `json:"language"`
+	SeriesTotal *int    `json:"seriesTotal"`
+	Rating      *int    `json:"rating"`
 	// Array fields with mode
 	Authors     *[]string `json:"authors"`
 	AuthorsMode string    `json:"authorsMode"` // "replace" or "merge"
@@ -924,6 +980,48 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 	if err := tx.Commit(r.Context()); err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
+	}
+
+	// Write metadata to file for successfully updated books, if setting is enabled
+	var writeToFile bool
+	_ = db.DB.QueryRow(r.Context(),
+		"SELECT write_metadata_to_file FROM user_settings WHERE user_id = $1",
+		userID).Scan(&writeToFile)
+	if writeToFile {
+		for _, res := range results {
+			if res.Error != "" {
+				continue
+			}
+			row := db.DB.QueryRow(r.Context(), bookQuery+` WHERE b.id = $1 AND b.user_id = $2`, res.BookID, userID)
+			book, err := scanBook(row.Scan)
+			if err != nil {
+				continue
+			}
+			// Only write the fields that were actually in the bulk-edit request.
+			// Leaving a WriteMeta field nil means "don't touch that element in the file."
+			wm := metadata.WriteMeta{}
+			if body.Publisher != nil {
+				wm.Publisher = book.Metadata.Publisher
+			}
+			if body.Language != nil {
+				wm.Language = book.Metadata.Language
+			}
+			if body.Authors != nil {
+				names := make([]string, len(book.Authors))
+				for i, a := range book.Authors {
+					names[i] = a.Name
+				}
+				wm.Authors = &names
+			}
+			if body.Genres != nil {
+				genres := make([]string, len(book.Genres))
+				for i, g := range book.Genres {
+					genres[i] = g.Name
+				}
+				wm.Subjects = &genres
+			}
+			_ = metadata.Write(book.FilePath, wm)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

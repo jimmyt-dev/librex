@@ -38,9 +38,8 @@
   });
 
   function toggleSelect(id: string, selected: boolean, shiftKey: boolean) {
-    const books = booksState.all;
     if (shiftKey && selected && lastSelectedId) {
-      const ids = books.map((b) => b.id);
+      const ids = sortedBooks.map((b) => b.id);
       const from = ids.indexOf(lastSelectedId);
       const to = ids.indexOf(id);
       const [lo, hi] = from < to ? [from, to] : [to, from];
@@ -110,7 +109,7 @@
 
 <SelectionToolbar
   {selectedIds}
-  books={booksState.all}
+  books={sortedBooks}
   ondeselect={() => (selectedIds = new Set())}
   onselectall={() => (selectedIds = new Set(sortedBooks.map((b) => b.id)))}
 />

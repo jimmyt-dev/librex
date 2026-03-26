@@ -7,6 +7,8 @@
   import LucideIcon from '$lib/components/lucide-icon.svelte';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import { Label } from './ui/label';
+  import { PlusIcon } from '@lucide/svelte';
+  import CreateShelf from './create-shelf.svelte';
 
   function getToken() {
     return localStorage.getItem('bearer_token') || '';
@@ -16,6 +18,7 @@
   let saving = $state(false);
   let checked = $state<Record<string, boolean>>({});
   let original = $state<Record<string, boolean>>({});
+  let openCreateShelf = $state(false);
 
   $effect(() => {
     if (!shelfAssignState.open || shelfAssignState.bookIds.length === 0) return;
@@ -125,15 +128,25 @@
       </div>
     {/if}
 
-    <Dialog.Footer>
-      <Dialog.Close>
-        {#snippet child({ props })}
-          <Button variant="outline" {...props}>Cancel</Button>
-        {/snippet}
-      </Dialog.Close>
-      <Button onclick={save} disabled={saving || !hasChanges}>
-        {saving ? 'Saving…' : 'Save'}
-      </Button>
+    <Dialog.Footer class="flex justify-between!">
+      <div>
+        <Button variant="outline" onclick={() => (openCreateShelf = true)}>
+          <PlusIcon class="size-4 text-muted-foreground" />
+          Create Shelf
+        </Button>
+      </div>
+      <div>
+        <Dialog.Close>
+          {#snippet child({ props })}
+            <Button variant="outline" {...props}>Cancel</Button>
+          {/snippet}
+        </Dialog.Close>
+        <Button onclick={save} disabled={saving || !hasChanges}>
+          {saving ? 'Saving…' : 'Save'}
+        </Button>
+      </div>
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
+
+<CreateShelf open={openCreateShelf} onClose={() => (openCreateShelf = false)} />

@@ -16,7 +16,10 @@
   import StarRating from '$lib/components/star-rating.svelte';
   import { toast } from 'svelte-sonner';
   import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+  import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
+  import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
   import { Label } from '$lib/components/ui/label';
+  import { Textarea } from './ui/textarea';
 
   let editTitle = $state('');
   let editSubtitle = $state('');
@@ -39,6 +42,7 @@
   let seriesHighlightIndex = $state(-1);
   let isSaving = $state(false);
   let errorMsg = $state<string | null>(null);
+  let userHasEdited = $state(false);
 
   let dirtyFields = $derived.by(() => {
     const b = bookEditState.book;
@@ -88,25 +92,61 @@
     seriesSuggestions = [];
     showSeriesDropdown = false;
     errorMsg = null;
+    userHasEdited = false;
   }
 
+  // Derive a primitive string so the $effect tracks queue navigation without
+  // triggering an infinite loop when bookEditState.book = fresh (same id, new ref).
+  let bookId = $derived(bookEditState.book?.id ?? '');
+
   $effect(() => {
-    if (bookEditState.open) {
-      untrack(() => {
-        const bookId = bookEditState.book?.id;
-        if (!bookId) return;
-        // Fetch fresh data from API to avoid stale snapshots
-        apiFetch(`/api/books/${bookId}`)
-          .then((fresh) => {
-            if (fresh && bookEditState.open) {
-              bookEditState.book = fresh;
-              resetToBook();
-            }
-          })
-          .catch(() => resetToBook());
-      });
-    }
+    if (!bookEditState.open || !bookId) return;
+    untrack(() => {
+      resetToBook();
+      apiFetch(`/api/books/${bookId}`)
+        .then((fresh) => {
+          if (fresh && bookEditState.open && bookEditState.book?.id === bookId) {
+            booksState.upsert(fresh);
+            bookEditState.book = fresh;
+            // Only reset if the user hasn't intentionally edited anything yet.
+            // `userHasEdited` is cleared by resetToBook() and set by any oninput in the form.
+            if (!userHasEdited) resetToBook();
+          }
+        })
+        .catch(() => {});
+    });
   });
+
+  // Refresh all books when the sheet closes so the list stays in sync.
+  let _wasOpen = false;
+  $effect(() => {
+    const isOpen = bookEditState.open;
+    if (!isOpen && _wasOpen) {
+      untrack(() => booksState.fetchAll());
+    }
+    _wasOpen = isOpen;
+  });
+
+  function handleKeyDown(event: KeyboardEvent) {
+    if (!bookEditState.inQueue) return;
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
+      return;
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      if (bookEditState.isLast) {
+        bookEditState.goTo(0);
+      } else {
+        bookEditState.next();
+      }
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      if (bookEditState.isFirst) {
+        bookEditState.goTo(bookEditState.queue.length - 1);
+      } else {
+        bookEditState.prev();
+      }
+    }
+  }
 
   async function saveEdit() {
     if (!bookEditState.book) return;
@@ -139,7 +179,13 @@
 
     // Optimistic update
     booksState.upsert(updated);
-    bookEditState.close();
+
+    // Advance through queue (stay open on last book)
+    if (bookEditState.inQueue) {
+      if (!bookEditState.isLast) bookEditState.next();
+    } else {
+      bookEditState.close();
+    }
 
     isSaving = true;
     errorMsg = null;
@@ -154,6 +200,13 @@
         })
       });
       booksState.upsert(serverUpdated);
+      toast.success('Changes saved.');
+      // If we're still showing the book that was just saved (last in queue, or
+      // single-book edit), update the baseline so dirty/revert clear correctly.
+      if (bookEditState.book?.id === book.id) {
+        bookEditState.book = serverUpdated;
+        resetToBook();
+      }
     } catch {
       // Revert
       booksState.upsert(originalBook);
@@ -162,8 +215,11 @@
       isSaving = false;
     }
   }
+
   export const _isSheet = true;
 </script>
+
+<svelte:window onkeydown={handleKeyDown} />
 
 <Sheet.Root bind:open={bookEditState.open}>
   <Sheet.Portal>
@@ -171,12 +227,39 @@
     <Sheet.Content side="right" class="w-96 overflow-y-auto">
       {#if bookEditState.book}
         <Sheet.Header>
-          <Sheet.Title>Edit Metadata</Sheet.Title>
+          <div class="flex items-center justify-between gap-2">
+            <Sheet.Title>Edit Metadata</Sheet.Title>
+            {#if bookEditState.inQueue}
+              <div class="flex items-center gap-0.5 text-muted-foreground">
+                <button
+                  type="button"
+                  class="rounded p-1 hover:bg-muted disabled:opacity-30"
+                  disabled={bookEditState.isFirst}
+                  onclick={() => bookEditState.prev()}
+                  title="Previous book"
+                >
+                  <ChevronLeftIcon class="size-4" />
+                </button>
+                <span class="min-w-10 text-center text-xs tabular-nums">
+                  {bookEditState.queueIndex + 1}&thinsp;/&thinsp;{bookEditState.queue.length}
+                </span>
+                <button
+                  type="button"
+                  class="rounded p-1 hover:bg-muted disabled:opacity-30"
+                  disabled={bookEditState.isLast}
+                  onclick={() => bookEditState.next()}
+                  title="Next book"
+                >
+                  <ChevronRightIcon class="size-4" />
+                </button>
+              </div>
+            {/if}
+          </div>
           <Sheet.Description class="truncate text-xs text-muted-foreground">
             {bookEditState.book.filePath.split('/').pop()}
           </Sheet.Description>
         </Sheet.Header>
-        <div class="flex flex-col gap-4 overflow-y-auto px-4 py-6">
+        <div class="flex flex-col gap-4 overflow-y-auto px-4 py-6" oninput={() => (userHasEdited = true)}>
           {#if bookEditState.book.metadata.coverPath}
             <img
               src={`/api/books/${bookEditState.book.id}/cover`}
@@ -221,7 +304,11 @@
                   class="inline-block size-1.5 rounded-full bg-primary"
                 ></span>{/if}
             </Label>
-            <Input id="edit-description" bind:value={editDescription} placeholder="Synopsis" />
+            <Textarea
+              id="edit-description"
+              bind:value={editDescription}
+              placeholder="Description"
+            />
           </div>
           <div class="flex flex-col gap-1.5">
             <Label for="edit-publisher">
@@ -389,19 +476,62 @@
           </div>
         </div>
         <Sheet.Footer>
-          <Sheet.Close>
-            {#snippet child({ props })}
-              <Button variant="outline" {...props}>Cancel</Button>
-            {/snippet}
-          </Sheet.Close>
-          {#if dirty}
-            <Button variant="ghost" onclick={resetToBook}>
+          {#if bookEditState.inQueue}
+            <div class="mr-4 flex items-center gap-0.5 text-muted-foreground">
+              <button
+                type="button"
+                class="rounded p-1 hover:bg-muted disabled:opacity-30"
+                onclick={() => {
+                  if (bookEditState.isFirst) {
+                    bookEditState.goTo(bookEditState.queue.length - 1);
+                  } else {
+                    bookEditState.prev();
+                  }
+                }}
+                title="Previous book"
+              >
+                <ChevronLeftIcon class="size-4" />
+              </button>
+              <span class="min-w-10 text-center text-xs tabular-nums">
+                {bookEditState.queueIndex + 1}&nbsp;/&nbsp;{bookEditState.queue.length}
+              </span>
+              <button
+                type="button"
+                class="rounded p-1 hover:bg-muted disabled:opacity-30"
+                onclick={() => {
+                  if (bookEditState.isLast) {
+                    bookEditState.goTo(0);
+                  } else {
+                    bookEditState.next();
+                  }
+                }}
+                title="Next book"
+              >
+                <ChevronRightIcon class="size-4" />
+              </button>
+            </div>
+          {/if}
+          {#if dirty && userHasEdited && !isSaving}
+            <Button variant="outline" onclick={resetToBook}>
               <RotateCcwIcon class="size-4" />
               Revert
             </Button>
           {/if}
+          <Sheet.Close>
+            {#snippet child({ props })}
+              <Button variant="outline" {...props} onclick={() => bookEditState.close()}>
+                Cancel
+              </Button>
+            {/snippet}
+          </Sheet.Close>
           <Button onclick={saveEdit} disabled={isSaving || !editTitle.trim()}>
-            {isSaving ? 'Saving…' : 'Save'}
+            {#if isSaving}
+              Saving…
+            {:else if bookEditState.inQueue && !bookEditState.isLast}
+              Save & Next
+            {:else}
+              Save
+            {/if}
           </Button>
         </Sheet.Footer>
       {/if}

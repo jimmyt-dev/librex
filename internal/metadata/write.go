@@ -8,18 +8,21 @@ import (
 	"io"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 )
 
 // WriteMeta holds the fields to write into a book file's metadata.
+// Pointer fields: nil = don't touch that element in the file.
+// Non-pointer strings: "" = don't touch.
 type WriteMeta struct {
-	Title       string
-	Authors     []string // dc:creator entries
-	Description string
-	Publisher   string
-	Date        string // publication date
-	Language    string
-	Subject     string // comma-separated categories/subjects
+	Title    string    // "" = don't touch
+	Authors  *[]string // nil = don't touch; &[]string{} = remove all creators
+	Description *string   // nil = don't touch; ptr("") = remove
+	Publisher   *string
+	Date        *string // publication date
+	Language    *string
+	Subjects    *[]string // nil = don't touch; &[]string{} = remove all subjects
 }
 
 // Write updates metadata inside a book file (EPUB or PDF).
@@ -68,7 +71,7 @@ func writeEPUB(filePath string, meta WriteMeta) error {
 		return fmt.Errorf("no OPF file found in EPUB")
 	}
 
-	// Read and parse the OPF
+	// Read the OPF
 	var opfData []byte
 	for _, f := range r.File {
 		if f.Name == opfPath {
@@ -88,7 +91,7 @@ func writeEPUB(filePath string, meta WriteMeta) error {
 		return fmt.Errorf("OPF file not found at %s", opfPath)
 	}
 
-	// Modify the OPF XML
+	// Patch only the metadata section — never re-serialize the whole OPF
 	newOPF, err := patchOPFMetadata(opfData, meta)
 	if err != nil {
 		return fmt.Errorf("patch opf: %w", err)
@@ -106,12 +109,10 @@ func writeEPUB(filePath string, meta WriteMeta) error {
 		}
 
 		if f.Name == opfPath {
-			// Write modified OPF
 			if _, err := writer.Write(newOPF); err != nil {
 				return fmt.Errorf("write modified opf: %w", err)
 			}
 		} else {
-			// Copy original file
 			rc, err := f.Open()
 			if err != nil {
 				return fmt.Errorf("open zip entry %s: %w", f.Name, err)
@@ -128,7 +129,7 @@ func writeEPUB(filePath string, meta WriteMeta) error {
 		return fmt.Errorf("close zip writer: %w", err)
 	}
 
-	// Write back atomically: write to temp, then rename
+	// Write back atomically
 	tmpPath := filePath + ".tmp"
 	if err := os.WriteFile(tmpPath, buf.Bytes(), 0644); err != nil {
 		return fmt.Errorf("write temp file: %w", err)
@@ -141,59 +142,107 @@ func writeEPUB(filePath string, meta WriteMeta) error {
 	return nil
 }
 
-// patchOPFMetadata does a targeted find-and-replace on the OPF XML to update
-// Dublin Core metadata fields without disturbing the rest of the document.
+// metaOpenRe matches the opening <metadata ...> tag (with optional namespace prefix).
+var metaOpenRe = regexp.MustCompile(`<(?:[a-zA-Z0-9_-]+:)?metadata(?:\s[^>]*)?>`)
+
+// metaCloseRe matches the closing </metadata> tag.
+var metaCloseRe = regexp.MustCompile(`</(?:[a-zA-Z0-9_-]+:)?metadata>`)
+
+// patchOPFMetadata finds the <metadata>…</metadata> block in the OPF and
+// surgically replaces only the DC elements we care about.  Everything else in
+// the file (spine, manifest, guide, package attributes, EPUB3 <meta> elements,
+// etc.) is preserved byte-for-byte.
 func patchOPFMetadata(opfData []byte, meta WriteMeta) ([]byte, error) {
-	var pkg opfPackage
-	if err := xml.Unmarshal(opfData, &pkg); err != nil {
-		return nil, err
+	s := string(opfData)
+
+	openLoc := metaOpenRe.FindStringIndex(s)
+	if openLoc == nil {
+		return nil, fmt.Errorf("no <metadata> element found in OPF")
+	}
+	closeLoc := metaCloseRe.FindStringIndex(s[openLoc[1]:])
+	if closeLoc == nil {
+		return nil, fmt.Errorf("no </metadata> closing tag found in OPF")
 	}
 
-	m := &pkg.Metadata
+	// Boundaries
+	openTag := s[openLoc[0]:openLoc[1]]
+	inner := s[openLoc[1] : openLoc[1]+closeLoc[0]]
+	closeTag := s[openLoc[1]+closeLoc[0] : openLoc[1]+closeLoc[1]]
+	before := s[:openLoc[0]]
+	after := s[openLoc[1]+closeLoc[1]:]
 
+	// Patch individual DC fields — nil pointer = leave untouched
 	if meta.Title != "" {
-		m.Title = []string{meta.Title}
+		inner = replaceDCField(inner, "title", []string{meta.Title})
 	}
-	if len(meta.Authors) > 0 {
-		m.Creator = meta.Authors
+	if meta.Authors != nil {
+		inner = replaceDCField(inner, "creator", *meta.Authors)
 	}
-	if meta.Description != "" {
-		m.Description = []string{meta.Description}
-	} else {
-		m.Description = nil
+	if meta.Description != nil {
+		inner = replaceDCField(inner, "description", strSliceIfNotEmpty(*meta.Description))
 	}
-	if meta.Publisher != "" {
-		m.Publisher = []string{meta.Publisher}
-	} else {
-		m.Publisher = nil
+	if meta.Publisher != nil {
+		inner = replaceDCField(inner, "publisher", strSliceIfNotEmpty(*meta.Publisher))
 	}
-	if meta.Date != "" {
-		m.Date = []string{meta.Date}
-	} else {
-		m.Date = nil
+	if meta.Date != nil {
+		inner = replaceDCField(inner, "date", strSliceIfNotEmpty(*meta.Date))
 	}
-	if meta.Language != "" {
-		m.Language = []string{meta.Language}
+	if meta.Language != nil {
+		inner = replaceDCField(inner, "language", strSliceIfNotEmpty(*meta.Language))
 	}
-	if meta.Subject != "" {
-		subjects := strings.Split(meta.Subject, ",")
-		var trimmed []string
-		for _, s := range subjects {
-			s = strings.TrimSpace(s)
-			if s != "" {
-				trimmed = append(trimmed, s)
-			}
+	if meta.Subjects != nil {
+		inner = replaceDCField(inner, "subject", *meta.Subjects)
+	}
+
+	return []byte(before + openTag + inner + closeTag + after), nil
+}
+
+// replaceDCField removes all existing dc:name (or bare name) elements from
+// the metadata inner content and appends new <dc:name> elements for each value.
+// DC elements only ever contain plain text, so a text-only regex is safe here.
+func replaceDCField(inner, name string, values []string) string {
+	re := regexp.MustCompile(
+		`(?i)[ \t]*<(?:[a-zA-Z0-9_-]+:)?` + regexp.QuoteMeta(name) + `(?:\s[^>]*)?>` +
+			`[^<]*` +
+			`</(?:[a-zA-Z0-9_-]+:)?` + regexp.QuoteMeta(name) + `>[ \t]*\n?`,
+	)
+	inner = re.ReplaceAllString(inner, "")
+
+	var sb strings.Builder
+	for _, v := range values {
+		if v = strings.TrimSpace(v); v != "" {
+			sb.WriteString("\n    <dc:")
+			sb.WriteString(name)
+			sb.WriteString(">")
+			xmlEscapeText(&sb, v)
+			sb.WriteString("</dc:")
+			sb.WriteString(name)
+			sb.WriteString(">")
 		}
-		m.Subject = trimmed
-	} else {
-		m.Subject = nil
 	}
+	return inner + sb.String()
+}
 
-	out, err := xml.MarshalIndent(pkg, "", "  ")
-	if err != nil {
-		return nil, err
+func xmlEscapeText(sb *strings.Builder, s string) {
+	var buf bytes.Buffer
+	xml.EscapeText(&buf, []byte(s))
+	sb.Write(buf.Bytes())
+}
+
+func strSliceIfNotEmpty(s string) []string {
+	if strings.TrimSpace(s) == "" {
+		return nil
 	}
+	return []string{s}
+}
 
-	// Prepend XML declaration
-	return append([]byte(xml.Header), out...), nil
+func splitTrimmed(s, sep string) []string {
+	parts := strings.Split(s, sep)
+	var out []string
+	for _, p := range parts {
+		if v := strings.TrimSpace(p); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }

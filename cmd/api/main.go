@@ -97,6 +97,7 @@ func main() {
 	r.Post("/api/books/bulk-update", handlers.BulkUpdateBooks)
 
 	r.Get("/api/series", handlers.ListSeries)
+	r.Get("/api/publishers", handlers.ListPublishers)
 
 	r.Route("/api/settings", func(r chi.Router) {
 		r.Get("/", handlers.GetSettings)

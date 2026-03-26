@@ -34,3 +34,11 @@ export async function fetchSeriesSuggestions(q: string): Promise<string[]> {
     return [];
   }
 }
+
+export async function fetchPublisherSuggestions(q: string): Promise<string[]> {
+  try {
+    return await apiFetch(`/api/publishers?q=${encodeURIComponent(q)}`);
+  } catch {
+    return [];
+  }
+}
