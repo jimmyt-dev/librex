@@ -11,10 +11,10 @@ type BookMetadata struct {
 	ISBN10        *string  `json:"isbn10"`
 	Language      *string  `json:"language"`
 	PageCount     *int     `json:"pageCount"`
-	SeriesName   *string  `json:"seriesName"`
-	SeriesNumber *float64 `json:"seriesNumber"`
-	SeriesTotal  *int     `json:"seriesTotal"`
-	Rating       *int     `json:"rating"`
-	CoverPath    *string  `json:"coverPath"`
-	CoverMime    *string  `json:"coverMime"`
+	SeriesName    *string  `json:"seriesName"`
+	SeriesNumber  *float64 `json:"seriesNumber"`
+	SeriesTotal   *int     `json:"seriesTotal"`
+	Rating        *int     `json:"rating"`
+	CoverPath     *string  `json:"coverPath"`
+	CoverMime     *string  `json:"coverMime"`
 }

@@ -259,7 +259,10 @@
             {bookEditState.book.filePath.split('/').pop()}
           </Sheet.Description>
         </Sheet.Header>
-        <div class="flex flex-col gap-4 overflow-y-auto px-4 py-6" oninput={() => (userHasEdited = true)}>
+        <div
+          class="flex flex-col gap-4 overflow-y-auto px-4 py-6"
+          oninput={() => (userHasEdited = true)}
+        >
           {#if bookEditState.book.metadata.coverPath}
             <img
               src={`/api/books/${bookEditState.book.id}/cover`}

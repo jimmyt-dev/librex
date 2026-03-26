@@ -60,62 +60,48 @@ export type Book = {
 };
 
 class BooksState {
-  private byLibrary = $state<Record<string, Book[]>>({});
-  all = $state<Book[]>([]);
+  private booksById = $state<Record<string, Book>>({});
+
+  // Derived views for efficient access
+  all = $derived(Object.values(this.booksById));
+
+  get(libraryId: string): Book[] {
+    return this.all.filter((b) => b.libraryId === libraryId);
+  }
 
   async fetchAll(): Promise<void> {
     try {
-      this.all = await apiFetch('/api/books/all');
+      const books: Book[] = await apiFetch('/api/books/all');
+      const newMap: Record<string, Book> = {};
+      for (const b of books) {
+        newMap[b.id] = b;
+      }
+      this.booksById = newMap;
     } catch (e) {
       console.error('Failed to fetch all books', e);
     }
   }
 
-  get(libraryId: string): Book[] {
-    return this.byLibrary[libraryId] ?? [];
-  }
-
-  has(libraryId: string): boolean {
-    return libraryId in this.byLibrary;
-  }
-
   async fetchForLibrary(libraryId: string): Promise<void> {
     try {
       const books: Book[] = await apiFetch(`/api/libraries/${libraryId}/books`);
-      this.byLibrary = { ...this.byLibrary, [libraryId]: books };
+      // Update the map while preserving books from other libraries
+      const nextMap = { ...this.booksById };
+      for (const b of books) {
+        nextMap[b.id] = b;
+      }
+      this.booksById = nextMap;
     } catch (e) {
       console.error(`Failed to fetch books for library ${libraryId}`, e);
     }
   }
 
   upsert(book: Book) {
-    // Update byLibrary
-    const list = this.byLibrary[book.libraryId];
-    if (list) {
-      const idx = list.findIndex((b) => b.id === book.id);
-      if (idx !== -1) {
-        this.byLibrary[book.libraryId] = list.map((b) => (b.id === book.id ? book : b));
-      } else {
-        this.byLibrary[book.libraryId] = [...list, book];
-      }
-    }
-    // Update all
-    const idx = this.all.findIndex((b) => b.id === book.id);
-    if (idx !== -1) {
-      this.all = this.all.map((b) => (b.id === book.id ? book : b));
-    } else {
-      this.all = [...this.all, book];
-    }
+    this.booksById[book.id] = book;
   }
 
   find(bookId: string): Book | undefined {
-    const book = this.all.find((b) => b.id === bookId);
-    if (book) return book;
-    for (const list of Object.values(this.byLibrary)) {
-      const b = list.find((bk) => bk.id === bookId);
-      if (b) return b;
-    }
-    return undefined;
+    return this.booksById[bookId];
   }
 
   async patchMetadata(bookId: string, metadata: Partial<BookMetadata>): Promise<void> {
@@ -148,26 +134,20 @@ class BooksState {
     }
   }
 
-  remove(libraryId: string, bookId: string) {
-    const list = this.byLibrary[libraryId];
-    if (!list) return;
-    this.byLibrary = {
-      ...this.byLibrary,
-      [libraryId]: list.filter((b) => b.id !== bookId)
-    };
-  }
-
   async delete(bookId: string, deleteFile = false): Promise<void> {
     const url = `/api/books/${bookId}${deleteFile ? '?deleteFile=true' : ''}`;
     await apiFetch(url, { method: 'DELETE' });
-    this.all = this.all.filter((b) => b.id !== bookId);
-    for (const libraryId of Object.keys(this.byLibrary)) {
-      this.remove(libraryId, bookId);
-    }
+    delete this.booksById[bookId];
   }
 
   invalidate(libraryId: string) {
-    delete this.byLibrary[libraryId];
+    const nextMap = { ...this.booksById };
+    for (const id of Object.keys(nextMap)) {
+      if (nextMap[id].libraryId === libraryId) {
+        delete nextMap[id];
+      }
+    }
+    this.booksById = nextMap;
   }
 }
 

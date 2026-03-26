@@ -206,6 +206,10 @@ func ListAuthorBooks(w http.ResponseWriter, r *http.Request) {
 // findOrCreateAuthors takes a list of author names and returns their IDs,
 // creating any that don't exist yet.
 func findOrCreateAuthors(r *http.Request, names []string, userID string) ([]models.Author, error) {
+	return findOrCreateAuthorsTX(r, db.DB, names, userID)
+}
+
+func findOrCreateAuthorsTX(r *http.Request, q db.DBTX, names []string, userID string) ([]models.Author, error) {
 	authors := make([]models.Author, 0, len(names))
 	for _, name := range names {
 		name = strings.TrimSpace(name)
@@ -213,7 +217,7 @@ func findOrCreateAuthors(r *http.Request, names []string, userID string) ([]mode
 			continue
 		}
 		var a models.Author
-		err := db.DB.QueryRow(r.Context(),
+		err := q.QueryRow(r.Context(),
 			`INSERT INTO authors (name, user_id) VALUES ($1, $2)
 			ON CONFLICT (name, user_id) DO UPDATE SET name = EXCLUDED.name
 			RETURNING id, name, user_id`,

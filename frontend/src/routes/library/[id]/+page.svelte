@@ -36,7 +36,7 @@
 
   $effect(() => {
     const id = libraryId;
-    if (booksState.has(id)) return;
+    if (books.length > 0) return;
     isLoading = true;
     errorMsg = null;
     booksState

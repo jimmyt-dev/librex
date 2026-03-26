@@ -195,7 +195,14 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	id := chi.URLParam(r, "id")
 
-	row := db.DB.QueryRow(r.Context(),
+	tx, err := db.DB.Begin(r.Context())
+	if err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	row := tx.QueryRow(r.Context(),
 		bookQuery+` WHERE b.id = $1 AND b.user_id = $2`, id, userID)
 	existing, err := scanBook(row.Scan)
 	if err != nil {
@@ -212,7 +219,7 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 	// Update metadata
 	if body.Metadata != nil {
 		m := body.Metadata
-		_, err = db.DB.Exec(r.Context(),
+		_, err = tx.Exec(r.Context(),
 			`UPDATE book_metadata SET
 				title=$1, subtitle=$2, description=$3, publisher=$4, published_date=$5,
 				isbn_13=$6, isbn_10=$7, language=$8, page_count=$9,
@@ -227,8 +234,7 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		// Reflect all new values so the response and write-to-file use updated metadata,
-		// not the pre-update snapshot that was fetched before the UPDATE ran.
+		// Reflect new values for response
 		existing.Metadata.Title = m.Title
 		existing.Metadata.Subtitle = nilIfEmpty(m.Subtitle)
 		existing.Metadata.Description = nilIfEmpty(m.Description)
@@ -246,12 +252,12 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 
 	// Update authors
 	if body.Authors != nil {
-		authors, err := findOrCreateAuthors(r, *body.Authors, userID)
+		authors, err := findOrCreateAuthorsTX(r, tx, *body.Authors, userID)
 		if err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		if err := linkBookAuthors(r, db.DB, id, authors); err != nil {
+		if err := linkBookAuthors(r, tx, id, authors); err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
@@ -260,12 +266,12 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 
 	// Update genres
 	if body.Genres != nil {
-		genres, err := findOrCreateGenres(r, *body.Genres, userID)
+		genres, err := findOrCreateGenresTX(r, tx, *body.Genres, userID)
 		if err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		if err := linkBookGenres(r, db.DB, id, genres); err != nil {
+		if err := linkBookGenres(r, tx, id, genres); err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
@@ -274,19 +280,24 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 
 	// Update tags
 	if body.Tags != nil {
-		tagList, err := findOrCreateTags(r, *body.Tags, userID)
+		tagList, err := findOrCreateTagsTX(r, tx, *body.Tags, userID)
 		if err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		if err := linkBookTags(r, db.DB, id, tagList); err != nil {
+		if err := linkBookTags(r, tx, id, tagList); err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
 		existing.Tags = tagList
 	}
 
-	// Refetch relations if not explicitly updated
+	if err := tx.Commit(r.Context()); err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+
+	// Refetch relations if not explicitly updated to ensure consistency
 	if body.Authors == nil || body.Genres == nil || body.Tags == nil {
 		books := []models.Book{existing}
 		if err := attachBookRelations(r, books); err != nil {
@@ -319,7 +330,6 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 			Language:    existing.Metadata.Language,
 			Subjects:    &genreNames,
 		}
-		// Best-effort: don't fail the request if file write fails
 		_ = metadata.Write(existing.FilePath, wm)
 	}
 
@@ -604,6 +614,10 @@ func attachTags(r *http.Request, books []models.Book) error {
 
 // findOrCreateGenres takes a list of genre names and returns their records.
 func findOrCreateGenres(r *http.Request, names []string, userID string) ([]models.Genre, error) {
+	return findOrCreateGenresTX(r, db.DB, names, userID)
+}
+
+func findOrCreateGenresTX(r *http.Request, q db.DBTX, names []string, userID string) ([]models.Genre, error) {
 	result := make([]models.Genre, 0, len(names))
 	for _, name := range names {
 		name = trimStr(name)
@@ -611,7 +625,7 @@ func findOrCreateGenres(r *http.Request, names []string, userID string) ([]model
 			continue
 		}
 		var g models.Genre
-		err := db.DB.QueryRow(r.Context(),
+		err := q.QueryRow(r.Context(),
 			`INSERT INTO genres (name, user_id) VALUES ($1, $2)
 			ON CONFLICT (name, user_id) DO UPDATE SET name = EXCLUDED.name
 			RETURNING id, name, user_id`,
@@ -643,6 +657,10 @@ func linkBookGenres(r *http.Request, q db.DBTX, bookID string, genres []models.G
 
 // findOrCreateTags takes a list of tag names and returns their records.
 func findOrCreateTags(r *http.Request, names []string, userID string) ([]models.Tag, error) {
+	return findOrCreateTagsTX(r, db.DB, names, userID)
+}
+
+func findOrCreateTagsTX(r *http.Request, q db.DBTX, names []string, userID string) ([]models.Tag, error) {
 	tags := make([]models.Tag, 0, len(names))
 	for _, name := range names {
 		name = trimStr(name)
@@ -650,7 +668,7 @@ func findOrCreateTags(r *http.Request, names []string, userID string) ([]models.
 			continue
 		}
 		var t models.Tag
-		err := db.DB.QueryRow(r.Context(),
+		err := q.QueryRow(r.Context(),
 			`INSERT INTO tags (name, user_id) VALUES ($1, $2)
 			ON CONFLICT (name, user_id) DO UPDATE SET name = EXCLUDED.name
 			RETURNING id, name, user_id`,
@@ -893,14 +911,20 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 	}
 	results := make([]result, 0, len(body.BookIDs))
 
-	for _, bookID := range body.BookIDs {
+	for i, bookID := range body.BookIDs {
 		res := result{BookID: bookID}
+
+		// Use savepoints to prevent a single failure from poisoning the entire transaction
+		spName := fmt.Sprintf("sp_%d", i)
+		_, _ = tx.Exec(r.Context(), "SAVEPOINT "+spName)
 
 		// Verify ownership
 		var exists bool
-		if err := tx.QueryRow(r.Context(),
+		err := tx.QueryRow(r.Context(),
 			"SELECT EXISTS(SELECT 1 FROM books WHERE id = $1 AND user_id = $2)",
-			bookID, userID).Scan(&exists); err != nil || !exists {
+			bookID, userID).Scan(&exists)
+		if err != nil || !exists {
+			_, _ = tx.Exec(r.Context(), "ROLLBACK TO SAVEPOINT "+spName)
 			res.Error = "book not found"
 			results = append(results, res)
 			continue
@@ -920,7 +944,8 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 				body.SeriesTotal, body.Rating,
 				bookID)
 			if err != nil {
-				res.Error = "db error"
+				_, _ = tx.Exec(r.Context(), "ROLLBACK TO SAVEPOINT "+spName)
+				res.Error = "db error updating metadata"
 				results = append(results, res)
 				continue
 			}
@@ -930,13 +955,20 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 		if body.Authors != nil {
 			var finalAuthors []models.Author
 			if body.AuthorsMode == "merge" {
-				existing, _ := getBookAuthors(r, tx, bookID)
+				existing, err := getBookAuthors(r, tx, bookID)
+				if err != nil {
+					_, _ = tx.Exec(r.Context(), "ROLLBACK TO SAVEPOINT "+spName)
+					res.Error = "db error fetching authors"
+					results = append(results, res)
+					continue
+				}
 				finalAuthors = mergeAuthors(existing, newAuthors)
 			} else {
 				finalAuthors = newAuthors
 			}
 			if err := linkBookAuthors(r, tx, bookID, finalAuthors); err != nil {
-				res.Error = "db error"
+				_, _ = tx.Exec(r.Context(), "ROLLBACK TO SAVEPOINT "+spName)
+				res.Error = "db error linking authors"
 				results = append(results, res)
 				continue
 			}
@@ -946,13 +978,20 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 		if body.Genres != nil {
 			var finalGenres []models.Genre
 			if body.GenresMode == "merge" {
-				existing, _ := getBookGenres(r, tx, bookID)
+				existing, err := getBookGenres(r, tx, bookID)
+				if err != nil {
+					_, _ = tx.Exec(r.Context(), "ROLLBACK TO SAVEPOINT "+spName)
+					res.Error = "db error fetching genres"
+					results = append(results, res)
+					continue
+				}
 				finalGenres = mergeGenres(existing, newGenres)
 			} else {
 				finalGenres = newGenres
 			}
 			if err := linkBookGenres(r, tx, bookID, finalGenres); err != nil {
-				res.Error = "db error"
+				_, _ = tx.Exec(r.Context(), "ROLLBACK TO SAVEPOINT "+spName)
+				res.Error = "db error linking genres"
 				results = append(results, res)
 				continue
 			}
@@ -962,18 +1001,26 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 		if body.Tags != nil {
 			var finalTags []models.Tag
 			if body.TagsMode == "merge" {
-				existing, _ := getBookTags(r, tx, bookID)
+				existing, err := getBookTags(r, tx, bookID)
+				if err != nil {
+					_, _ = tx.Exec(r.Context(), "ROLLBACK TO SAVEPOINT "+spName)
+					res.Error = "db error fetching tags"
+					results = append(results, res)
+					continue
+				}
 				finalTags = mergeTags(existing, newTags)
 			} else {
 				finalTags = newTags
 			}
 			if err := linkBookTags(r, tx, bookID, finalTags); err != nil {
-				res.Error = "db error"
+				_, _ = tx.Exec(r.Context(), "ROLLBACK TO SAVEPOINT "+spName)
+				res.Error = "db error linking tags"
 				results = append(results, res)
 				continue
 			}
 		}
 
+		_, _ = tx.Exec(r.Context(), "RELEASE SAVEPOINT "+spName)
 		results = append(results, res)
 	}
 

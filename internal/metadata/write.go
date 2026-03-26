@@ -16,8 +16,8 @@ import (
 // Pointer fields: nil = don't touch that element in the file.
 // Non-pointer strings: "" = don't touch.
 type WriteMeta struct {
-	Title    string    // "" = don't touch
-	Authors  *[]string // nil = don't touch; &[]string{} = remove all creators
+	Title       string    // "" = don't touch
+	Authors     *[]string // nil = don't touch; &[]string{} = remove all creators
 	Description *string   // nil = don't touch; ptr("") = remove
 	Publisher   *string
 	Date        *string // publication date

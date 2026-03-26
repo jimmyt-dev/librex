@@ -6,7 +6,7 @@ import (
 )
 
 // helpers
-func strPtr(s string) *string    { return &s }
+func strPtr(s string) *string        { return &s }
 func slicePtr(ss []string) *[]string { return &ss }
 
 // A realistic EPUB2 OPF with namespaces, attributes on dc:creator, spine, and guide.

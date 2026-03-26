@@ -184,8 +184,7 @@
         <Tooltip.Root>
           <Tooltip.Trigger
             class={buttonVariants({ variant: 'outline', size: 'icon' })}
-            onclick={() =>
-              bookEditState.openQueue(books.filter((b) => selectedIds.has(b.id)))}
+            onclick={() => bookEditState.openQueue(books.filter((b) => selectedIds.has(b.id)))}
           >
             <PenLineIcon class="size-4" />
           </Tooltip.Trigger>

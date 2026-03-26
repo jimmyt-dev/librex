@@ -149,4 +149,4 @@
   </Dialog.Content>
 </Dialog.Root>
 
-<CreateShelf open={openCreateShelf} onClose={() => (openCreateShelf = false)} />
+<CreateShelf bind:open={openCreateShelf} />

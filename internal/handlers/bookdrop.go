@@ -118,19 +118,25 @@ func ScanBookdrop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Pre-fetch existing original_paths to avoid N+1 queries
+	existingPaths := make(map[string]bool)
+	rows, err := db.DB.Query(r.Context(), "SELECT original_path FROM staged_books WHERE user_id = $1", userID)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var p string
+			if err := rows.Scan(&p); err == nil {
+				existingPaths[p] = true
+			}
+		}
+	}
+
 	for _, f := range files {
 		baseName := f.name
 		originalPath := f.originalPath
 		ext := strings.ToLower(filepath.Ext(baseName))
 
-		var count int
-		if err := db.DB.QueryRow(r.Context(),
-			"SELECT COUNT(*) FROM staged_books WHERE original_path = $1 AND user_id = $2",
-			originalPath, userID).Scan(&count); err != nil {
-			http.Error(w, "db error", http.StatusInternalServerError)
-			return
-		}
-		if count > 0 {
+		if existingPaths[originalPath] {
 			continue
 		}
 
@@ -659,33 +665,43 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Resolve cover and relations before opening the transaction
-		var coverImage []byte
-		var coverMimeStr *string
-		_ = db.DB.QueryRow(r.Context(),
-			"SELECT cover_image, cover_mime FROM staged_books WHERE id = $1",
-			item.StagedBookID).Scan(&coverImage, &coverMimeStr)
-
-		var authors []models.Author
-		if book.Author != nil && *book.Author != "" {
-			authors, _ = findOrCreateAuthors(r, parseAuthorString(*book.Author), userID)
-		}
-		var genres []models.Genre
-		if book.Subject != nil && *book.Subject != "" {
-			genres, _ = findOrCreateGenres(r, strings.Split(*book.Subject, ","), userID)
-		}
-		var tags []models.Tag
-		if book.Tags != nil && *book.Tags != "" {
-			tags, _ = findOrCreateTags(r, strings.Split(*book.Tags, ","), userID)
-		}
-
-		// All DB writes for this item are atomic; on failure move the file back
+		// Resolution of relations should be inside the transaction or part of the atomic unit.
 		tx, err := db.DB.Begin(r.Context())
 		if err != nil {
-			_ = moveFile(destPath, book.OriginalPath)
 			res.Error = fmt.Sprintf("db error: %v", err)
 			results = append(results, res)
 			continue
+		}
+
+		var authors []models.Author
+		if book.Author != nil && *book.Author != "" {
+			authors, err = findOrCreateAuthorsTX(r, tx, parseAuthorString(*book.Author), userID)
+			if err != nil {
+				tx.Rollback(r.Context())
+				res.Error = "failed to resolve authors"
+				results = append(results, res)
+				continue
+			}
+		}
+		var genres []models.Genre
+		if book.Subject != nil && *book.Subject != "" {
+			genres, err = findOrCreateGenresTX(r, tx, strings.Split(*book.Subject, ","), userID)
+			if err != nil {
+				tx.Rollback(r.Context())
+				res.Error = "failed to resolve genres"
+				results = append(results, res)
+				continue
+			}
+		}
+		var tags []models.Tag
+		if book.Tags != nil && *book.Tags != "" {
+			tags, err = findOrCreateTagsTX(r, tx, strings.Split(*book.Tags, ","), userID)
+			if err != nil {
+				tx.Rollback(r.Context())
+				res.Error = "failed to resolve tags"
+				results = append(results, res)
+				continue
+			}
 		}
 
 		var bookID string
@@ -695,11 +711,17 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			item.LibraryID, userID, destPath).Scan(&bookID)
 		if err != nil {
 			tx.Rollback(r.Context())
-			_ = moveFile(destPath, book.OriginalPath)
 			res.Error = fmt.Sprintf("db error: %v", err)
 			results = append(results, res)
 			continue
 		}
+
+		// Resolve cover path
+		var coverImage []byte
+		var coverMimeStr *string
+		_ = tx.QueryRow(r.Context(),
+			"SELECT cover_image, cover_mime FROM staged_books WHERE id = $1",
+			item.StagedBookID).Scan(&coverImage, &coverMimeStr)
 
 		var coverPath *string
 		var coverMimeVal *string
@@ -726,7 +748,6 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			coverPath, coverMimeVal)
 		if err != nil {
 			tx.Rollback(r.Context())
-			_ = moveFile(destPath, book.OriginalPath)
 			res.Error = fmt.Sprintf("db error: %v", err)
 			results = append(results, res)
 			continue
@@ -741,14 +762,12 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			item.StagedBookID, userID)
 		if err != nil {
 			tx.Rollback(r.Context())
-			_ = moveFile(destPath, book.OriginalPath)
 			res.Error = fmt.Sprintf("db error: %v", err)
 			results = append(results, res)
 			continue
 		}
 
 		if err := tx.Commit(r.Context()); err != nil {
-			_ = moveFile(destPath, book.OriginalPath)
 			res.Error = fmt.Sprintf("db error: %v", err)
 			results = append(results, res)
 			continue
