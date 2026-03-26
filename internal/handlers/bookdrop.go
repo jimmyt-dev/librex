@@ -76,10 +76,9 @@ func ScanBookdrop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cleanedDir := filepath.Clean(targetDir)
-
-	if !filepath.IsAbs(cleanedDir) {
-		http.Error(w, "bookdrop path must be absolute", http.StatusBadRequest)
+	cleanedDir, err := ValidatePath(targetDir)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 

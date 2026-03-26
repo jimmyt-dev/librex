@@ -382,6 +382,11 @@ func DeleteBook(w http.ResponseWriter, r *http.Request) {
 		os.Remove(*coverPath)
 	}
 
+	// Cleanup orphans after deletion
+	_ = CleanupOrphanAuthors(r, db.DB, userID)
+	_ = CleanupOrphanGenres(r, db.DB, userID)
+	_ = CleanupOrphanTags(r, db.DB, userID)
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -652,7 +657,40 @@ func linkBookGenres(r *http.Request, q db.DBTX, bookID string, genres []models.G
 			return err
 		}
 	}
-	return nil
+	return CleanupOrphanGenres(r, q, middleware.GetUserID(r))
+}
+
+func CleanupOrphanGenres(r *http.Request, q db.DBTX, userID string) error {
+	_, err := q.Exec(r.Context(),
+		`DELETE FROM genres
+		 WHERE user_id = $1 AND id NOT IN (SELECT genre_id FROM book_genres)`,
+		userID)
+	return err
+}
+
+// linkBookTags replaces all tag associations for a book.
+func linkBookTags(r *http.Request, q db.DBTX, bookID string, tags []models.Tag) error {
+	_, err := q.Exec(r.Context(), "DELETE FROM book_tags WHERE book_id = $1", bookID)
+	if err != nil {
+		return err
+	}
+	for _, t := range tags {
+		_, err := q.Exec(r.Context(),
+			"INSERT INTO book_tags (book_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+			bookID, t.ID)
+		if err != nil {
+			return err
+		}
+	}
+	return CleanupOrphanTags(r, q, middleware.GetUserID(r))
+}
+
+func CleanupOrphanTags(r *http.Request, q db.DBTX, userID string) error {
+	_, err := q.Exec(r.Context(),
+		`DELETE FROM tags
+		 WHERE user_id = $1 AND id NOT IN (SELECT tag_id FROM book_tags)`,
+		userID)
+	return err
 }
 
 // findOrCreateTags takes a list of tag names and returns their records.
@@ -679,23 +717,6 @@ func findOrCreateTagsTX(r *http.Request, q db.DBTX, names []string, userID strin
 		tags = append(tags, t)
 	}
 	return tags, nil
-}
-
-// linkBookTags replaces all tag associations for a book.
-func linkBookTags(r *http.Request, q db.DBTX, bookID string, tags []models.Tag) error {
-	_, err := q.Exec(r.Context(), "DELETE FROM book_tags WHERE book_id = $1", bookID)
-	if err != nil {
-		return err
-	}
-	for _, t := range tags {
-		_, err := q.Exec(r.Context(),
-			"INSERT INTO book_tags (book_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-			bookID, t.ID)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // writeCoverToDisk writes cover bytes to <libraryFolder>/.covers/<bookID>.<ext> and returns the path.

@@ -366,9 +366,9 @@ func validateFolder(r *http.Request, folder *string, excludeID string) *validati
 		return &validationError{"folder cannot be null or empty", http.StatusBadRequest}
 	}
 
-	cleaned := filepath.Clean(*folder)
-	if !filepath.IsAbs(cleaned) {
-		return &validationError{"folder must be an absolute path", http.StatusBadRequest}
+	cleaned, err := ValidatePath(*folder)
+	if err != nil {
+		return &validationError{err.Error(), http.StatusForbidden}
 	}
 
 	info, err := os.Stat(cleaned)

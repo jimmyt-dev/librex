@@ -49,6 +49,16 @@ func UpdateReadingProgress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validation
+	if body.Progress != nil && (*body.Progress < 0 || *body.Progress > 100) {
+		http.Error(w, "progress must be between 0 and 100", http.StatusBadRequest)
+		return
+	}
+	if body.PersonalRating != nil && (*body.PersonalRating < 0 || *body.PersonalRating > 5) {
+		http.Error(w, "rating must be between 0 and 5", http.StatusBadRequest)
+		return
+	}
+
 	// Verify book belongs to user
 	var exists bool
 	if err := db.DB.QueryRow(r.Context(),
@@ -61,6 +71,7 @@ func UpdateReadingProgress(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 
 	// Only compute date transitions when status is explicitly provided
+	// and only if the current status isn't already that state.
 	var dateStarted, dateFinished *time.Time
 	if body.Status != nil {
 		if *body.Status == "reading" || *body.Status == "finished" {
@@ -73,16 +84,20 @@ func UpdateReadingProgress(w http.ResponseWriter, r *http.Request) {
 
 	var p models.ReadingProgress
 	err := db.DB.QueryRow(r.Context(),
-		// $3 (status) and $4 (progress) may be NULL when not provided.
-		// INSERT path defaults them; UPDATE path preserves existing values via COALESCE.
 		`INSERT INTO reading_progress (user_id, book_id, status, progress, last_read_at, date_started, date_finished, personal_rating)
 		VALUES ($1, $2, COALESCE($3, 'unread'), COALESCE($4, 0), $5, $6, $7, $8)
 		ON CONFLICT (user_id, book_id) DO UPDATE SET
 			status          = COALESCE($3, reading_progress.status),
 			progress        = COALESCE($4, reading_progress.progress),
 			last_read_at    = $5,
-			date_started    = COALESCE(reading_progress.date_started, $6),
-			date_finished   = COALESCE(reading_progress.date_finished, $7),
+			date_started    = CASE
+				WHEN reading_progress.date_started IS NOT NULL THEN reading_progress.date_started
+				ELSE $6
+			END,
+			date_finished   = CASE
+				WHEN reading_progress.date_finished IS NOT NULL THEN reading_progress.date_finished
+				ELSE $7
+			END,
 			personal_rating = COALESCE($8, reading_progress.personal_rating)
 		RETURNING id, user_id, book_id, status, progress, last_read_at, date_started, date_finished, personal_rating`,
 		userID, bookID, body.Status, body.Progress, &now, dateStarted, dateFinished, body.PersonalRating).
@@ -149,6 +164,11 @@ func CreateReadingSession(w http.ResponseWriter, r *http.Request) {
 
 	if body.StartTime.IsZero() {
 		http.Error(w, "startTime is required", http.StatusBadRequest)
+		return
+	}
+
+	if body.EndTime != nil && body.EndTime.Before(body.StartTime) {
+		http.Error(w, "endTime cannot be before startTime", http.StatusBadRequest)
 		return
 	}
 

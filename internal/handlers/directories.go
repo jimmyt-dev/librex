@@ -17,14 +17,21 @@ type dirEntry struct {
 func ListDirectories(w http.ResponseWriter, r *http.Request) {
 	dir := r.URL.Query().Get("path")
 	if dir == "" {
-		dir = "/"
+		// Default to first allowed root instead of "/"
+		roots := AllowedRoots()
+		if len(roots) > 0 {
+			dir = roots[0]
+		} else {
+			dir = "/"
+		}
 	}
 
-	dir = filepath.Clean(dir)
-	if !filepath.IsAbs(dir) {
-		http.Error(w, "path must be absolute", http.StatusBadRequest)
+	cleaned, err := ValidatePath(dir)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
+	dir = cleaned
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {

@@ -244,7 +244,16 @@ func linkBookAuthors(r *http.Request, q db.DBTX, bookID string, authors []models
 			return err
 		}
 	}
-	return nil
+	return CleanupOrphanAuthors(r, q, middleware.GetUserID(r))
+}
+
+// CleanupOrphanAuthors removes authors that are not linked to any books.
+func CleanupOrphanAuthors(r *http.Request, q db.DBTX, userID string) error {
+	_, err := q.Exec(r.Context(),
+		`DELETE FROM authors
+		 WHERE user_id = $1 AND id NOT IN (SELECT author_id FROM book_authors)`,
+		userID)
+	return err
 }
 
 // attachAuthors populates the Authors field on a slice of books.

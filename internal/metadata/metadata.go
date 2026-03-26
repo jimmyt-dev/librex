@@ -125,6 +125,11 @@ func joinAll(ss []string) string {
 	return strings.Join(out, ", ")
 }
 
+const (
+	maxOpfSize   = 10 * 1024 * 1024 // 10MB
+	maxCoverSize = 10 * 1024 * 1024 // 10MB
+)
+
 func extractEPUB(filePath string) BookMeta {
 	r, err := zip.OpenReader(filePath)
 	if err != nil {
@@ -147,7 +152,7 @@ func extractEPUB(filePath string) BookMeta {
 				break
 			}
 			var c container
-			if err := xml.NewDecoder(rc).Decode(&c); err == nil && len(c.Rootfile) > 0 {
+			if err := xml.NewDecoder(io.LimitReader(rc, 1024*1024)).Decode(&c); err == nil && len(c.Rootfile) > 0 {
 				opfPath = c.Rootfile[0].FullPath
 			}
 			rc.Close()
@@ -167,7 +172,7 @@ func extractEPUB(filePath string) BookMeta {
 	if err != nil {
 		return BookMeta{}
 	}
-	data, err := io.ReadAll(rc)
+	data, err := io.ReadAll(io.LimitReader(rc, maxOpfSize))
 	rc.Close()
 	if err != nil {
 		return BookMeta{}
@@ -232,11 +237,16 @@ func extractEPUB(filePath string) BookMeta {
 		if !ok {
 			continue
 		}
+
+		if imgFile.UncompressedSize64 > maxCoverSize {
+			continue // Skip oversized cover
+		}
+
 		irc, err := imgFile.Open()
 		if err != nil {
 			continue
 		}
-		imgBytes, err := io.ReadAll(irc)
+		imgBytes, err := io.ReadAll(io.LimitReader(irc, maxCoverSize))
 		irc.Close()
 		if err != nil {
 			continue
