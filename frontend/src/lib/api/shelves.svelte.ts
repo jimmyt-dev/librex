@@ -28,13 +28,7 @@ class ShelvesState {
     }
   };
 
-  unshelvedCount = $derived(
-    booksState.all.filter((b) => {
-      // Find if this book is in ANY of the shelf mappings
-      const isShelved = Object.values(this.booksByShelf).some((ids) => ids.includes(b.id));
-      return !isShelved;
-    }).length
-  );
+  unshelvedCount = $derived(this.items.find((s) => s.id === 'unshelved')?.books ?? 0);
 
   get(shelfId: string): Book[] {
     const ids = this.booksByShelf[shelfId] ?? [];
@@ -42,8 +36,7 @@ class ShelvesState {
   }
 
   async fetchBooksForShelf(shelfId: string): Promise<void> {
-    const url =
-      shelfId === 'unshelved' ? '/api/shelves/unshelved' : `/api/shelves/${shelfId}/books`;
+    const url = `/api/shelves/${shelfId}/books`;
     try {
       const books: Book[] = await apiFetch(url);
       // Update global books state with full book objects
@@ -89,6 +82,7 @@ class ShelvesState {
       body: JSON.stringify({ bookIds })
     });
     this.invalidate(shelfId);
+    this.invalidate('unshelved');
     await this.fetchAll();
   };
 
@@ -98,6 +92,7 @@ class ShelvesState {
       body: JSON.stringify({ bookIds })
     });
     this.invalidate(shelfId);
+    this.invalidate('unshelved');
     await this.fetchAll();
   };
 }

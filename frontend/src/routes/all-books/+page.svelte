@@ -4,6 +4,7 @@
   import { viewSettings } from '$lib/state/view-settings.svelte';
   import { filterState } from '$lib/state/filter.svelte';
   import BookCard from '$lib/components/book-card.svelte';
+  import BookCardSkeleton from '$lib/components/book-card-skeleton.svelte';
   import BookTable from '$lib/components/book-table.svelte';
   import BookViewControls from '$lib/components/book-view-controls.svelte';
   import BookFilterSidebar from '$lib/components/book-filter-sidebar.svelte';
@@ -15,7 +16,7 @@
   headerState.title = 'All Books';
   headerState.subtitle = null;
 
-  let isLoading = $state(false);
+  let isLoading = $state(true);
   let errorMsg = $state<string | null>(null);
   let selectedIds = $state<Set<string>>(new Set());
   let lastSelectedId = $state<string | null>(null);
@@ -59,12 +60,20 @@
 <div class="flex flex-1 gap-4 p-4 pt-0">
   <div class="flex min-w-0 flex-1 flex-col gap-4">
     {#if isLoading}
-      <div class="flex min-h-64 items-center justify-center">
-        <p class="text-muted-foreground">Loading…</p>
+      <div
+        class="flex h-12.5 w-full items-center justify-between gap-2 rounded-md border bg-muted/20 p-2"
+      ></div>
+      <div
+        class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
+      >
+        <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+        {#each Array(12) as _, i (i)}
+          <BookCardSkeleton />
+        {/each}
       </div>
     {:else if errorMsg}
       <div class="rounded-xl bg-destructive/15 p-4 text-destructive">{errorMsg}</div>
-    {:else if booksState.all.length === 0}
+    {:else if booksState.all.length === 0 && !isLoading}
       <div
         class="flex min-h-64 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20"
       >
@@ -97,6 +106,7 @@
           {selectedIds}
           selectMode={selectedIds.size > 0}
           onselect={toggleSelect}
+          loading={isLoading}
         />
       {/if}
     {/if}

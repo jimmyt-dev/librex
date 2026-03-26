@@ -18,6 +18,8 @@ type shelfBody struct {
 
 func ListShelves(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
+
+	// Get real shelves
 	rows, err := db.DB.Query(r.Context(),
 		`SELECT s.id, s.name, s.icon, s.user_id, COUNT(bs.book_id) AS books
 		 FROM shelves s
@@ -26,7 +28,7 @@ func ListShelves(w http.ResponseWriter, r *http.Request) {
 		 GROUP BY s.id
 		 ORDER BY s.name`, userID)
 	if err != nil {
-		http.Error(w, "db error", http.StatusInternalServerError)
+		SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to query shelves", nil)
 		return
 	}
 	defer rows.Close()
@@ -35,10 +37,27 @@ func ListShelves(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var s models.Shelf
 		if err := rows.Scan(&s.ID, &s.Name, &s.Icon, &s.UserID, &s.Books); err != nil {
-			http.Error(w, "db error", http.StatusInternalServerError)
+			SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to scan shelf", nil)
 			return
 		}
 		shelves = append(shelves, s)
+	}
+
+	// Add "Unshelved" virtual shelf
+	var unshelvedCount int
+	err = db.DB.QueryRow(r.Context(),
+		`SELECT COUNT(*) FROM books b
+		 WHERE b.user_id = $1 AND NOT EXISTS (SELECT 1 FROM book_shelves bs WHERE bs.book_id = b.id)`,
+		userID).Scan(&unshelvedCount)
+	if err == nil {
+		icon := "inbox"
+		shelves = append([]models.Shelf{{
+			ID:     "unshelved",
+			Name:   "Unshelved",
+			Icon:   &icon,
+			UserID: userID,
+			Books:  unshelvedCount,
+		}}, shelves...)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -49,6 +68,27 @@ func GetShelf(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	id := chi.URLParam(r, "id")
 
+	if id == "unshelved" {
+		var unshelvedCount int
+		err := db.DB.QueryRow(r.Context(),
+			`SELECT COUNT(*) FROM books b
+			 WHERE b.user_id = $1 AND NOT EXISTS (SELECT 1 FROM book_shelves bs WHERE bs.book_id = b.id)`,
+			userID).Scan(&unshelvedCount)
+		if err != nil {
+			SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to count unshelved books", nil)
+			return
+		}
+		icon := "inbox"
+		json.NewEncoder(w).Encode(models.Shelf{
+			ID:     "unshelved",
+			Name:   "Unshelved",
+			Icon:   &icon,
+			UserID: userID,
+			Books:  unshelvedCount,
+		})
+		return
+	}
+
 	var s models.Shelf
 	err := db.DB.QueryRow(r.Context(),
 		`SELECT s.id, s.name, s.icon, s.user_id, COUNT(bs.book_id) AS books
@@ -58,7 +98,7 @@ func GetShelf(w http.ResponseWriter, r *http.Request) {
 		 GROUP BY s.id`, id, userID).
 		Scan(&s.ID, &s.Name, &s.Icon, &s.UserID, &s.Books)
 	if err != nil {
-		http.Error(w, "shelf not found", http.StatusNotFound)
+		SendError(w, http.StatusNotFound, "NOT_FOUND", "Shelf not found", nil)
 		return
 	}
 
@@ -71,7 +111,7 @@ func CreateShelf(w http.ResponseWriter, r *http.Request) {
 
 	var body shelfBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Name == "" {
-		http.Error(w, "name is required", http.StatusBadRequest)
+		SendError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Name is required", map[string]string{"name": "required"})
 		return
 	}
 
@@ -80,7 +120,7 @@ func CreateShelf(w http.ResponseWriter, r *http.Request) {
 		"INSERT INTO shelves (name, icon, user_id) VALUES ($1, $2, $3) RETURNING id",
 		body.Name, body.Icon, userID).Scan(&id)
 	if err != nil {
-		http.Error(w, "db error", http.StatusInternalServerError)
+		SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to create shelf", nil)
 		return
 	}
 
@@ -97,19 +137,19 @@ func UpdateShelf(w http.ResponseWriter, r *http.Request) {
 	err := db.DB.QueryRow(r.Context(), "SELECT id, name, icon, user_id FROM shelves WHERE id = $1 AND user_id = $2", id, userID).
 		Scan(&existing.ID, &existing.Name, &existing.Icon, &existing.UserID)
 	if err != nil {
-		http.Error(w, "shelf not found", http.StatusNotFound)
+		SendError(w, http.StatusNotFound, "NOT_FOUND", "Shelf not found", nil)
 		return
 	}
 
 	var body shelfBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Name == "" {
-		http.Error(w, "name is required", http.StatusBadRequest)
+		SendError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Name is required", map[string]string{"name": "required"})
 		return
 	}
 
 	_, execErr := db.DB.Exec(r.Context(), "UPDATE shelves SET name = $1, icon = $2 WHERE id = $3 AND user_id = $4", body.Name, body.Icon, id, userID)
 	if execErr != nil {
-		http.Error(w, "db error", http.StatusInternalServerError)
+		SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to update shelf", nil)
 		return
 	}
 
@@ -123,12 +163,12 @@ func DeleteShelf(w http.ResponseWriter, r *http.Request) {
 
 	result, err := db.DB.Exec(r.Context(), "DELETE FROM shelves WHERE id = $1 AND user_id = $2", id, userID)
 	if err != nil {
-		http.Error(w, "db error", http.StatusInternalServerError)
+		SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to delete shelf", nil)
 		return
 	}
 
 	if result.RowsAffected() == 0 {
-		http.Error(w, "shelf not found", http.StatusNotFound)
+		SendError(w, http.StatusNotFound, "NOT_FOUND", "Shelf not found", nil)
 		return
 	}
 
@@ -144,7 +184,7 @@ func ListShelfBooks(w http.ResponseWriter, r *http.Request) {
 	if err := db.DB.QueryRow(r.Context(),
 		"SELECT EXISTS(SELECT 1 FROM shelves WHERE id = $1 AND user_id = $2)",
 		shelfID, userID).Scan(&exists); err != nil || !exists {
-		http.Error(w, "shelf not found", http.StatusNotFound)
+		SendError(w, http.StatusNotFound, "NOT_FOUND", "Shelf not found", nil)
 		return
 	}
 
@@ -152,7 +192,7 @@ func ListShelfBooks(w http.ResponseWriter, r *http.Request) {
 		bookQuery+` JOIN book_shelves bs ON bs.book_id = b.id WHERE bs.shelf_id = $1 ORDER BY m.title`,
 		shelfID)
 	if err != nil {
-		http.Error(w, "db error", http.StatusInternalServerError)
+		SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to query books for shelf", nil)
 		return
 	}
 	defer rows.Close()
@@ -161,14 +201,14 @@ func ListShelfBooks(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		b, err := scanBook(rows.Scan)
 		if err != nil {
-			http.Error(w, "db error", http.StatusInternalServerError)
+			SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to scan book", nil)
 			return
 		}
 		books = append(books, b)
 	}
 
 	if err := attachBookRelations(r, books); err != nil {
-		http.Error(w, "db error", http.StatusInternalServerError)
+		SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to attach book relations", nil)
 		return
 	}
 
@@ -184,7 +224,7 @@ func ListUnshelvedBooks(w http.ResponseWriter, r *http.Request) {
 		bookQuery+` WHERE b.user_id = $1 AND NOT EXISTS (SELECT 1 FROM book_shelves bs WHERE bs.book_id = b.id) ORDER BY m.title`,
 		userID)
 	if err != nil {
-		http.Error(w, "db error", http.StatusInternalServerError)
+		SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to query unshelved books", nil)
 		return
 	}
 	defer rows.Close()
@@ -193,14 +233,14 @@ func ListUnshelvedBooks(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		b, err := scanBook(rows.Scan)
 		if err != nil {
-			http.Error(w, "db error", http.StatusInternalServerError)
+			SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to scan book", nil)
 			return
 		}
 		books = append(books, b)
 	}
 
 	if err := attachBookRelations(r, books); err != nil {
-		http.Error(w, "db error", http.StatusInternalServerError)
+		SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to attach book relations", nil)
 		return
 	}
 
@@ -217,15 +257,20 @@ func AddBooksToShelf(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	shelfID := chi.URLParam(r, "id")
 
+	if shelfID == "unshelved" {
+		SendError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Cannot add books directly to the unshelved shelf", nil)
+		return
+	}
+
 	var body shelfBooksBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.BookIDs) == 0 {
-		http.Error(w, "bookIds is required", http.StatusBadRequest)
+		SendError(w, http.StatusBadRequest, "VALIDATION_ERROR", "bookIds is required", map[string]string{"bookIds": "required"})
 		return
 	}
 
 	tx, err := db.DB.Begin(r.Context())
 	if err != nil {
-		http.Error(w, "db error", http.StatusInternalServerError)
+		SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to start transaction", nil)
 		return
 	}
 	defer tx.Rollback(r.Context())
@@ -235,7 +280,7 @@ func AddBooksToShelf(w http.ResponseWriter, r *http.Request) {
 	if err := tx.QueryRow(r.Context(),
 		"SELECT EXISTS(SELECT 1 FROM shelves WHERE id = $1 AND user_id = $2)",
 		shelfID, userID).Scan(&exists); err != nil || !exists {
-		http.Error(w, "shelf not found", http.StatusNotFound)
+		SendError(w, http.StatusNotFound, "NOT_FOUND", "Shelf not found", nil)
 		return
 	}
 
@@ -245,11 +290,11 @@ func AddBooksToShelf(w http.ResponseWriter, r *http.Request) {
 		"SELECT COUNT(*) FROM books WHERE id = ANY($1) AND user_id = $2",
 		body.BookIDs, userID).Scan(&count)
 	if err != nil {
-		http.Error(w, "db error", http.StatusInternalServerError)
+		SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to verify books", nil)
 		return
 	}
 	if count != len(body.BookIDs) {
-		http.Error(w, "one or more books not found or unauthorized", http.StatusForbidden)
+		SendError(w, http.StatusForbidden, "UNAUTHORIZED", "One or more books not found or unauthorized", nil)
 		return
 	}
 
@@ -259,12 +304,12 @@ func AddBooksToShelf(w http.ResponseWriter, r *http.Request) {
 		 ON CONFLICT DO NOTHING`,
 		body.BookIDs, shelfID)
 	if err != nil {
-		http.Error(w, "db error", http.StatusInternalServerError)
+		SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to add books to shelf", nil)
 		return
 	}
 
 	if err := tx.Commit(r.Context()); err != nil {
-		http.Error(w, "db error", http.StatusInternalServerError)
+		SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to commit transaction", nil)
 		return
 	}
 
@@ -276,15 +321,20 @@ func RemoveBooksFromShelf(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	shelfID := chi.URLParam(r, "id")
 
+	if shelfID == "unshelved" {
+		SendError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Cannot remove books from the unshelved shelf directly; they must be added to a real shelf", nil)
+		return
+	}
+
 	var body shelfBooksBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.BookIDs) == 0 {
-		http.Error(w, "bookIds is required", http.StatusBadRequest)
+		SendError(w, http.StatusBadRequest, "VALIDATION_ERROR", "bookIds is required", map[string]string{"bookIds": "required"})
 		return
 	}
 
 	tx, err := db.DB.Begin(r.Context())
 	if err != nil {
-		http.Error(w, "db error", http.StatusInternalServerError)
+		SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to start transaction", nil)
 		return
 	}
 	defer tx.Rollback(r.Context())
@@ -294,7 +344,7 @@ func RemoveBooksFromShelf(w http.ResponseWriter, r *http.Request) {
 	if err := tx.QueryRow(r.Context(),
 		"SELECT EXISTS(SELECT 1 FROM shelves WHERE id = $1 AND user_id = $2)",
 		shelfID, userID).Scan(&exists); err != nil || !exists {
-		http.Error(w, "shelf not found", http.StatusNotFound)
+		SendError(w, http.StatusNotFound, "NOT_FOUND", "Shelf not found", nil)
 		return
 	}
 
@@ -304,12 +354,12 @@ func RemoveBooksFromShelf(w http.ResponseWriter, r *http.Request) {
 		"DELETE FROM book_shelves WHERE shelf_id = $1 AND book_id = ANY($2)",
 		shelfID, body.BookIDs)
 	if err != nil {
-		http.Error(w, "db error", http.StatusInternalServerError)
+		SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to remove books from shelf", nil)
 		return
 	}
 
 	if err := tx.Commit(r.Context()); err != nil {
-		http.Error(w, "db error", http.StatusInternalServerError)
+		SendError(w, http.StatusInternalServerError, "DB_ERROR", "Failed to commit transaction", nil)
 		return
 	}
 

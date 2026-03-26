@@ -201,6 +201,40 @@ func extractEPUB(filePath string) BookMeta {
 		Coverage:    first(m.Coverage),
 	}
 
+	// Fallback to <meta name="..." content="..."> if DC fields are missing
+	if meta.Title == "" {
+		for _, mt := range m.Meta {
+			if strings.EqualFold(mt.Name, "title") {
+				meta.Title = mt.Content
+				break
+			}
+		}
+	}
+	if meta.Creator == "" {
+		for _, mt := range m.Meta {
+			if strings.EqualFold(mt.Name, "creator") || strings.EqualFold(mt.Name, "author") {
+				meta.Creator = mt.Content
+				break
+			}
+		}
+	}
+	if meta.Publisher == "" {
+		for _, mt := range m.Meta {
+			if strings.EqualFold(mt.Name, "publisher") {
+				meta.Publisher = mt.Content
+				break
+			}
+		}
+	}
+	if meta.Date == "" {
+		for _, mt := range m.Meta {
+			if strings.EqualFold(mt.Name, "date") {
+				meta.Date = mt.Content
+				break
+			}
+		}
+	}
+
 	// Find cover image in manifest
 	// EPUB3: item with properties="cover-image"
 	// EPUB2: <meta name="cover" content="item-id"/> pointing to manifest item

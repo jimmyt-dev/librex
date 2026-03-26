@@ -8,7 +8,8 @@
   import { shelvesState } from '$lib/api/shelves.svelte';
   import { toast } from 'svelte-sonner';
 
-  let { open = $bindable(false) }: { open?: boolean } = $props();
+  let { open = $bindable(false), isDialogOnly }: { open?: boolean; isDialogOnly?: boolean } =
+    $props();
 
   let name = $state('');
   let icon = $state('');
@@ -35,12 +36,14 @@
 </script>
 
 <Dialog.Root bind:open>
-  <Dialog.Trigger
-    type="button"
-    class="mx-auto flex items-center justify-center hover:cursor-pointer hover:text-foreground/80"
-  >
-    <PlusIcon class="size-4" />
-  </Dialog.Trigger>
+  {#if !isDialogOnly}
+    <Dialog.Trigger
+      type="button"
+      class="mx-auto flex items-center justify-center hover:cursor-pointer hover:text-foreground/80"
+    >
+      <PlusIcon class="size-4" />
+    </Dialog.Trigger>
+  {/if}
   <Dialog.Content class="sm:max-w-xl">
     <Dialog.Header>
       <Dialog.Title>New Shelf</Dialog.Title>

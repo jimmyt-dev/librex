@@ -10,10 +10,8 @@
 
   let userOpen = $state(true);
   let open = $derived(sidebar.state === 'collapsed' || userOpen);
-
   let {
-    links,
-    unshelvedCount = 0
+    links
   }: {
     links: {
       id: string;
@@ -21,7 +19,6 @@
       icon?: string;
       books: number;
     }[];
-    unshelvedCount?: number;
   } = $props();
 </script>
 
@@ -30,7 +27,7 @@
     <Sidebar.GroupLabel
       class="flex w-full items-center justify-between text-sm text-foreground group-data-[collapsible=icon]:pointer-events-none"
     >
-      <span class="flex items-center justify-center gap-1">
+      <span class="flex items-center gap-1">
         Shelves
         <CreateShelf />
       </span>
@@ -44,9 +41,6 @@
     </Sidebar.GroupLabel>
     <Collapsible.Content>
       <Sidebar.Menu>
-        <NavShelfItem
-          item={{ id: 'unshelved', title: 'Unshelved', icon: 'inbox', books: unshelvedCount }}
-        />
         {#each links as item (item.id)}
           <NavShelfItem {item} />
         {/each}

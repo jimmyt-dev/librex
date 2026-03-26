@@ -58,7 +58,7 @@ func main() {
 	r.Route("/api/shelves", func(r chi.Router) {
 		r.Get("/", handlers.ListShelves)
 		r.Post("/", handlers.CreateShelf)
-		r.Get("/unshelved", handlers.ListUnshelvedBooks)
+		r.Get("/unshelved/books", handlers.ListUnshelvedBooks)
 		r.Get("/{id}", handlers.GetShelf)
 		r.Put("/{id}", handlers.UpdateShelf)
 		r.Delete("/{id}", handlers.DeleteShelf)

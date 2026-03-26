@@ -1,12 +1,32 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 )
+
+// APIError represents a structured error response.
+type APIError struct {
+	Error   string            `json:"error"`
+	Message string            `json:"message,omitempty"`
+	Fields  map[string]string `json:"fields,omitempty"`
+}
+
+// SendError sends a structured JSON error response.
+func SendError(w http.ResponseWriter, code int, err string, message string, fields map[string]string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(APIError{
+		Error:   err,
+		Message: message,
+		Fields:  fields,
+	})
+}
 
 // AllowedRoots returns the list of directories that the application is allowed to access.
 // In a real app, this should be configurable via env or database.
