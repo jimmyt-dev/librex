@@ -13,3 +13,5 @@ export const auth = betterAuth({
   emailAndPassword: { enabled: true },
   plugins: [bearer(), sveltekitCookies(getRequestEvent)] // make sure this is the last plugin in the array
 });
+
+export const PUBLIC_PATHS = ['/login', '/signup'];

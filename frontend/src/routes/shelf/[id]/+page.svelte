@@ -3,9 +3,11 @@
   import { page } from '$app/state';
   import { shelvesState } from '$lib/api/shelves.svelte';
   import { viewSettings } from '$lib/state/view-settings.svelte';
+  import { filterState } from '$lib/state/filter.svelte';
   import BookCard from '$lib/components/book-card.svelte';
   import BookTable from '$lib/components/book-table.svelte';
   import BookViewControls from '$lib/components/book-view-controls.svelte';
+  import BookFilterSidebar from '$lib/components/book-filter-sidebar.svelte';
   import SelectionToolbar from '$lib/components/selection-toolbar.svelte';
   import { SvelteSet } from 'svelte/reactivity';
 
@@ -16,7 +18,7 @@
       : shelvesState.items.find((s) => s.id === shelfId)
   );
   let books = $derived(shelvesState.get(shelfId));
-  let sortedBooks = $derived(viewSettings.sort(books));
+  let sortedBooks = $derived(viewSettings.sort(filterState.apply(books)));
 
   let isLoading = $state(false);
   let errorMsg = $state<string | null>(null);
@@ -32,7 +34,7 @@
   $effect(() => {
     headerState.title = shelf?.title ?? 'Shelf';
     headerState.subtitle = null;
-    headerState.counts = isLoading ? [] : [{ label: 'books', value: books.length }];
+    headerState.counts = isLoading ? [] : [{ label: 'books', value: sortedBooks.length }];
   });
 
   $effect(() => {
@@ -69,48 +71,58 @@
   }
 </script>
 
-<div class="flex flex-1 flex-col gap-4 p-4 pt-0">
-  {#if errorMsg}
-    <div class="rounded-xl bg-destructive/15 p-4 text-destructive">{errorMsg}</div>
-  {/if}
+<div class="flex flex-1 gap-4 p-4 pt-0">
+  <div class="flex min-w-0 flex-1 flex-col gap-4">
+    {#if errorMsg}
+      <div class="rounded-xl bg-destructive/15 p-4 text-destructive">{errorMsg}</div>
+    {/if}
 
-  {#if isLoading}
-    <div class="flex min-h-64 items-center justify-center">
-      <p class="text-muted-foreground">Loading…</p>
-    </div>
-  {:else if books.length === 0}
-    <div
-      class="flex min-h-64 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20"
-    >
-      <p class="text-muted-foreground">
-        {shelfId === 'unshelved' ? 'All books are shelved.' : 'No books on this shelf yet.'}
-      </p>
-    </div>
-  {:else}
-    <div class="flex justify-end">
-      <BookViewControls />
-    </div>
-    {#if viewSettings.mode === 'grid'}
+    {#if isLoading}
+      <div class="flex min-h-64 items-center justify-center">
+        <p class="text-muted-foreground">Loading…</p>
+      </div>
+    {:else if books.length === 0}
       <div
-        class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
+        class="flex min-h-64 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20"
       >
-        {#each sortedBooks as book (book.id)}
-          <BookCard
-            {book}
-            selected={selectedIds.has(book.id)}
-            selectMode={selectedIds.size > 0}
-            onselect={toggleSelect}
-          />
-        {/each}
+        <p class="text-muted-foreground">
+          {shelfId === 'unshelved' ? 'All books are shelved.' : 'No books on this shelf yet.'}
+        </p>
       </div>
     {:else}
-      <BookTable
-        books={sortedBooks}
-        {selectedIds}
-        selectMode={selectedIds.size > 0}
-        onselect={toggleSelect}
-      />
+      <BookViewControls />
+      {#if sortedBooks.length === 0}
+        <div
+          class="flex min-h-64 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20"
+        >
+          <p class="text-muted-foreground">No books match the current filters.</p>
+        </div>
+      {:else if viewSettings.mode === 'grid'}
+        <div
+          class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
+        >
+          {#each sortedBooks as book (book.id)}
+            <BookCard
+              {book}
+              selected={selectedIds.has(book.id)}
+              selectMode={selectedIds.size > 0}
+              onselect={toggleSelect}
+            />
+          {/each}
+        </div>
+      {:else}
+        <BookTable
+          books={sortedBooks}
+          {selectedIds}
+          selectMode={selectedIds.size > 0}
+          onselect={toggleSelect}
+        />
+      {/if}
     {/if}
+  </div>
+
+  {#if filterState.open}
+    <BookFilterSidebar {books} />
   {/if}
 </div>
 
@@ -118,5 +130,5 @@
   {selectedIds}
   {books}
   ondeselect={() => (selectedIds = new Set())}
-  onselectall={() => (selectedIds = new Set(books.map((b) => b.id)))}
+  onselectall={() => (selectedIds = new Set(sortedBooks.map((b) => b.id)))}
 />
