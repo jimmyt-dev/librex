@@ -20,6 +20,7 @@
   import Button from './ui/button/button.svelte';
   import { cn } from '$lib/utils';
   import { Label } from './ui/label';
+  import { fade } from 'svelte/transition';
 
   let {
     book,
@@ -70,6 +71,7 @@
   class:!cursor-pointer={selectMode}
   tabindex="0"
   onclick={(e) => handleCardClick(e)}
+  transition:fade
   onkeydown={(e) => e.key === 'Enter' && handleCardClick(new MouseEvent('click'))}
 >
   {#if checkboxes}
@@ -135,7 +137,6 @@
           class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
         />
-
       {:else}
         <div class="flex h-full w-full items-center justify-center text-muted-foreground">
           <BookIcon class="size-8" />

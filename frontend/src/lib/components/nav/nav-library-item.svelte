@@ -10,6 +10,7 @@
   import { toast } from 'svelte-sonner';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { Button } from '$lib/components/ui/button';
+  import { fade } from 'svelte/transition';
 
   let {
     item
@@ -71,70 +72,72 @@
   }
 </script>
 
-<Sidebar.MenuItem>
-  <Sidebar.MenuButton tooltipContent={item.title}>
-    {#snippet child({ props })}
-      <a href={'/library/' + item.id} {...props}>
-        {#if sidebar.state === 'collapsed'}
-          {#if item.icon}
-            <LucideIcon name={item.icon} />
-          {:else}
-            <span>{item.title.slice(0, 2)}</span>
-          {/if}
-        {:else}
-          {#if item.icon}
-            <LucideIcon name={item.icon} />
-          {/if}
-          <span>{item.title}</span>
-        {/if}
-      </a>
-    {/snippet}
-  </Sidebar.MenuButton>
-
-  <DropdownMenu.Root bind:open={dropdownOpen}>
-    <DropdownMenu.Trigger>
+<div transition:fade>
+  <Sidebar.MenuItem>
+    <Sidebar.MenuButton tooltipContent={item.title}>
       {#snippet child({ props })}
-        <Sidebar.MenuAction
-          class="peer/action top-1/2! z-10 aspect-auto size-7 -translate-y-1/2! bg-transparent opacity-0 transition-opacity group-hover/menu-item:opacity-100"
-          {...props}
-        >
-          <EllipsisIcon />
-          <span class="sr-only">More</span>
-        </Sidebar.MenuAction>
+        <a href={'/library/' + item.id} {...props}>
+          {#if sidebar.state === 'collapsed'}
+            {#if item.icon}
+              <LucideIcon name={item.icon} />
+            {:else}
+              <span>{item.title.slice(0, 2)}</span>
+            {/if}
+          {:else}
+            {#if item.icon}
+              <LucideIcon name={item.icon} />
+            {/if}
+            <span>{item.title}</span>
+          {/if}
+        </a>
       {/snippet}
-    </DropdownMenu.Trigger>
-    <DropdownMenu.Content class="w-48 rounded-lg" align={sidebar.isMobile ? 'end' : 'start'}>
-      <DropdownMenu.Item onclick={handleScan} disabled={isScanning}>
-        <FolderSyncIcon class="text-muted-foreground" />
-        <span>{isScanning ? 'Scanning…' : 'Rescan Library'}</span>
-      </DropdownMenu.Item>
-      <DropdownMenu.Separator />
-      <DropdownMenu.Item onclick={() => (confirmOpen = true)}>
-        <Trash2Icon class="text-muted-foreground" />
-        <span>Delete Library</span>
-      </DropdownMenu.Item>
-    </DropdownMenu.Content>
-  </DropdownMenu.Root>
+    </Sidebar.MenuButton>
 
-  <AlertDialog.Root bind:open={confirmOpen}>
-    <AlertDialog.Content>
-      <AlertDialog.Header>
-        <AlertDialog.Title>Are you absolutely sure?</AlertDialog.Title>
-        <AlertDialog.Description>
-          This action cannot be undone. This will permanently delete the
-          <strong>{item.title}</strong> library.
-        </AlertDialog.Description>
-      </AlertDialog.Header>
-      <AlertDialog.Footer>
-        <AlertDialog.Cancel disabled={isDeleting}>Cancel</AlertDialog.Cancel>
-        <Button variant="destructive" onclick={handleDelete} disabled={isDeleting}>
-          {isDeleting ? 'Deleting...' : 'Delete Library'}
-        </Button>
-      </AlertDialog.Footer>
-    </AlertDialog.Content>
-  </AlertDialog.Root>
+    <DropdownMenu.Root bind:open={dropdownOpen}>
+      <DropdownMenu.Trigger>
+        {#snippet child({ props })}
+          <Sidebar.MenuAction
+            class="peer/action top-1/2! z-10 aspect-auto size-7 -translate-y-1/2! bg-transparent opacity-0 transition-opacity group-hover/menu-item:opacity-100"
+            {...props}
+          >
+            <EllipsisIcon />
+            <span class="sr-only">More</span>
+          </Sidebar.MenuAction>
+        {/snippet}
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Content class="w-48 rounded-lg" align={sidebar.isMobile ? 'end' : 'start'}>
+        <DropdownMenu.Item onclick={handleScan} disabled={isScanning}>
+          <FolderSyncIcon class="text-muted-foreground" />
+          <span>{isScanning ? 'Scanning…' : 'Rescan Library'}</span>
+        </DropdownMenu.Item>
+        <DropdownMenu.Separator />
+        <DropdownMenu.Item onclick={() => (confirmOpen = true)}>
+          <Trash2Icon class="text-muted-foreground" />
+          <span>Delete Library</span>
+        </DropdownMenu.Item>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
 
-  <Sidebar.MenuBadge class="transition-opacity group-hover/menu-item:opacity-0">
-    {item.books ?? 0}
-  </Sidebar.MenuBadge>
-</Sidebar.MenuItem>
+    <AlertDialog.Root bind:open={confirmOpen}>
+      <AlertDialog.Content>
+        <AlertDialog.Header>
+          <AlertDialog.Title>Are you absolutely sure?</AlertDialog.Title>
+          <AlertDialog.Description>
+            This action cannot be undone. This will permanently delete the
+            <strong>{item.title}</strong> library.
+          </AlertDialog.Description>
+        </AlertDialog.Header>
+        <AlertDialog.Footer>
+          <AlertDialog.Cancel disabled={isDeleting}>Cancel</AlertDialog.Cancel>
+          <Button variant="destructive" onclick={handleDelete} disabled={isDeleting}>
+            {isDeleting ? 'Deleting...' : 'Delete Library'}
+          </Button>
+        </AlertDialog.Footer>
+      </AlertDialog.Content>
+    </AlertDialog.Root>
+
+    <Sidebar.MenuBadge class="transition-opacity group-hover/menu-item:opacity-0">
+      {item.books ?? 0}
+    </Sidebar.MenuBadge>
+  </Sidebar.MenuItem>
+</div>
