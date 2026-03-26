@@ -8,10 +8,7 @@
   import { shelvesState } from '$lib/api/shelves.svelte';
   import { toast } from 'svelte-sonner';
 
-  let {
-    open = $bindable(false),
-    onClose
-  }: { open?: boolean; onClose?: () => void } = $props();
+  let { open = $bindable(false) }: { open?: boolean } = $props();
 
   let name = $state('');
   let icon = $state('');
