@@ -179,6 +179,12 @@ func ScanLibrary(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	id := chi.URLParam(r, "id")
 
+	if !TryLockScan("lib_" + id) {
+		http.Error(w, "scan already in progress for this library", http.StatusTooManyRequests)
+		return
+	}
+	defer UnlockScan("lib_" + id)
+
 	var lib models.Library
 	err := db.DB.QueryRow(r.Context(),
 		"SELECT id, name, icon, folder, file_naming_pattern, user_id FROM libraries WHERE id = $1 AND user_id = $2", id, userID).

@@ -130,10 +130,12 @@
       </div>
       {#if book.metadata.coverPath}
         <img
-          src={`/api/books/${book.id}/cover`}
+          src="/api/books/{book.id}/cover"
           alt={book.metadata.title}
-          class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+          class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          loading="lazy"
         />
+
       {:else}
         <div class="flex h-full w-full items-center justify-center text-muted-foreground">
           <BookIcon class="size-8" />

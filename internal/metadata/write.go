@@ -38,20 +38,16 @@ func Write(filePath string, meta WriteMeta) error {
 	}
 }
 
-// writeEPUB modifies the OPF metadata inside an EPUB (ZIP) file in-place.
-func writeEPUB(filePath string, meta WriteMeta) error {
-	// Read the entire zip into memory
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return fmt.Errorf("read epub: %w", err)
-	}
-
-	r, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+// writeEPUB modifies the OPF metadata inside an EPUB (ZIP) file in-place using a streaming approach.
+func writeEPUB(filePath string, meta WriteMeta) (err error) {
+	// 1. Open source ZIP
+	r, err := zip.OpenReader(filePath)
 	if err != nil {
 		return fmt.Errorf("open epub zip: %w", err)
 	}
+	defer r.Close()
 
-	// Find OPF path from container.xml
+	// 2. Find OPF path from container.xml
 	opfPath := ""
 	for _, f := range r.File {
 		if strings.EqualFold(f.Name, "META-INF/container.xml") {
@@ -60,7 +56,7 @@ func writeEPUB(filePath string, meta WriteMeta) error {
 				break
 			}
 			var c container
-			if err := xml.NewDecoder(rc).Decode(&c); err == nil && len(c.Rootfile) > 0 {
+			if err := xml.NewDecoder(io.LimitReader(rc, 1024*1024)).Decode(&c); err == nil && len(c.Rootfile) > 0 {
 				opfPath = c.Rootfile[0].FullPath
 			}
 			rc.Close()
@@ -71,36 +67,23 @@ func writeEPUB(filePath string, meta WriteMeta) error {
 		return fmt.Errorf("no OPF file found in EPUB")
 	}
 
-	// Read the OPF
-	var opfData []byte
-	for _, f := range r.File {
-		if f.Name == opfPath {
-			rc, err := f.Open()
-			if err != nil {
-				return fmt.Errorf("open opf: %w", err)
-			}
-			opfData, err = io.ReadAll(rc)
-			rc.Close()
-			if err != nil {
-				return fmt.Errorf("read opf: %w", err)
-			}
-			break
-		}
-	}
-	if opfData == nil {
-		return fmt.Errorf("OPF file not found at %s", opfPath)
-	}
-
-	// Patch only the metadata section — never re-serialize the whole OPF
-	newOPF, err := patchOPFMetadata(opfData, meta)
+	// 3. Create a temporary destination file
+	tmpPath := filePath + ".tmp"
+	tmpFile, err := os.Create(tmpPath)
 	if err != nil {
-		return fmt.Errorf("patch opf: %w", err)
+		return fmt.Errorf("create temp file: %w", err)
 	}
+	defer func() {
+		tmpFile.Close()
+		if err != nil {
+			os.Remove(tmpPath)
+		}
+	}()
 
-	// Rewrite the ZIP with the modified OPF
-	var buf bytes.Buffer
-	w := zip.NewWriter(&buf)
+	w := zip.NewWriter(tmpFile)
+	defer w.Close()
 
+	// 4. Copy entries, patching the OPF along the way
 	for _, f := range r.File {
 		header := f.FileHeader
 		writer, err := w.CreateHeader(&header)
@@ -108,15 +91,27 @@ func writeEPUB(filePath string, meta WriteMeta) error {
 			return fmt.Errorf("create zip entry %s: %w", f.Name, err)
 		}
 
+		rc, err := f.Open()
+		if err != nil {
+			return fmt.Errorf("open zip entry %s: %w", f.Name, err)
+		}
+
 		if f.Name == opfPath {
+			// Read OPF (with size limit) and patch
+			opfData, err := io.ReadAll(io.LimitReader(rc, 10*1024*1024))
+			rc.Close()
+			if err != nil {
+				return fmt.Errorf("read opf: %w", err)
+			}
+			newOPF, err := patchOPFMetadata(opfData, meta)
+			if err != nil {
+				return fmt.Errorf("patch opf: %w", err)
+			}
 			if _, err := writer.Write(newOPF); err != nil {
 				return fmt.Errorf("write modified opf: %w", err)
 			}
 		} else {
-			rc, err := f.Open()
-			if err != nil {
-				return fmt.Errorf("open zip entry %s: %w", f.Name, err)
-			}
+			// Stream everything else directly
 			if _, err := io.Copy(writer, rc); err != nil {
 				rc.Close()
 				return fmt.Errorf("copy zip entry %s: %w", f.Name, err)
@@ -128,14 +123,12 @@ func writeEPUB(filePath string, meta WriteMeta) error {
 	if err := w.Close(); err != nil {
 		return fmt.Errorf("close zip writer: %w", err)
 	}
-
-	// Write back atomically
-	tmpPath := filePath + ".tmp"
-	if err := os.WriteFile(tmpPath, buf.Bytes(), 0644); err != nil {
-		return fmt.Errorf("write temp file: %w", err)
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("close temp file: %w", err)
 	}
+
+	// 5. Atomic swap
 	if err := os.Rename(tmpPath, filePath); err != nil {
-		os.Remove(tmpPath)
 		return fmt.Errorf("rename temp file: %w", err)
 	}
 

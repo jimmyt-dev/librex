@@ -61,6 +61,12 @@ func scanStagedBook(scan func(dest ...any) error) (models.StagedBook, error) {
 func ScanBookdrop(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 
+	if !TryLockScan("bookdrop_" + userID) {
+		http.Error(w, "bookdrop scan already in progress for this user", http.StatusTooManyRequests)
+		return
+	}
+	defer UnlockScan("bookdrop_" + userID)
+
 	targetDir := r.URL.Query().Get("path")
 	if targetDir == "" {
 		// Fall back to the user's saved bookdrop path
