@@ -838,24 +838,27 @@ func MoveBooks(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if err := moveFile(filePath, destPath); err != nil {
-			res.Error = fmt.Sprintf("failed to move file: %v", err)
+		// COPY first, then update DB, then delete old file. This is more robust than Rename.
+		if err := copyFile(filePath, destPath); err != nil {
+			res.Error = fmt.Sprintf("failed to copy file: %v", err)
 			results = append(results, res)
 			continue
 		}
 
 		// Update file_path in DB
 		_, err = db.DB.Exec(r.Context(),
-			"UPDATE books SET file_path = $1 WHERE id = $2",
-			destPath, bookID)
+			"UPDATE books SET file_path = $1 WHERE id = $2 AND user_id = $3",
+			destPath, bookID, userID)
 		if err != nil {
-			// Try to move back
-			_ = moveFile(destPath, filePath)
+			// Clean up the new copy on failure
+			os.Remove(destPath)
 			res.Error = "db error updating path"
 			results = append(results, res)
 			continue
 		}
 
+		// Success! Now safe to remove the original file.
+		os.Remove(filePath)
 		results = append(results, res)
 	}
 

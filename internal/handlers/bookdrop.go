@@ -664,8 +664,9 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if err := moveFile(book.OriginalPath, destPath); err != nil {
-			res.Error = fmt.Sprintf("failed to move file: %v", err)
+		// COPY first, then update DB, then delete old file. This is more robust than Rename/Move.
+		if err := copyFile(book.OriginalPath, destPath); err != nil {
+			res.Error = fmt.Sprintf("failed to copy file: %v", err)
 			results = append(results, res)
 			continue
 		}
@@ -673,6 +674,7 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 		// Resolution of relations should be inside the transaction or part of the atomic unit.
 		tx, err := db.DB.Begin(r.Context())
 		if err != nil {
+			os.Remove(destPath) // Clean up the copy
 			res.Error = fmt.Sprintf("db error: %v", err)
 			results = append(results, res)
 			continue
@@ -683,6 +685,7 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			authors, err = findOrCreateAuthorsTX(r, tx, parseAuthorString(*book.Author), userID)
 			if err != nil {
 				tx.Rollback(r.Context())
+				os.Remove(destPath)
 				res.Error = "failed to resolve authors"
 				results = append(results, res)
 				continue
@@ -693,6 +696,7 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			genres, err = findOrCreateGenresTX(r, tx, strings.Split(*book.Subject, ","), userID)
 			if err != nil {
 				tx.Rollback(r.Context())
+				os.Remove(destPath)
 				res.Error = "failed to resolve genres"
 				results = append(results, res)
 				continue
@@ -703,6 +707,7 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			tags, err = findOrCreateTagsTX(r, tx, strings.Split(*book.Tags, ","), userID)
 			if err != nil {
 				tx.Rollback(r.Context())
+				os.Remove(destPath)
 				res.Error = "failed to resolve tags"
 				results = append(results, res)
 				continue
@@ -716,6 +721,7 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			item.LibraryID, userID, destPath).Scan(&bookID)
 		if err != nil {
 			tx.Rollback(r.Context())
+			os.Remove(destPath)
 			res.Error = fmt.Sprintf("db error: %v", err)
 			results = append(results, res)
 			continue
@@ -753,6 +759,7 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			coverPath, coverMimeVal)
 		if err != nil {
 			tx.Rollback(r.Context())
+			os.Remove(destPath)
 			res.Error = fmt.Sprintf("db error: %v", err)
 			results = append(results, res)
 			continue
@@ -767,17 +774,21 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			item.StagedBookID, userID)
 		if err != nil {
 			tx.Rollback(r.Context())
+			os.Remove(destPath)
 			res.Error = fmt.Sprintf("db error: %v", err)
 			results = append(results, res)
 			continue
 		}
 
 		if err := tx.Commit(r.Context()); err != nil {
+			os.Remove(destPath)
 			res.Error = fmt.Sprintf("db error: %v", err)
 			results = append(results, res)
 			continue
 		}
 
+		// Success! Remove the original file from Bookdrop.
+		os.Remove(book.OriginalPath)
 		results = append(results, res)
 	}
 

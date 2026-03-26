@@ -141,10 +141,26 @@ func UpdateLibrary(w http.ResponseWriter, r *http.Request) {
 func DeleteLibrary(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	id := chi.URLParam(r, "id")
+	deleteFiles := r.URL.Query().Get("deleteFiles") == "true"
 
 	var folder *string
 	_ = db.DB.QueryRow(r.Context(),
 		"SELECT folder FROM libraries WHERE id = $1 AND user_id = $2", id, userID).Scan(&folder)
+
+	// If deleting files, fetch all file paths first
+	var filePaths []string
+	if deleteFiles {
+		rows, err := db.DB.Query(r.Context(), "SELECT file_path FROM books WHERE library_id = $1 AND user_id = $2", id, userID)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var fp string
+				if err := rows.Scan(&fp); err == nil {
+					filePaths = append(filePaths, fp)
+				}
+			}
+		}
+	}
 
 	result, err := db.DB.Exec(r.Context(), "DELETE FROM libraries WHERE id = $1 AND user_id = $2", id, userID)
 	if err != nil {
@@ -157,9 +173,22 @@ func DeleteLibrary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Cleanup covers
 	if folder != nil && *folder != "" {
 		os.RemoveAll(filepath.Join(*folder, ".covers"))
 	}
+
+	// Cleanup book files if requested
+	if deleteFiles {
+		for _, fp := range filePaths {
+			os.Remove(fp)
+		}
+	}
+
+	// Cleanup orphaned metadata entities
+	_ = CleanupOrphanAuthors(r, db.DB, userID)
+	_ = CleanupOrphanGenres(r, db.DB, userID)
+	_ = CleanupOrphanTags(r, db.DB, userID)
 
 	w.WriteHeader(http.StatusNoContent)
 }
