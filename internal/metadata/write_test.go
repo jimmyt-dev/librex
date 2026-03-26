@@ -113,9 +113,18 @@ func TestPatchOPF_UpdatePublisher(t *testing.T) {
 
 func TestPatchOPF_UpdateMultipleAuthors(t *testing.T) {
 	out := patch(t, epub2OPF, WriteMeta{Authors: slicePtr([]string{"Author One", "Author Two"})})
-	assertContains(t, out, `<dc:creator>Author One</dc:creator>`, "author one")
-	assertContains(t, out, `<dc:creator>Author Two</dc:creator>`, "author two")
+	// First author should preserve attributes from the original first author tag
+	assertContains(t, out, `<dc:creator opf:role="aut" opf:file-as="Author, Test">Author One</dc:creator>`, "author one with attributes")
+	// Second author is new, so it has no attributes
+	assertContains(t, out, `<dc:creator>Author Two</dc:creator>`, "author two (new)")
 	assertNotContains(t, out, "Test Author", "old author removed")
+}
+
+func TestPatchOPF_PreservesAttributes(t *testing.T) {
+	out := patch(t, epub2OPF, WriteMeta{Authors: slicePtr([]string{"New Author"})})
+	assertContains(t, out, `opf:role="aut"`, "preserved opf:role")
+	assertContains(t, out, `opf:file-as="Author, Test"`, "preserved opf:file-as")
+	assertContains(t, out, `New Author`, "updated value")
 }
 
 func TestPatchOPF_UpdateSeriesViaSubjects(t *testing.T) {

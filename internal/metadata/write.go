@@ -201,16 +201,34 @@ func patchOPFMetadata(opfData []byte, meta WriteMeta) ([]byte, error) {
 // the metadata inner content and appends new <dc:name> elements for each value.
 // DC elements only ever contain plain text, so a text-only regex is safe here.
 func replaceDCField(inner, name string, values []string) string {
+	// re matches a Dublin Core element, capturing style and tags.
+	// 1: Indentation/prefix whitespace
+	// 2: Opening tag name (including namespace prefix if any)
+	// 3: Attributes (including leading space, excluding trailing >)
+	// 4: Closing tag
+	// 5: Trailing whitespace/newline
 	re := regexp.MustCompile(
-		`(?i)[ \t]*<(?:[a-zA-Z0-9_-]+:)?` + regexp.QuoteMeta(name) + `(?:\s[^>]*)?>` +
+		`(?i)([ \t]*)<((?:[a-zA-Z0-9_-]+:)?` + regexp.QuoteMeta(name) + `)(\s[^>]*)?>` +
 			`[^<]*` +
-			`</(?:[a-zA-Z0-9_-]+:)?` + regexp.QuoteMeta(name) + `>[ \t]*\n?`,
+			`(</(?:[a-zA-Z0-9_-]+:)?` + regexp.QuoteMeta(name) + `>)([ \t]*\n?)`,
 	)
-	inner = re.ReplaceAllString(inner, "")
 
-	var sb strings.Builder
+	matches := re.FindAllStringSubmatchIndex(inner, -1)
+
+	var cleanValues []string
 	for _, v := range values {
-		if v = strings.TrimSpace(v); v != "" {
+		if t := strings.TrimSpace(v); t != "" {
+			cleanValues = append(cleanValues, t)
+		}
+	}
+
+	if len(matches) == 0 {
+		if len(cleanValues) == 0 {
+			return inner
+		}
+		// No original tags found; append new ones at the end.
+		var sb strings.Builder
+		for _, v := range cleanValues {
 			sb.WriteString("\n    <dc:")
 			sb.WriteString(name)
 			sb.WriteString(">")
@@ -219,8 +237,57 @@ func replaceDCField(inner, name string, values []string) string {
 			sb.WriteString(name)
 			sb.WriteString(">")
 		}
+		return inner + sb.String()
 	}
-	return inner + sb.String()
+
+	var sb strings.Builder
+	lastEnd := 0
+
+	for i, m := range matches {
+		sb.WriteString(inner[lastEnd:m[0]]) // Preserve content before/between tags
+
+		if i < len(cleanValues) {
+			// Update existing tag, preserving attributes and prefix.
+			sb.WriteString(inner[m[2]:m[3]]) // Indent
+			sb.WriteString("<")
+			sb.WriteString(inner[m[4]:m[5]]) // Name
+			if m[6] != -1 {
+				sb.WriteString(inner[m[6]:m[7]]) // Attributes
+			}
+			sb.WriteString(">")
+			xmlEscapeText(&sb, cleanValues[i])
+			sb.WriteString(inner[m[8]:m[9]])   // Closing tag
+			sb.WriteString(inner[m[10]:m[11]]) // Trailing whitespace
+		}
+		// If i >= len(cleanValues), the match is skipped (removed).
+
+		lastEnd = m[1]
+
+		// If this was the last original tag but we have more values to write,
+		// append them immediately after it, copying the style of the last match.
+		if i == len(matches)-1 && len(cleanValues) > len(matches) {
+			indent := inner[m[2]:m[3]]
+			nameWithPrefix := inner[m[4]:m[5]]
+			closeTag := inner[m[8]:m[9]]
+			newline := inner[m[10]:m[11]]
+			if newline == "" {
+				newline = "\n"
+			}
+
+			for j := len(matches); j < len(cleanValues); j++ {
+				sb.WriteString(indent)
+				sb.WriteString("<")
+				sb.WriteString(nameWithPrefix)
+				sb.WriteString(">")
+				xmlEscapeText(&sb, cleanValues[j])
+				sb.WriteString(closeTag)
+				sb.WriteString(newline)
+			}
+		}
+	}
+	sb.WriteString(inner[lastEnd:]) // Preserve remaining content
+
+	return sb.String()
 }
 
 func xmlEscapeText(sb *strings.Builder, s string) {
