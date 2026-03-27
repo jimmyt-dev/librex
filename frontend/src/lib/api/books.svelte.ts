@@ -61,9 +61,14 @@ export type Book = {
 
 class BooksState {
   private booksById = $state<Record<string, Book>>({});
+  private fetchedLibraries = $state(new Set<string>());
 
   // Derived views for efficient access
   all = $derived(Object.values(this.booksById));
+
+  hasLibrary(libraryId: string): boolean {
+    return this.fetchedLibraries.has(libraryId);
+  }
 
   get(libraryId: string): Book[] {
     return this.all.filter((b) => b.libraryId === libraryId);
@@ -91,6 +96,7 @@ class BooksState {
         nextMap[b.id] = b;
       }
       this.booksById = nextMap;
+      this.fetchedLibraries = new Set([...this.fetchedLibraries, libraryId]);
     } catch (e) {
       console.error(`Failed to fetch books for library ${libraryId}`, e);
     }

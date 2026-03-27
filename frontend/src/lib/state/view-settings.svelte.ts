@@ -1,5 +1,42 @@
 import type { Book } from '$lib/api/books.svelte';
 
+export type ColumnId =
+  | 'authors'
+  | 'series'
+  | 'rating'
+  | 'format'
+  | 'publisher'
+  | 'publishedDate'
+  | 'isbn'
+  | 'language'
+  | 'pageCount'
+  | 'genres'
+  | 'tags'
+  | 'status'
+  | 'progress'
+  | 'personalRating'
+  | 'addedOn';
+
+export const ALL_COLUMNS: { id: ColumnId; label: string }[] = [
+  { id: 'authors', label: 'Author' },
+  { id: 'series', label: 'Series' },
+  { id: 'rating', label: 'Rating' },
+  { id: 'format', label: 'Format' },
+  { id: 'publisher', label: 'Publisher' },
+  { id: 'publishedDate', label: 'Published' },
+  { id: 'isbn', label: 'ISBN' },
+  { id: 'language', label: 'Language' },
+  { id: 'pageCount', label: 'Pages' },
+  { id: 'genres', label: 'Genres' },
+  { id: 'tags', label: 'Tags' },
+  { id: 'status', label: 'Status' },
+  { id: 'progress', label: 'Progress' },
+  { id: 'personalRating', label: 'My Rating' },
+  { id: 'addedOn', label: 'Added' }
+];
+
+const DEFAULT_COLUMNS: ColumnId[] = ['authors', 'series', 'rating', 'format'];
+
 export type SortField =
   | 'seriesName'
   | 'seriesNumber'
@@ -60,9 +97,12 @@ function compareField(a: Book, b: Book, level: SortLevel): number {
   return level.dir === 'asc' ? cmp : -cmp;
 }
 
+const VALID_COLUMN_IDS = new Set<string>(ALL_COLUMNS.map((c) => c.id));
+
 class ViewSettings {
   mode = $state<'grid' | 'table'>('grid');
   sortLevels = $state<SortLevel[]>(DEFAULT_SORT);
+  visibleColumns = $state<ColumnId[]>(DEFAULT_COLUMNS);
 
   constructor() {
     if (typeof localStorage === 'undefined') return;
@@ -74,6 +114,10 @@ class ViewSettings {
       if (Array.isArray(parsed.sortLevels) && parsed.sortLevels.length > 0) {
         this.sortLevels = parsed.sortLevels;
       }
+      if (Array.isArray(parsed.visibleColumns) && parsed.visibleColumns.length > 0) {
+        const valid = parsed.visibleColumns.filter((c: unknown) => VALID_COLUMN_IDS.has(c as string));
+        if (valid.length > 0) this.visibleColumns = valid;
+      }
     } catch {
       // ignore malformed storage
     }
@@ -83,8 +127,23 @@ class ViewSettings {
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ mode: this.mode, sortLevels: this.sortLevels })
+      JSON.stringify({ mode: this.mode, sortLevels: this.sortLevels, visibleColumns: this.visibleColumns })
     );
+  }
+
+  isColumnVisible(id: ColumnId): boolean {
+    return this.visibleColumns.includes(id);
+  }
+
+  toggleColumn(id: ColumnId) {
+    if (this.visibleColumns.includes(id)) {
+      this.visibleColumns = this.visibleColumns.filter((c) => c !== id);
+    } else {
+      // Insert in ALL_COLUMNS order
+      const order = ALL_COLUMNS.map((c) => c.id);
+      this.visibleColumns = order.filter((c) => c === id || this.visibleColumns.includes(c));
+    }
+    this.save();
   }
 
   setMode(m: 'grid' | 'table') {

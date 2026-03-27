@@ -30,6 +30,10 @@ class ShelvesState {
 
   unshelvedCount = $derived(this.items.find((s) => s.id === 'unshelved')?.books ?? 0);
 
+  has(shelfId: string): boolean {
+    return this.booksByShelf[shelfId] !== undefined;
+  }
+
   get(shelfId: string): Book[] {
     const ids = this.booksByShelf[shelfId] ?? [];
     return ids.map((id) => booksState.find(id)).filter((b): b is Book => !!b);

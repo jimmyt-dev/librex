@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { viewSettings, SORT_FIELDS, type SortField } from '$lib/state/view-settings.svelte';
+  import { viewSettings, SORT_FIELDS, ALL_COLUMNS, type SortField } from '$lib/state/view-settings.svelte';
   import { filterState } from '$lib/state/filter.svelte';
   import * as Popover from '$lib/components/ui/popover';
+  import { Checkbox } from '$lib/components/ui/checkbox';
   import LayoutGridIcon from '@lucide/svelte/icons/layout-grid';
   import TableIcon from '@lucide/svelte/icons/table';
   import ArrowUpDownIcon from '@lucide/svelte/icons/arrow-up-down';
@@ -11,6 +12,7 @@
   import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
   import GripVerticalIcon from '@lucide/svelte/icons/grip-vertical';
   import FilterIcon from '@lucide/svelte/icons/sliders-horizontal';
+  import ColumnsIcon from '@lucide/svelte/icons/columns-3';
   import { Button } from './ui/button';
 
   let dragIndex = $state<number | null>(null);
@@ -83,6 +85,36 @@
         </span>
       {/if}
     </Button>
+
+    <!-- Columns (table mode only) -->
+    {#if viewSettings.mode === 'table'}
+      <Popover.Root>
+        <Popover.Trigger class="flex items-center gap-1.5">
+          {#snippet child({ props })}
+            <Button {...props} variant="outline">
+              <ColumnsIcon class="size-4" />
+              Columns
+            </Button>
+          {/snippet}
+        </Popover.Trigger>
+        <Popover.Content class="w-52 p-3" align="end">
+          <p class="mb-2 text-sm font-medium">Visible Columns</p>
+          <div class="flex flex-col gap-1">
+            {#each ALL_COLUMNS as col (col.id)}
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <span
+                class="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-muted"
+                onclick={() => viewSettings.toggleColumn(col.id)}
+              >
+                <Checkbox checked={viewSettings.isColumnVisible(col.id)} />
+                {col.label}
+              </span>
+            {/each}
+          </div>
+        </Popover.Content>
+      </Popover.Root>
+    {/if}
 
     <!-- Sort -->
     <Popover.Root>
