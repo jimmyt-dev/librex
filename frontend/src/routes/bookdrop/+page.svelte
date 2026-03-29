@@ -18,6 +18,8 @@
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import * as Select from '$lib/components/ui/select';
   import RotateCW from '@lucide/svelte/icons/rotate-cw';
+  import FileUpload from '$lib/components/file-upload.svelte';
+  import UploadIcon from '@lucide/svelte/icons/upload';
   import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
   import { Spinner } from '$lib/components/ui/spinner';
   import { Checkbox } from '$lib/components/ui/checkbox';
@@ -74,6 +76,7 @@
 
   let stagedBooks = $state<StagedBook[]>([]);
   let isScanning = $state(false);
+  let uploadOpen = $state(false);
   let isLoading = $state(true);
   let errorMsg = $state<string | null>(null);
 
@@ -433,7 +436,11 @@
 </script>
 
 <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
-  <div class="flex w-full items-center justify-end">
+  <div class="flex w-full items-center justify-end gap-2">
+    <Button variant="outline" onclick={() => (uploadOpen = !uploadOpen)}>
+      <UploadIcon class="size-4" />
+      Upload Files
+    </Button>
     <Button onclick={handleScan} disabled={isScanning}>
       {#if isScanning}
         <span>Scanning...</span>
@@ -444,6 +451,17 @@
       {/if}
     </Button>
   </div>
+
+  {#if uploadOpen}
+    <div class="rounded-lg border p-4">
+      <FileUpload
+        onUploaded={(result) => {
+          stagedBooks = result as typeof stagedBooks;
+          uploadOpen = false;
+        }}
+      />
+    </div>
+  {/if}
   {#if errorMsg}
     <div class="rounded-xl bg-destructive/15 p-4 whitespace-pre-wrap text-destructive">
       {errorMsg}

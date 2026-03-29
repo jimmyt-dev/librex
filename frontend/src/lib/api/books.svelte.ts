@@ -140,6 +140,33 @@ class BooksState {
     }
   }
 
+  async updateProgress(
+    bookId: string,
+    data: {
+      status?: string;
+      progress?: number;
+      personalRating?: number;
+      dateStarted?: string | null;
+      dateFinished?: string | null;
+    }
+  ): Promise<ReadingProgress> {
+    const result: ReadingProgress = await apiFetch(`/api/books/${bookId}/progress`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+    const book = this.find(bookId);
+    if (book) {
+      this.upsert({ ...book, progress: result });
+    }
+    return result;
+  }
+
+  async fetchOne(bookId: string): Promise<Book> {
+    const book: Book = await apiFetch(`/api/books/${bookId}`);
+    this.upsert(book);
+    return book;
+  }
+
   async delete(bookId: string, deleteFile = false): Promise<void> {
     const url = `/api/books/${bookId}${deleteFile ? '?deleteFile=true' : ''}`;
     await apiFetch(url, { method: 'DELETE' });

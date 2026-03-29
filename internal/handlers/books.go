@@ -534,7 +534,48 @@ func attachBookRelations(r *http.Request, books []models.Book) error {
 	if err := attachGenres(r, books); err != nil {
 		return err
 	}
-	return attachTags(r, books)
+	if err := attachTags(r, books); err != nil {
+		return err
+	}
+	return attachProgress(r, books)
+}
+
+// attachProgress batch-loads reading progress for a slice of books.
+func attachProgress(r *http.Request, books []models.Book) error {
+	if len(books) == 0 {
+		return nil
+	}
+
+	ids := make([]string, len(books))
+	for i, b := range books {
+		ids[i] = b.ID
+	}
+
+	rows, err := db.DB.Query(r.Context(),
+		`SELECT id, user_id, book_id, status, progress, last_read_at, date_started, date_finished, personal_rating
+		FROM reading_progress
+		WHERE book_id = ANY($1)`, ids)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	byBook := map[string]*models.ReadingProgress{}
+	for rows.Next() {
+		var p models.ReadingProgress
+		if err := rows.Scan(&p.ID, &p.UserID, &p.BookID, &p.Status, &p.Progress,
+			&p.LastReadAt, &p.DateStarted, &p.DateFinished, &p.PersonalRating); err != nil {
+			return err
+		}
+		byBook[p.BookID] = &p
+	}
+
+	for i := range books {
+		if p, ok := byBook[books[i].ID]; ok {
+			books[i].Progress = p
+		}
+	}
+	return nil
 }
 
 // attachGenres populates the Genres field on a slice of books.

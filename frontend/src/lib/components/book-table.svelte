@@ -95,11 +95,19 @@
       const date = new Date(`${d}-01`);
       return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
     }
-    return new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    return new Date(d).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   }
 
   function formatAddedOn(d: string): string {
-    return new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    return new Date(d).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   }
 
   function formatStatus(s: string | undefined): string {
@@ -107,7 +115,9 @@
     return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
-  let col = $derived(viewSettings.isColumnVisible.bind(viewSettings));
+  function col(id: Parameters<typeof viewSettings.isColumnVisible>[0]): boolean {
+    return viewSettings.isColumnVisible(id);
+  }
 
   let allSelected = $derived(books.length > 0 && books.every((b) => selectedIds.has(b.id)));
 
@@ -262,7 +272,8 @@
               <td class="px-4 py-2">
                 {#if book.progress?.personalRating}
                   <span class="text-base leading-none text-yellow-400"
-                    >{'★'.repeat(book.progress.personalRating)}<span class="text-muted-foreground/30"
+                    >{'★'.repeat(book.progress.personalRating)}<span
+                      class="text-muted-foreground/30"
                       >{'★'.repeat(5 - book.progress.personalRating)}</span
                     ></span
                   >

@@ -13,6 +13,8 @@
   import TrashIcon from '@lucide/svelte/icons/trash-2';
   import LibraryBigIcon from '@lucide/svelte/icons/library-big';
   import DownloadIcon from '@lucide/svelte/icons/download';
+  import CheckIcon from '@lucide/svelte/icons/check';
+  import Undo2Icon from '@lucide/svelte/icons/undo-2';
   import { toast } from 'svelte-sonner';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import InfoIcon from '@lucide/svelte/icons/info';
@@ -130,6 +132,16 @@
           <BookOpenTextIcon class="size-4" />
         </Button>
       </div>
+      {#if book.progress?.status && book.progress.status !== 'unread'}
+        <div
+          class="absolute bottom-1.5 left-1.5 z-10 rounded-full px-1.5 py-0.5 text-[10px] font-medium {book
+            .progress.status === 'reading'
+            ? 'bg-blue-500 text-white'
+            : 'bg-green-500 text-white'}"
+        >
+          {book.progress.status === 'reading' ? 'Reading' : 'Done'}
+        </div>
+      {/if}
       {#if book.metadata.coverPath}
         <img
           src="/api/books/{book.id}/cover"
@@ -173,7 +185,53 @@
           <EllipsisVerticalIcon class="size-4" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content align="start" class="w-40">
+          <DropdownMenu.Content align="start" class="w-44">
+            {#if book.progress?.status !== 'reading'}
+              <DropdownMenu.Item
+                onclick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    await booksState.updateProgress(book.id, { status: 'reading' });
+                  } catch {
+                    toast.error('Failed to update status.');
+                  }
+                }}
+              >
+                <BookOpenTextIcon class="size-3.5" />
+                Mark as Reading
+              </DropdownMenu.Item>
+            {/if}
+            {#if book.progress?.status !== 'finished'}
+              <DropdownMenu.Item
+                onclick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    await booksState.updateProgress(book.id, { status: 'finished' });
+                  } catch {
+                    toast.error('Failed to update status.');
+                  }
+                }}
+              >
+                <CheckIcon class="size-3.5" />
+                Mark as Finished
+              </DropdownMenu.Item>
+            {/if}
+            {#if book.progress?.status && book.progress.status !== 'unread'}
+              <DropdownMenu.Item
+                onclick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    await booksState.updateProgress(book.id, { status: 'unread' });
+                  } catch {
+                    toast.error('Failed to update status.');
+                  }
+                }}
+              >
+                <Undo2Icon class="size-3.5" />
+                Mark as Unread
+              </DropdownMenu.Item>
+            {/if}
+            <DropdownMenu.Separator />
             <DropdownMenu.Item
               onclick={(e) => {
                 e.stopPropagation();

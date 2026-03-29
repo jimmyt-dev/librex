@@ -795,3 +795,120 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(results)
 }
+
+// UploadToBookdrop accepts multipart file uploads and stages them as bookdrop entries.
+// POST /api/bookdrop/upload
+func UploadToBookdrop(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+
+	// Limit total upload size to 500 MB
+	r.Body = http.MaxBytesReader(w, r.Body, 500<<20)
+
+	if err := r.ParseMultipartForm(64 << 20); err != nil {
+		http.Error(w, "failed to parse upload: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Resolve destination directory (user's bookdrop path)
+	var bookdropPath *string
+	_ = db.DB.QueryRow(r.Context(),
+		"SELECT bookdrop_path FROM user_settings WHERE user_id = $1", userID).Scan(&bookdropPath)
+
+	var destDir string
+	if bookdropPath != nil && *bookdropPath != "" {
+		destDir = *bookdropPath
+	} else {
+		http.Error(w, "no bookdrop path configured — set it in Settings first", http.StatusBadRequest)
+		return
+	}
+
+	cleanedDir, err := ValidatePath(destDir)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	if err := os.MkdirAll(cleanedDir, 0755); err != nil {
+		http.Error(w, "failed to create bookdrop directory", http.StatusInternalServerError)
+		return
+	}
+
+	files := r.MultipartForm.File["files"]
+	if len(files) == 0 {
+		http.Error(w, "no files provided", http.StatusBadRequest)
+		return
+	}
+
+	for _, fh := range files {
+		ext := strings.ToLower(filepath.Ext(fh.Filename))
+		if !validBookExts[ext] {
+			continue // skip unsupported formats silently
+		}
+
+		src, err := fh.Open()
+		if err != nil {
+			continue
+		}
+
+		destPath := filepath.Join(cleanedDir, filepath.Base(fh.Filename))
+		// Avoid overwriting existing files
+		if _, err := os.Stat(destPath); err == nil {
+			base := strings.TrimSuffix(filepath.Base(fh.Filename), ext)
+			destPath = filepath.Join(cleanedDir, fmt.Sprintf("%s_%d%s", base, os.Getpid(), ext))
+		}
+
+		dst, err := os.Create(destPath)
+		if err != nil {
+			src.Close()
+			continue
+		}
+		_, copyErr := io.Copy(dst, src)
+		src.Close()
+		dst.Close()
+		if copyErr != nil {
+			os.Remove(destPath)
+			continue
+		}
+
+		// Check if already staged
+		var alreadyStaged bool
+		_ = db.DB.QueryRow(r.Context(),
+			"SELECT EXISTS(SELECT 1 FROM staged_books WHERE original_path = $1 AND user_id = $2)",
+			destPath, userID).Scan(&alreadyStaged)
+		if alreadyStaged {
+			continue
+		}
+
+		meta := metadata.Extract(destPath)
+		title := meta.Title
+		if title == "" {
+			title = strings.TrimSuffix(filepath.Base(fh.Filename), ext)
+		}
+
+		var coverImage []byte
+		var coverMime *string
+		if len(meta.CoverImage) > 0 {
+			coverImage = meta.CoverImage
+			coverMime = &meta.CoverMime
+		}
+
+		_, _ = db.DB.Exec(r.Context(),
+			`INSERT INTO staged_books (
+				title, author, subject, description, publisher, contributor,
+				date, type, format, identifier, source, language, relation, coverage,
+				cover_image, cover_mime,
+				file_name, ext, original_path, user_id
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+			title, nilIfEmpty(meta.Creator),
+			nilIfEmpty(meta.Subject), nilIfEmpty(meta.Description),
+			nilIfEmpty(meta.Publisher), nilIfEmpty(meta.Contributor),
+			nilIfEmpty(meta.Date), nilIfEmpty(meta.Type),
+			nilIfEmpty(meta.Format), nilIfEmpty(meta.Identifier),
+			nilIfEmpty(meta.Source), nilIfEmpty(meta.Language),
+			nilIfEmpty(meta.Relation), nilIfEmpty(meta.Coverage),
+			coverImage, coverMime,
+			filepath.Base(fh.Filename), ext, destPath, userID)
+	}
+
+	listStagedBooks(w, r, userID)
+}

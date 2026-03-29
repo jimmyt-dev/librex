@@ -108,6 +108,7 @@ func main() {
 
 	r.Route("/api/bookdrop", func(r chi.Router) {
 		r.Post("/scan", handlers.ScanBookdrop)
+		r.Post("/upload", handlers.UploadToBookdrop)
 		r.Get("/staged", handlers.ListStagedBooks)
 		r.Get("/staged/{id}", handlers.GetStagedBook)
 		r.Get("/staged/{id}/cover", handlers.GetStagedBookCover)

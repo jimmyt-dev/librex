@@ -1,4 +1,5 @@
 import { apiFetch } from './client';
+import { booksState, type Book } from './books.svelte';
 
 export type Author = {
   id: string;
@@ -8,6 +9,18 @@ export type Author = {
 
 class AuthorsState {
   items = $state<Author[]>([]);
+
+  fetchOne = async (id: string): Promise<Author> => {
+    return await apiFetch(`/api/authors/${id}`);
+  };
+
+  fetchBooksForAuthor = async (id: string): Promise<Book[]> => {
+    const books: Book[] = await apiFetch(`/api/authors/${id}/books`);
+    for (const b of books) {
+      booksState.upsert(b);
+    }
+    return books;
+  };
 
   fetchAll = async () => {
     try {

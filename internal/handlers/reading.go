@@ -36,6 +36,8 @@ type progressUpdate struct {
 	Status         *string  `json:"status"`
 	Progress       *float64 `json:"progress"`
 	PersonalRating *float64 `json:"personalRating"`
+	DateStarted    *string  `json:"dateStarted"`
+	DateFinished   *string  `json:"dateFinished"`
 }
 
 // UpdateReadingProgress creates or updates reading progress for a book.
@@ -70,17 +72,36 @@ func UpdateReadingProgress(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now()
 
-	// Only compute date transitions when status is explicitly provided
-	// and only if the current status isn't already that state.
+	// Use manually provided dates if given, otherwise auto-calculate from status.
 	var dateStarted, dateFinished *time.Time
+	if body.DateStarted != nil {
+		if t, err := time.Parse(time.RFC3339, *body.DateStarted); err == nil {
+			dateStarted = &t
+		} else if t, err := time.Parse("2006-01-02", *body.DateStarted); err == nil {
+			dateStarted = &t
+		}
+	}
+	if body.DateFinished != nil {
+		if t, err := time.Parse(time.RFC3339, *body.DateFinished); err == nil {
+			dateFinished = &t
+		} else if t, err := time.Parse("2006-01-02", *body.DateFinished); err == nil {
+			dateFinished = &t
+		}
+	}
+	// Auto-set dates from status transitions only when not manually provided.
 	if body.Status != nil {
-		if *body.Status == "reading" || *body.Status == "finished" {
+		if dateStarted == nil && (*body.Status == "reading" || *body.Status == "finished") {
 			dateStarted = &now
 		}
-		if *body.Status == "finished" {
+		if dateFinished == nil && *body.Status == "finished" {
 			dateFinished = &now
 		}
 	}
+
+	// When dates are explicitly provided by the user, always use them (even overwriting existing).
+	// When auto-calculated, only set if no existing value.
+	manualStarted := body.DateStarted != nil
+	manualFinished := body.DateFinished != nil
 
 	var p models.ReadingProgress
 	err := db.DB.QueryRow(r.Context(),
@@ -91,16 +112,19 @@ func UpdateReadingProgress(w http.ResponseWriter, r *http.Request) {
 			progress        = COALESCE($4, reading_progress.progress),
 			last_read_at    = $5,
 			date_started    = CASE
+				WHEN $9 THEN $6
 				WHEN reading_progress.date_started IS NOT NULL THEN reading_progress.date_started
 				ELSE $6
 			END,
 			date_finished   = CASE
+				WHEN $10 THEN $7
 				WHEN reading_progress.date_finished IS NOT NULL THEN reading_progress.date_finished
 				ELSE $7
 			END,
 			personal_rating = COALESCE($8, reading_progress.personal_rating)
 		RETURNING id, user_id, book_id, status, progress, last_read_at, date_started, date_finished, personal_rating`,
-		userID, bookID, body.Status, body.Progress, &now, dateStarted, dateFinished, body.PersonalRating).
+		userID, bookID, body.Status, body.Progress, &now, dateStarted, dateFinished, body.PersonalRating,
+		manualStarted, manualFinished).
 		Scan(&p.ID, &p.UserID, &p.BookID, &p.Status, &p.Progress,
 			&p.LastReadAt, &p.DateStarted, &p.DateFinished, &p.PersonalRating)
 	if err != nil {
