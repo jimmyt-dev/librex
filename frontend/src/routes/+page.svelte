@@ -123,6 +123,7 @@
         </div>
         {#if isLoading}
           <div class="flex gap-4 overflow-x-auto pb-2">
+            <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
             {#each Array(8) as _, i (i)}
               <div class="aspect-2/3 w-32 shrink-0 rounded-md bg-muted/50"></div>
             {/each}

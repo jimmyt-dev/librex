@@ -2,7 +2,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { authorsState, type Author } from '$lib/api/authors.svelte';
-  import { booksState, type Book } from '$lib/api/books.svelte';
+  import { type Book } from '$lib/api/books.svelte';
   import { headerState } from '$lib/state/header.svelte';
   import BookView from '$lib/components/book-view.svelte';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
