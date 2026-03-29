@@ -19,10 +19,6 @@
 
   $effect(() => {
     const id = libraryId;
-    if (booksState.hasLibrary(id)) {
-      isLoading = false;
-      return;
-    }
     const start = Date.now();
     isLoading = true;
     errorMsg = null;
@@ -39,9 +35,4 @@
   });
 </script>
 
-<BookView
-  {books}
-  {isLoading}
-  {errorMsg}
-  emptyMessage="No books yet. Import some from Bookdrop."
-/>
+<BookView {books} {isLoading} {errorMsg} emptyMessage="No books yet. Import some from Bookdrop." />
