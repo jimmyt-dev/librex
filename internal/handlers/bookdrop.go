@@ -800,12 +800,26 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 // POST /api/bookdrop/upload
 func UploadToBookdrop(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
+	maxSize := int64(500 << 20) // Default 500 MB
+	var userMaxMB int
+	err := db.DB.QueryRow(r.Context(), "SELECT max_upload_size_mb FROM user_settings WHERE user_id = $1", userID).Scan(&userMaxMB)
+	if err == nil && userMaxMB > 0 {
+		maxSize = int64(userMaxMB) << 20
+	}
 
-	// Limit total upload size to 500 MB
-	r.Body = http.MaxBytesReader(w, r.Body, 500<<20)
+	// Limit total upload size to the user's setting
+	r.Body = http.MaxBytesReader(w, r.Body, maxSize)
 
 	if err := r.ParseMultipartForm(64 << 20); err != nil {
-		http.Error(w, "failed to parse upload: "+err.Error(), http.StatusBadRequest)
+		if strings.Contains(err.Error(), "request body too large") {
+			msg := fmt.Sprintf("Upload too large. The current limit is %d MB. You can increase this in Settings.", userMaxMB)
+			if userMaxMB == 0 {
+				msg = "Upload too large. The current limit is 500 MB. You can increase this in Settings."
+			}
+			http.Error(w, msg, http.StatusRequestEntityTooLarge)
+		} else {
+			http.Error(w, "failed to parse upload: "+err.Error(), http.StatusBadRequest)
+		}
 		return
 	}
 

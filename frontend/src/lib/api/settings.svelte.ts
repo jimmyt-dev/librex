@@ -6,6 +6,7 @@ export type UserSettings = {
   fileNamingPattern: string;
   writeMetadataToFile: boolean;
   bookdropPath: string | null;
+  maxUploadSizeMb: number;
 };
 
 class SettingsState {
@@ -27,6 +28,7 @@ class SettingsState {
     fileNamingPattern?: string;
     writeMetadataToFile?: boolean;
     bookdropPath?: string;
+    maxUploadSizeMb?: number;
   }): Promise<boolean> {
     try {
       this.settings = await apiFetch('/api/settings', {

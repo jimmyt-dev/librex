@@ -17,15 +17,15 @@ func GetSettings(w http.ResponseWriter, r *http.Request) {
 
 	var s models.UserSettings
 	err := db.DB.QueryRow(r.Context(),
-		`SELECT id, user_id, file_naming_pattern, write_metadata_to_file, bookdrop_path FROM user_settings WHERE user_id = $1`,
-		userID).Scan(&s.ID, &s.UserID, &s.FileNamingPattern, &s.WriteMetadataToFile, &s.BookdropPath)
+		`SELECT id, user_id, file_naming_pattern, write_metadata_to_file, bookdrop_path, max_upload_size_mb FROM user_settings WHERE user_id = $1`,
+		userID).Scan(&s.ID, &s.UserID, &s.FileNamingPattern, &s.WriteMetadataToFile, &s.BookdropPath, &s.MaxUploadSizeMb)
 	if err != nil {
 		// Auto-create default settings
 		err = db.DB.QueryRow(r.Context(),
-			`INSERT INTO user_settings (user_id, file_naming_pattern, write_metadata_to_file)
-			VALUES ($1, $2, false)
-			RETURNING id, user_id, file_naming_pattern, write_metadata_to_file, bookdrop_path`,
-			userID, defaultFileNamingPattern).Scan(&s.ID, &s.UserID, &s.FileNamingPattern, &s.WriteMetadataToFile, &s.BookdropPath)
+			`INSERT INTO user_settings (user_id, file_naming_pattern, write_metadata_to_file, max_upload_size_mb)
+			VALUES ($1, $2, false, 500)
+			RETURNING id, user_id, file_naming_pattern, write_metadata_to_file, bookdrop_path, max_upload_size_mb`,
+			userID, defaultFileNamingPattern).Scan(&s.ID, &s.UserID, &s.FileNamingPattern, &s.WriteMetadataToFile, &s.BookdropPath, &s.MaxUploadSizeMb)
 		if err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
@@ -40,6 +40,7 @@ type settingsUpdate struct {
 	FileNamingPattern   *string `json:"fileNamingPattern"`
 	WriteMetadataToFile *bool   `json:"writeMetadataToFile"`
 	BookdropPath        *string `json:"bookdropPath"`
+	MaxUploadSizeMb     *int    `json:"maxUploadSizeMb"`
 }
 
 // UpdateSettings updates the user's settings.
@@ -55,11 +56,11 @@ func UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	// Ensure settings row exists
 	var s models.UserSettings
 	err := db.DB.QueryRow(r.Context(),
-		`INSERT INTO user_settings (user_id, file_naming_pattern, write_metadata_to_file)
-		VALUES ($1, $2, false)
+		`INSERT INTO user_settings (user_id, file_naming_pattern, write_metadata_to_file, max_upload_size_mb)
+		VALUES ($1, $2, false, 500)
 		ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
-		RETURNING id, user_id, file_naming_pattern, write_metadata_to_file, bookdrop_path`,
-		userID, defaultFileNamingPattern).Scan(&s.ID, &s.UserID, &s.FileNamingPattern, &s.WriteMetadataToFile, &s.BookdropPath)
+		RETURNING id, user_id, file_naming_pattern, write_metadata_to_file, bookdrop_path, max_upload_size_mb`,
+		userID, defaultFileNamingPattern).Scan(&s.ID, &s.UserID, &s.FileNamingPattern, &s.WriteMetadataToFile, &s.BookdropPath, &s.MaxUploadSizeMb)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return
@@ -78,10 +79,13 @@ func UpdateSettings(w http.ResponseWriter, r *http.Request) {
 			s.BookdropPath = body.BookdropPath
 		}
 	}
+	if body.MaxUploadSizeMb != nil {
+		s.MaxUploadSizeMb = *body.MaxUploadSizeMb
+	}
 
 	_, err = db.DB.Exec(r.Context(),
-		`UPDATE user_settings SET file_naming_pattern = $1, write_metadata_to_file = $2, bookdrop_path = $3 WHERE id = $4`,
-		s.FileNamingPattern, s.WriteMetadataToFile, s.BookdropPath, s.ID)
+		`UPDATE user_settings SET file_naming_pattern = $1, write_metadata_to_file = $2, bookdrop_path = $3, max_upload_size_mb = $4 WHERE id = $5`,
+		s.FileNamingPattern, s.WriteMetadataToFile, s.BookdropPath, s.MaxUploadSizeMb, s.ID)
 	if err != nil {
 		http.Error(w, "db error", http.StatusInternalServerError)
 		return

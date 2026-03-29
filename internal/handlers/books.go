@@ -83,6 +83,21 @@ func ListLibraryBooks(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(books)
 }
 
+// fetchBookByID fetches a single book with all relations attached.
+func fetchBookByID(r *http.Request, id, userID string) (models.Book, error) {
+	row := db.DB.QueryRow(r.Context(),
+		bookQuery+` WHERE b.id = $1 AND b.user_id = $2`, id, userID)
+	b, err := scanBook(row.Scan)
+	if err != nil {
+		return b, err
+	}
+	books := []models.Book{b}
+	if err := attachBookRelations(r, books); err != nil {
+		return b, err
+	}
+	return books[0], nil
+}
+
 // GetBook returns a single book by ID.
 func GetBook(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)

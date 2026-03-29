@@ -38,6 +38,7 @@ func main() {
 		r.Delete("/{id}", handlers.DeleteLibrary)
 		r.Get("/{id}/books", handlers.ListLibraryBooks)
 		r.Post("/{id}/scan", handlers.ScanLibrary)
+		r.Post("/{id}/upload", handlers.UploadToLibrary)
 	})
 
 	r.Route("/api/books", func(r chi.Router) {

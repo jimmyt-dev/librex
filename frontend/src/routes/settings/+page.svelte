@@ -14,6 +14,7 @@
   import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
   import FolderOpenIcon from '@lucide/svelte/icons/folder-open';
   import FolderIcon from '@lucide/svelte/icons/folder';
+  import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
   import XIcon from '@lucide/svelte/icons/x';
   import FolderPicker from '$lib/components/folder-picker.svelte';
   import * as Dialog from '$lib/components/ui/dialog';
@@ -31,6 +32,7 @@
   let pattern = $state('');
   let writeMetadata = $state(false);
   let bookdropPath = $state('');
+  let maxUploadSizeMb = $state(500);
   let folderDialogOpen = $state(false);
   let saving = $state(false);
 
@@ -45,7 +47,8 @@
   let dirty = $derived(
     pattern !== (settingsState.settings?.fileNamingPattern ?? DEFAULT_PATTERN) ||
       writeMetadata !== (settingsState.settings?.writeMetadataToFile ?? false) ||
-      bookdropPath !== (settingsState.settings?.bookdropPath ?? '')
+      bookdropPath !== (settingsState.settings?.bookdropPath ?? '') ||
+      maxUploadSizeMb !== (settingsState.settings?.maxUploadSizeMb ?? 500)
   );
 
   // Example data for live preview
@@ -142,6 +145,7 @@
       pattern = settingsState.settings?.fileNamingPattern ?? DEFAULT_PATTERN;
       writeMetadata = settingsState.settings?.writeMetadataToFile ?? false;
       bookdropPath = settingsState.settings?.bookdropPath ?? '';
+      maxUploadSizeMb = settingsState.settings?.maxUploadSizeMb ?? 500;
     });
     librariesState.fetchAll();
   });
@@ -186,7 +190,8 @@
     const ok = await settingsState.update({
       fileNamingPattern: pattern,
       writeMetadataToFile: writeMetadata,
-      bookdropPath: bookdropPath
+      bookdropPath: bookdropPath,
+      maxUploadSizeMb: maxUploadSizeMb
     });
     if (ok) {
       toast.success('Settings saved.');
@@ -206,11 +211,11 @@
 <div class="mx-auto flex max-w-2xl flex-col gap-8 p-6">
   <!-- Bookdrop -->
   <section>
-    <h2 class="text-lg font-semibold">Bookdrop</h2>
+    <h2 class="text-lg font-semibold">Bookdrop & Uploads</h2>
     <p class="mt-1 text-sm text-muted-foreground">
-      The default folder scanned when you open the Bookdrop page.
+      Configure your staging area and upload limits.
     </p>
-    <div class="mt-4 flex flex-col gap-3">
+    <div class="mt-4 flex flex-col gap-4">
       <div class="flex flex-col gap-1.5">
         <Label class="text-sm font-medium">Bookdrop Folder</Label>
         <Button
@@ -240,10 +245,32 @@
           {/if}
         </Button>
       </div>
+
+      <div class="flex flex-col gap-1.5">
+        <Label for="max-upload" class="text-sm font-medium">Maximum Upload Size (MB)</Label>
+        <div class="relative">
+          <HardDriveIcon
+            class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            id="max-upload"
+            type="number"
+            bind:value={maxUploadSizeMb}
+            min="1"
+            class="pl-9"
+            placeholder="500"
+          />
+        </div>
+        <p class="text-xs text-muted-foreground">
+          Maximum total size for a single upload request. Increase this if you have large ebooks or
+          PDFs.
+        </p>
+      </div>
+
       <div class="flex justify-end">
         <Button
           onclick={saveSettings}
-          disabled={saving || bookdropPath === (settingsState.settings?.bookdropPath ?? '')}
+          disabled={saving || !dirty}
           size="sm"
         >
           {saving ? 'Saving...' : 'Save'}

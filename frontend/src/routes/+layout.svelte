@@ -15,6 +15,7 @@
   import { buttonVariants } from '$lib/components/ui/button';
   import BookEditSheet from '$lib/components/book-edit-sheet.svelte';
   import ShelfAssignDialog from '$lib/components/shelf-assign-dialog.svelte';
+  import UploadDialog from '$lib/components/upload-dialog.svelte';
 
   let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 
@@ -65,6 +66,7 @@
             {/if}
           </div>
           <div class="flex items-center gap-1.5">
+            <UploadDialog />
             <a href="/settings" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
               <SettingsIcon class="size-4" />
             </a>

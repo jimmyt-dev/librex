@@ -6,4 +6,5 @@ type UserSettings struct {
 	FileNamingPattern   string  `json:"fileNamingPattern"`
 	WriteMetadataToFile bool    `json:"writeMetadataToFile"`
 	BookdropPath        *string `json:"bookdropPath"`
+	MaxUploadSizeMb     int     `json:"maxUploadSizeMb"`
 }
