@@ -73,7 +73,7 @@
       if (!res.ok) throw new Error('Download failed');
       const blob = await res.blob();
       const match = (res.headers.get('Content-Disposition') || '').match(/filename="(.+?)"/);
-      const filename = match ? match[1] : book?.metadata.title ?? 'book';
+      const filename = match ? match[1] : (book?.metadata.title ?? 'book');
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = filename;
@@ -107,7 +107,11 @@
     if (parts.length === 2) {
       return new Date(`${d}-01`).toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
     }
-    return new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    return new Date(d).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   }
 
   function formatSeries(book: Book): string {
@@ -116,7 +120,9 @@
     if (seriesNumber == null) return seriesName;
     const num = Number.isInteger(seriesNumber)
       ? seriesNumber
-      : Number(seriesNumber).toFixed(2).replace(/\.?0+$/, '');
+      : Number(seriesNumber)
+          .toFixed(2)
+          .replace(/\.?0+$/, '');
     return `${seriesName} #${num}`;
   }
 
@@ -163,7 +169,7 @@
       <!-- Metadata -->
       <div class="flex min-w-0 flex-1 flex-col gap-3">
         <div>
-          <h1 class="text-2xl font-bold leading-tight">{book.metadata.title}</h1>
+          <h1 class="text-2xl leading-tight font-bold">{book.metadata.title}</h1>
           {#if book.metadata.subtitle}
             <p class="mt-0.5 text-base text-muted-foreground">{book.metadata.subtitle}</p>
           {/if}
@@ -173,7 +179,8 @@
           <p class="text-sm">
             {#each book.authors as author, i (author.id)}
               <a href="/authors/{author.id}" class="font-medium hover:underline">{author.name}</a
-              >{#if i < book.authors.length - 1}, {/if}
+              >{#if i < book.authors.length - 1},
+              {/if}
             {/each}
           </p>
         {/if}
@@ -227,14 +234,18 @@
           {#if book.metadata.isbn13 ?? book.metadata.isbn10}
             <div>
               <span class="text-muted-foreground">ISBN</span>
-              <p class="font-mono text-xs font-medium">{book.metadata.isbn13 ?? book.metadata.isbn10}</p>
+              <p class="font-mono text-xs font-medium">
+                {book.metadata.isbn13 ?? book.metadata.isbn10}
+              </p>
             </div>
           {/if}
           {#if book.metadata.rating}
             <div>
               <span class="text-muted-foreground">Rating</span>
               <p class="text-yellow-400">
-                {'★'.repeat(book.metadata.rating)}<span class="text-muted-foreground/30">{'★'.repeat(5 - book.metadata.rating)}</span>
+                {'★'.repeat(book.metadata.rating)}<span class="text-muted-foreground/30"
+                  >{'★'.repeat(5 - book.metadata.rating)}</span
+                >
               </p>
             </div>
           {/if}

@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { viewSettings, SORT_FIELDS, ALL_COLUMNS, type SortField } from '$lib/state/view-settings.svelte';
+  import {
+    viewSettings,
+    SORT_FIELDS,
+    ALL_COLUMNS,
+    type SortField
+  } from '$lib/state/view-settings.svelte';
   import { filterState } from '$lib/state/filter.svelte';
   import * as Popover from '$lib/components/ui/popover';
   import { Checkbox } from '$lib/components/ui/checkbox';

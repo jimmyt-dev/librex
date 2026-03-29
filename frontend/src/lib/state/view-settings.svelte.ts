@@ -115,7 +115,9 @@ class ViewSettings {
         this.sortLevels = parsed.sortLevels;
       }
       if (Array.isArray(parsed.visibleColumns) && parsed.visibleColumns.length > 0) {
-        const valid = parsed.visibleColumns.filter((c: unknown) => VALID_COLUMN_IDS.has(c as string));
+        const valid = parsed.visibleColumns.filter((c: unknown) =>
+          VALID_COLUMN_IDS.has(c as string)
+        );
         if (valid.length > 0) this.visibleColumns = valid;
       }
     } catch {
@@ -127,7 +129,11 @@ class ViewSettings {
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ mode: this.mode, sortLevels: this.sortLevels, visibleColumns: this.visibleColumns })
+      JSON.stringify({
+        mode: this.mode,
+        sortLevels: this.sortLevels,
+        visibleColumns: this.visibleColumns
+      })
     );
   }
 

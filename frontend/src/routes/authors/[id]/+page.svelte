@@ -142,7 +142,9 @@
 {#if !isLoading && books.length > 0}
   <BookView {books} isLoading={false} emptyMessage="No books by this author." />
 {:else if !isLoading && author && books.length === 0}
-  <div class="mx-4 flex min-h-32 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20">
+  <div
+    class="mx-4 flex min-h-32 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20"
+  >
     <p class="text-muted-foreground">No books by this author.</p>
   </div>
 {/if}
