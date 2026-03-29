@@ -78,19 +78,6 @@
       </button>
     </div>
 
-    <!-- Filter toggle -->
-    <Button variant={filterState.open ? 'default' : 'outline'} onclick={() => filterState.toggle()}>
-      <FilterIcon class="size-4" />
-      Filter
-      {#if filterState.activeCount > 0}
-        <span
-          class="rounded-full border border-background bg-primary-foreground px-1.5 py-0 text-xs leading-5 text-primary"
-        >
-          {filterState.activeCount}
-        </span>
-      {/if}
-    </Button>
-
     <!-- Columns (table mode only) -->
     {#if viewSettings.mode === 'table'}
       <Popover.Root>
@@ -225,5 +212,18 @@
         {/if}
       </Popover.Content>
     </Popover.Root>
+
+    <!-- Filter toggle -->
+    <Button variant={filterState.open ? 'default' : 'outline'} onclick={() => filterState.toggle()}>
+      <FilterIcon class="size-4" />
+      Filter
+      {#if filterState.activeCount > 0}
+        <span
+          class="rounded-full border border-background bg-primary-foreground px-1.5 py-0 text-xs leading-5 text-primary"
+        >
+          {filterState.activeCount}
+        </span>
+      {/if}
+    </Button>
   </div>
 </div>

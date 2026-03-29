@@ -28,6 +28,12 @@
   let selectedIds = $state<Set<string>>(new Set());
   let lastSelectedId = $state<string | null>(null);
 
+  let gridClasses = $derived(
+    filterState.open
+      ? 'grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'
+      : 'grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8'
+  );
+
   $effect(() => {
     const bookIds = new Set(books.map((b) => b.id));
     const pruned = new SvelteSet([...selectedIds].filter((id) => bookIds.has(id)));
@@ -68,9 +74,7 @@
         <div
           class="flex h-12.5 w-full items-center justify-between gap-2 rounded-md border bg-muted/20 p-2"
         ></div>
-        <div
-          class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
-        >
+        <div class={gridClasses}>
           <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
           {#each Array(12) as _, i (i)}
             <BookCardSkeleton />
@@ -94,9 +98,7 @@
             <p class="text-muted-foreground">No books match the current filters.</p>
           </div>
         {:else if viewSettings.mode === 'grid'}
-          <div
-            class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
-          >
+          <div class={gridClasses}>
             {#each sortedBooks as book (book.id)}
               <BookCard
                 {book}
