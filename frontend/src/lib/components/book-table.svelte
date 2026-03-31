@@ -5,6 +5,9 @@
   import { bookEditState } from '$lib/state/book-edit.svelte';
   import { shelfAssignState } from '$lib/state/shelf-assign.svelte';
   import { viewSettings } from '$lib/state/view-settings.svelte';
+  import { filterState, type ItemState } from '$lib/state/filter.svelte';
+  import { SvelteMap } from 'svelte/reactivity';
+  import { goto } from '$app/navigation';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -117,6 +120,18 @@
 
   function col(id: Parameters<typeof viewSettings.isColumnVisible>[0]): boolean {
     return viewSettings.isColumnVisible(id);
+  }
+
+  function filterByGenre(name: string) {
+    filterState.genreSelections = new SvelteMap<string, ItemState>([[name, 'include']]);
+    filterState.open = true;
+    goto('/all-books');
+  }
+
+  function filterByTag(name: string) {
+    filterState.tagSelections = new SvelteMap<string, ItemState>([[name, 'include']]);
+    filterState.open = true;
+    goto('/all-books');
   }
 
   let allSelected = $derived(books.length > 0 && books.every((b) => selectedIds.has(b.id)));
@@ -330,14 +345,28 @@
             {/if}
 
             {#if col('genres')}
-              <td class="px-4 py-2 text-muted-foreground">
-                <div class="w-36 truncate">{book.genres.map((g) => g.name).join(', ') || '—'}</div>
+              <td class="px-4 py-2 text-muted-foreground" onclick={(e) => e.stopPropagation()}>
+                <div class="w-36 truncate">
+                  {#each book.genres as genre, i (genre.id)}{#if i > 0},{' '}{/if}<button
+                      type="button"
+                      onclick={() => filterByGenre(genre.name)}
+                      class="cursor-pointer hover:underline"
+                    >{genre.name}</button
+                  >{:else}—{/each}
+                </div>
               </td>
             {/if}
 
             {#if col('tags')}
-              <td class="px-4 py-2 text-muted-foreground">
-                <div class="w-36 truncate">{book.tags.map((t) => t.name).join(', ') || '—'}</div>
+              <td class="px-4 py-2 text-muted-foreground" onclick={(e) => e.stopPropagation()}>
+                <div class="w-36 truncate">
+                  {#each book.tags as tag, i (tag.id)}{#if i > 0},{' '}{/if}<button
+                      type="button"
+                      onclick={() => filterByTag(tag.name)}
+                      class="cursor-pointer hover:underline"
+                    >{tag.name}</button
+                  >{:else}—{/each}
+                </div>
               </td>
             {/if}
 

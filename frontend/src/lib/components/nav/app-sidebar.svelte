@@ -49,11 +49,17 @@
   import LibraryIcon from '@lucide/svelte/icons/library';
   import Separator from '../ui/separator/separator.svelte';
   import { authorsState } from '$lib/api/authors.svelte';
+  import { bookdropState } from '$lib/api/bookdrop.svelte';
+  import { apiFetch } from '$lib/api/client';
+
+  let totalSeries = $state(0);
 
   onMount(() => {
     librariesState.fetchAll();
     shelvesState.fetchAll();
     authorsState.fetchAll();
+    bookdropState.fetchCount();
+    apiFetch('/api/series').then((s: string[]) => (totalSeries = s.length)).catch(() => {});
   });
 
   let totalBooks = $derived(librariesState.items.reduce((sum, l) => sum + l.books, 0));
@@ -62,13 +68,14 @@
   let navHomeLinks = $derived(
     data.navHome.map((link) => ({
       ...link,
-
       count:
         link.title === 'All Books'
           ? totalBooks
           : link.title === 'Authors'
             ? totalAuthors
-            : undefined
+            : link.title === 'Series'
+              ? totalSeries
+              : undefined
     }))
   );
 

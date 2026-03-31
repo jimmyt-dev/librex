@@ -13,10 +13,12 @@
   import InboxIcon from '@lucide/svelte/icons/inbox';
   import SettingsIcon from '@lucide/svelte/icons/settings';
   import { buttonVariants } from '$lib/components/ui/button';
+  import { bookdropState } from '$lib/api/bookdrop.svelte';
   import BookEditSheet from '$lib/components/book-edit-sheet.svelte';
   import ShelfAssignDialog from '$lib/components/shelf-assign-dialog.svelte';
   import UploadDialog from '$lib/components/upload-dialog.svelte';
   import GlobalSearch from '$lib/components/global-search.svelte';
+  import BarChart3Icon from '@lucide/svelte/icons/bar-chart-3';
 
   let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 
@@ -71,12 +73,25 @@
           </div>
           <div class="flex flex-1"></div>
           <div class="flex shrink-0 items-center gap-1.5">
+            <a href="/stats" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
+              <BarChart3Icon class="size-4" />
+            </a>
+
             <UploadDialog />
             <a href="/settings" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
               <SettingsIcon class="size-4" />
             </a>
-            <a href="/bookdrop" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
+            <a
+              href="/bookdrop"
+              class="relative {buttonVariants({ variant: 'outline', size: 'icon' })}"
+            >
               <InboxIcon class="size-4" />
+              {#if bookdropState.stagedCount > 0}
+                <span
+                  class="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-0.5 text-[10px] font-bold text-primary-foreground"
+                  >{bookdropState.stagedCount > 99 ? '99+' : bookdropState.stagedCount}</span
+                >
+              {/if}
             </a>
           </div>
         </div>

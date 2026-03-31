@@ -3,6 +3,8 @@
   import { goto } from '$app/navigation';
   import { apiFetch } from '$lib/api/client';
   import { booksState, type Book } from '$lib/api/books.svelte';
+  import { filterState, type ItemState } from '$lib/state/filter.svelte';
+  import { SvelteMap } from 'svelte/reactivity';
   import { shelvesState, type Shelf } from '$lib/api/shelves.svelte';
   import { librariesState } from '$lib/api/libraries.svelte';
   import { bookEditState } from '$lib/state/book-edit.svelte';
@@ -129,6 +131,18 @@
   function formatExt(filePath: string): string {
     return filePath.split('.').pop()?.toUpperCase() ?? '';
   }
+
+  function filterByGenre(name: string) {
+    filterState.genreSelections = new SvelteMap<string, ItemState>([[name, 'include']]);
+    filterState.open = true;
+    goto('/all-books');
+  }
+
+  function filterByTag(name: string) {
+    filterState.tagSelections = new SvelteMap<string, ItemState>([[name, 'include']]);
+    filterState.open = true;
+    goto('/all-books');
+  }
 </script>
 
 <div class="flex flex-1 flex-col gap-6 p-4 pt-0">
@@ -193,14 +207,22 @@
         {#if book.genres.length > 0 || book.tags.length > 0}
           <div class="flex flex-wrap gap-1.5">
             {#each book.genres as genre (genre.id)}
-              <span class="rounded-full border bg-muted px-2.5 py-0.5 text-xs font-medium">
+              <button
+                type="button"
+                onclick={() => filterByGenre(genre.name)}
+                class="cursor-pointer rounded-full border bg-muted px-2.5 py-0.5 text-xs font-medium hover:bg-muted/80"
+              >
                 {genre.name}
-              </span>
+              </button>
             {/each}
             {#each book.tags as tag (tag.id)}
-              <span class="rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground">
+              <button
+                type="button"
+                onclick={() => filterByTag(tag.name)}
+                class="cursor-pointer rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-muted/80"
+              >
                 {tag.name}
-              </span>
+              </button>
             {/each}
           </div>
         {/if}
