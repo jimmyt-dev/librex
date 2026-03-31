@@ -2,6 +2,7 @@
   import { booksState, type Book } from '$lib/api/books.svelte';
   import { headerState } from '$lib/state/header.svelte';
   import BookIcon from '@lucide/svelte/icons/book';
+  import { SvelteMap } from 'svelte/reactivity';
 
   headerState.title = 'Series';
   headerState.subtitle = null;
@@ -22,7 +23,7 @@
   };
 
   let seriesList = $derived.by((): SeriesEntry[] => {
-    const map = new Map<string, Book[]>();
+    const map = new SvelteMap<string, Book[]>();
     for (const book of booksState.all) {
       const name = book.metadata.seriesName;
       if (!name) continue;
@@ -52,9 +53,10 @@
     <div
       class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8"
     >
+      <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
       {#each Array(12) as _, i (i)}
         <div class="flex flex-col gap-2">
-          <div class="aspect-[2/3] animate-pulse rounded-lg bg-muted"></div>
+          <div class="aspect-2/3 animate-pulse rounded-lg bg-muted"></div>
           <div class="h-4 w-3/4 animate-pulse rounded bg-muted"></div>
           <div class="h-3 w-1/2 animate-pulse rounded bg-muted"></div>
         </div>
@@ -72,7 +74,7 @@
     >
       {#each seriesList as series (series.name)}
         <a href="/series/{encodeURIComponent(series.name)}" class="flex flex-col gap-2">
-          <div class="aspect-[2/3] overflow-hidden rounded-lg">
+          <div class="aspect-2/3 overflow-hidden rounded-lg">
             {#if series.coverBook.metadata.coverPath}
               <img
                 src="/api/books/{series.coverBook.id}/cover"

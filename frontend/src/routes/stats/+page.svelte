@@ -51,6 +51,7 @@
   {#if isLoading}
     <!-- Skeleton -->
     <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
       {#each Array(4) as _, i (i)}
         <div class="rounded-lg border bg-card p-4 shadow-sm">
           <div class="mb-2 h-3 w-1/2 animate-pulse rounded bg-muted"></div>

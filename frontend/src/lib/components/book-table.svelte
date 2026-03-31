@@ -347,6 +347,7 @@
             {#if col('genres')}
               <td class="px-4 py-2 text-muted-foreground" onclick={(e) => e.stopPropagation()}>
                 <div class="w-36 truncate">
+                  <!-- eslint-disable-next-line svelte/no-useless-mustaches -->
                   {#each book.genres as genre, i (genre.id)}{#if i > 0},{' '}{/if}<button
                       type="button"
                       onclick={() => filterByGenre(genre.name)}
@@ -359,6 +360,7 @@
             {#if col('tags')}
               <td class="px-4 py-2 text-muted-foreground" onclick={(e) => e.stopPropagation()}>
                 <div class="w-36 truncate">
+                  <!-- eslint-disable-next-line svelte/no-useless-mustaches -->
                   {#each book.tags as tag, i (tag.id)}{#if i > 0},{' '}{/if}<button
                       type="button"
                       onclick={() => filterByTag(tag.name)}
