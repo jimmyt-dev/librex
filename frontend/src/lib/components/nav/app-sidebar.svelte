@@ -59,7 +59,9 @@
     shelvesState.fetchAll();
     authorsState.fetchAll();
     bookdropState.fetchCount();
-    apiFetch('/api/series').then((s: string[]) => (totalSeries = s.length)).catch(() => {});
+    apiFetch('/api/series')
+      .then((s: string[]) => (totalSeries = s.length))
+      .catch(() => {});
   });
 
   let totalBooks = $derived(librariesState.items.reduce((sum, l) => sum + l.books, 0));

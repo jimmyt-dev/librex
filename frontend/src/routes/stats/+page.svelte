@@ -111,7 +111,7 @@
       <!-- Legend -->
       <div class="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
         <span class="flex items-center gap-1.5">
-          <span class="inline-block h-2.5 w-2.5 rounded-sm bg-muted border"></span>
+          <span class="inline-block h-2.5 w-2.5 rounded-sm border bg-muted"></span>
           Unread ({unread.length})
         </span>
         <span class="flex items-center gap-1.5">
@@ -136,13 +136,20 @@
         {#each monthlyFinished as m (m.label)}
           <div class="flex flex-1 flex-col items-center gap-1">
             <span class="text-[10px] text-muted-foreground">{m.count > 0 ? m.count : ''}</span>
-            <div class="w-full rounded-t" style="height: {(m.count / maxMonthly) * 100}%; min-height: {m.count > 0 ? '4px' : '0'}; background-color: hsl(var(--primary));"></div>
+            <div
+              class="w-full rounded-t"
+              style="height: {(m.count / maxMonthly) * 100}%; min-height: {m.count > 0
+                ? '4px'
+                : '0'}; background-color: hsl(var(--primary));"
+            ></div>
           </div>
         {/each}
       </div>
       <div class="mt-1 flex gap-1">
         {#each monthlyFinished as m (m.label)}
-          <div class="flex-1 text-center text-[9px] text-muted-foreground leading-tight">{m.label}</div>
+          <div class="flex-1 text-center text-[9px] leading-tight text-muted-foreground">
+            {m.label}
+          </div>
         {/each}
       </div>
     </div>

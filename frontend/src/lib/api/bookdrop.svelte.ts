@@ -7,7 +7,9 @@ class BookdropState {
     try {
       const books: unknown[] = await apiFetch('/api/bookdrop/staged');
       this.stagedCount = books.length;
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
   }
 }
 

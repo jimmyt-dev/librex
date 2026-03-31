@@ -49,7 +49,9 @@
 
 <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
   {#if isLoading}
-    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+    <div
+      class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8"
+    >
       {#each Array(12) as _, i (i)}
         <div class="flex flex-col gap-2">
           <div class="aspect-[2/3] animate-pulse rounded-lg bg-muted"></div>
@@ -59,11 +61,15 @@
       {/each}
     </div>
   {:else if seriesList.length === 0}
-    <div class="flex min-h-64 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20">
+    <div
+      class="flex min-h-64 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20"
+    >
       <p class="text-muted-foreground">No series found.</p>
     </div>
   {:else}
-    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+    <div
+      class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8"
+    >
       {#each seriesList as series (series.name)}
         <a href="/series/{encodeURIComponent(series.name)}" class="flex flex-col gap-2">
           <div class="aspect-[2/3] overflow-hidden rounded-lg">
@@ -74,14 +80,19 @@
                 class="h-full w-full object-cover"
               />
             {:else}
-              <div class="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
+              <div
+                class="flex h-full w-full items-center justify-center bg-muted text-muted-foreground"
+              >
                 <BookIcon class="size-10" />
               </div>
             {/if}
           </div>
           <div>
-            <p class="truncate font-medium leading-tight">{series.name}</p>
-            <p class="text-xs text-muted-foreground">{series.count} {series.count === 1 ? 'book' : 'books'}</p>
+            <p class="truncate leading-tight font-medium">{series.name}</p>
+            <p class="text-xs text-muted-foreground">
+              {series.count}
+              {series.count === 1 ? 'book' : 'books'}
+            </p>
           </div>
         </a>
       {/each}

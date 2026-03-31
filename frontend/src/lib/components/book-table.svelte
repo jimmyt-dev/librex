@@ -350,9 +350,8 @@
                   {#each book.genres as genre, i (genre.id)}{#if i > 0},{' '}{/if}<button
                       type="button"
                       onclick={() => filterByGenre(genre.name)}
-                      class="cursor-pointer hover:underline"
-                    >{genre.name}</button
-                  >{:else}—{/each}
+                      class="cursor-pointer hover:underline">{genre.name}</button
+                    >{:else}—{/each}
                 </div>
               </td>
             {/if}
@@ -363,9 +362,8 @@
                   {#each book.tags as tag, i (tag.id)}{#if i > 0},{' '}{/if}<button
                       type="button"
                       onclick={() => filterByTag(tag.name)}
-                      class="cursor-pointer hover:underline"
-                    >{tag.name}</button
-                  >{:else}—{/each}
+                      class="cursor-pointer hover:underline">{tag.name}</button
+                    >{:else}—{/each}
                 </div>
               </td>
             {/if}
