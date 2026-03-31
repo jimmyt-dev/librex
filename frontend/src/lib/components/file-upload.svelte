@@ -162,9 +162,7 @@
     <p class="text-sm font-medium">
       Drop ebooks here or <span class="text-primary underline underline-offset-2">browse</span>
     </p>
-    <p class="mt-0.5 text-xs text-muted-foreground/60">
-      Supports EPUB, PDF, MOBI, AZW3, CBZ, CBR
-    </p>
+    <p class="mt-0.5 text-xs text-muted-foreground/60">Supports EPUB, PDF, MOBI, AZW3, CBZ, CBR</p>
   </div>
 </div>
 
@@ -173,11 +171,15 @@
   <div class="mt-4 flex flex-col gap-2">
     <div class="max-h-[220px] space-y-2 overflow-y-auto pr-1">
       {#each selectedFiles as file (file.name)}
-        <div class="group relative flex flex-col gap-1.5 rounded-lg border bg-background p-3 shadow-sm transition-all hover:border-primary/30">
+        <div
+          class="group relative flex flex-col gap-1.5 rounded-lg border bg-background p-3 shadow-sm transition-all hover:border-primary/30"
+        >
           <div class="flex items-center justify-between gap-3">
             <div class="flex min-w-0 flex-1 flex-col">
-              <p class="truncate text-sm font-medium leading-none">{file.name}</p>
-              <p class="mt-1 text-[10px] font-medium text-muted-foreground uppercase tracking-tight">
+              <p class="truncate text-sm leading-none font-medium">{file.name}</p>
+              <p
+                class="mt-1 text-[10px] font-medium tracking-tight text-muted-foreground uppercase"
+              >
                 {formatSize(file.size)}
               </p>
             </div>
@@ -210,14 +212,16 @@
           {#if progress[file.name] !== undefined || errors[file.name]}
             <div class="h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
-                class="h-full transition-all duration-300 {errors[file.name] ? 'bg-destructive' : 'bg-primary'}"
+                class="h-full transition-all duration-300 {errors[file.name]
+                  ? 'bg-destructive'
+                  : 'bg-primary'}"
                 style="width: {progress[file.name] ?? 100}%"
               ></div>
             </div>
           {/if}
 
           {#if errors[file.name]}
-             <p class="text-[10px] leading-tight text-destructive">{errors[file.name]}</p>
+            <p class="text-[10px] leading-tight text-destructive">{errors[file.name]}</p>
           {/if}
         </div>
       {/each}
@@ -226,11 +230,13 @@
     <button
       type="button"
       class="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg active:scale-[0.98] disabled:opacity-60"
-      disabled={uploading || (selectedFiles.length > 0 && selectedFiles.every(f => progress[f.name] === 100 && !errors[f.name]))}
+      disabled={uploading ||
+        (selectedFiles.length > 0 &&
+          selectedFiles.every((f) => progress[f.name] === 100 && !errors[f.name]))}
       onclick={uploadAll}
     >
       {#if uploading}
-        <Spinner class="size-4" /> 
+        <Spinner class="size-4" />
         <span>Uploading {Object.keys(progress).length} of {selectedFiles.length}...</span>
       {:else}
         <UploadIcon class="size-4" />

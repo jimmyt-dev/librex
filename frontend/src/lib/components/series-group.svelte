@@ -37,11 +37,13 @@
   <!-- Header -->
   <button
     type="button"
-    class="flex items-center gap-3 rounded-lg border bg-muted/20 px-3 py-2.5 text-left transition-colors hover:bg-muted/40 w-full"
+    class="flex w-full items-center gap-3 rounded-lg border bg-muted/20 px-3 py-2.5 text-left transition-colors hover:bg-muted/40"
     onclick={() => (expanded = !expanded)}
   >
     <!-- Cover thumbnail -->
-    <div class="h-12 aspect-[2/3] shrink-0 overflow-hidden rounded-md bg-muted flex items-center justify-center">
+    <div
+      class="flex aspect-[2/3] h-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted"
+    >
       {#if coverBook?.metadata.coverPath}
         <img
           src="/api/books/{coverBook.id}/cover"
@@ -62,7 +64,9 @@
 
     <!-- Chevron -->
     <ChevronDownIcon
-      class="size-4 shrink-0 text-muted-foreground transition-transform {expanded ? '' : '-rotate-90'}"
+      class="size-4 shrink-0 text-muted-foreground transition-transform {expanded
+        ? ''
+        : '-rotate-90'}"
     />
   </button>
 
@@ -70,12 +74,7 @@
   {#if expanded}
     <div class={gridClasses}>
       {#each books as book (book.id)}
-        <BookCard
-          {book}
-          selected={selectedIds.has(book.id)}
-          {selectMode}
-          {onselect}
-        />
+        <BookCard {book} selected={selectedIds.has(book.id)} {selectMode} {onselect} />
       {/each}
     </div>
   {/if}

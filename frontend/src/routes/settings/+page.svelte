@@ -212,9 +212,7 @@
   <!-- Bookdrop -->
   <section>
     <h2 class="text-lg font-semibold">Bookdrop & Uploads</h2>
-    <p class="mt-1 text-sm text-muted-foreground">
-      Configure your staging area and upload limits.
-    </p>
+    <p class="mt-1 text-sm text-muted-foreground">Configure your staging area and upload limits.</p>
     <div class="mt-4 flex flex-col gap-4">
       <div class="flex flex-col gap-1.5">
         <Label class="text-sm font-medium">Bookdrop Folder</Label>
@@ -268,11 +266,7 @@
       </div>
 
       <div class="flex justify-end">
-        <Button
-          onclick={saveSettings}
-          disabled={saving || !dirty}
-          size="sm"
-        >
+        <Button onclick={saveSettings} disabled={saving || !dirty} size="sm">
           {saving ? 'Saving...' : 'Save'}
         </Button>
       </div>

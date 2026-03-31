@@ -56,12 +56,12 @@
 <div class="flex w-full items-center justify-between gap-2 rounded-md border bg-muted/20 p-2">
   <!-- Search input -->
   <div class="relative">
-    <SearchIcon class="text-muted-foreground absolute top-1/2 left-2 size-4 -translate-y-1/2" />
+    <SearchIcon class="absolute top-1/2 left-2 size-4 -translate-y-1/2 text-muted-foreground" />
     <input
       type="search"
       placeholder="Search books..."
       bind:value={searchQuery}
-      class="rounded-md border bg-background py-1.5 pr-3 pl-8 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+      class="rounded-md border bg-background py-1.5 pr-3 pl-8 text-sm focus:ring-1 focus:ring-ring focus:outline-none"
     />
   </div>
   <div class="flex gap-3">

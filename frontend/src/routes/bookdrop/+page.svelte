@@ -473,13 +473,25 @@
   role="region"
   aria-label="Bookdrop upload area"
   class="relative flex flex-1 flex-col gap-4 p-4 pt-0"
-  ondragenter={(e) => { e.preventDefault(); dragCounter++; pageDragOver = true; }}
-  ondragleave={() => { dragCounter--; if (dragCounter <= 0) { pageDragOver = false; dragCounter = 0; } }}
+  ondragenter={(e) => {
+    e.preventDefault();
+    dragCounter++;
+    pageDragOver = true;
+  }}
+  ondragleave={() => {
+    dragCounter--;
+    if (dragCounter <= 0) {
+      pageDragOver = false;
+      dragCounter = 0;
+    }
+  }}
   ondragover={(e) => e.preventDefault()}
   ondrop={handlePageDrop}
 >
   {#if pageDragOver}
-    <div class="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-primary bg-primary/5">
+    <div
+      class="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-primary bg-primary/5"
+    >
       <UploadIcon class="size-10 text-primary" />
       <p class="text-base font-medium text-primary">Drop to upload to bookdrop</p>
     </div>
