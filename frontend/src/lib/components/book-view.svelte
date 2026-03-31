@@ -9,7 +9,8 @@
   import BookViewControls from '$lib/components/book-view-controls.svelte';
   import BookFilterSidebar from '$lib/components/book-filter-sidebar.svelte';
   import SelectionToolbar from '$lib/components/selection-toolbar.svelte';
-  import { SvelteSet } from 'svelte/reactivity';
+  import SeriesGroup from '$lib/components/series-group.svelte';
+  import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { fade } from 'svelte/transition';
 
   let {
@@ -24,7 +25,21 @@
     emptyMessage?: string;
   } = $props();
 
-  let sortedBooks = $derived(viewSettings.sort(filterState.apply(books)));
+  let searchQuery = $state('');
+
+  let searchedBooks = $derived.by(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return books;
+    return books.filter((b) => {
+      const title = (b.metadata.title ?? '').toLowerCase();
+      const subtitle = (b.metadata.subtitle ?? '').toLowerCase();
+      const series = (b.metadata.seriesName ?? '').toLowerCase();
+      const authors = b.authors.map((a) => a.name.toLowerCase()).join(' ');
+      return title.includes(q) || subtitle.includes(q) || series.includes(q) || authors.includes(q);
+    });
+  });
+
+  let sortedBooks = $derived(viewSettings.sort(filterState.apply(searchedBooks)));
   let selectedIds = $state<Set<string>>(new Set());
   let lastSelectedId = $state<string | null>(null);
 
@@ -33,6 +48,26 @@
       ? 'grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'
       : 'grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8'
   );
+
+  let seriesGroups = $derived.by(() => {
+    if (!viewSettings.groupBySeries || viewSettings.mode !== 'grid') return null;
+    const seriesMap = new SvelteMap<string, Book[]>();
+    const ungrouped: Book[] = [];
+    for (const book of sortedBooks) {
+      const name = book.metadata.seriesName;
+      if (name) {
+        const existing = seriesMap.get(name);
+        if (existing) {
+          existing.push(book);
+        } else {
+          seriesMap.set(name, [book]);
+        }
+      } else {
+        ungrouped.push(book);
+      }
+    }
+    return { seriesMap, ungrouped };
+  });
 
   $effect(() => {
     const bookIds = new Set(books.map((b) => b.id));
@@ -90,12 +125,38 @@
       </div>
     {:else}
       <div class="flex flex-col gap-4" in:fade>
-        <BookViewControls />
+        <BookViewControls bind:searchQuery />
         {#if sortedBooks.length === 0}
           <div
             class="flex min-h-64 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20"
           >
             <p class="text-muted-foreground">No books match the current filters.</p>
+          </div>
+        {:else if seriesGroups}
+          <!-- Grouped grid view -->
+          <div class="flex flex-col gap-6">
+            {#each [...seriesGroups.seriesMap.entries()] as [name, seriesBooks] (name)}
+              <SeriesGroup
+                seriesName={name}
+                books={seriesBooks}
+                {gridClasses}
+                {selectedIds}
+                selectMode={selectedIds.size > 0}
+                onselect={toggleSelect}
+              />
+            {/each}
+            {#if seriesGroups.ungrouped.length > 0}
+              <div class={gridClasses}>
+                {#each seriesGroups.ungrouped as book (book.id)}
+                  <BookCard
+                    {book}
+                    selected={selectedIds.has(book.id)}
+                    selectMode={selectedIds.size > 0}
+                    onselect={toggleSelect}
+                  />
+                {/each}
+              </div>
+            {/if}
           </div>
         {:else if viewSettings.mode === 'grid'}
           <div class={gridClasses}>

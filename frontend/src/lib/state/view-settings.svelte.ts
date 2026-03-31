@@ -103,6 +103,7 @@ class ViewSettings {
   mode = $state<'grid' | 'table'>('grid');
   sortLevels = $state<SortLevel[]>(DEFAULT_SORT);
   visibleColumns = $state<ColumnId[]>(DEFAULT_COLUMNS);
+  groupBySeries = $state(false);
 
   constructor() {
     if (typeof localStorage === 'undefined') return;
@@ -120,6 +121,7 @@ class ViewSettings {
         );
         if (valid.length > 0) this.visibleColumns = valid;
       }
+      if (typeof parsed.groupBySeries === 'boolean') this.groupBySeries = parsed.groupBySeries;
     } catch {
       // ignore malformed storage
     }
@@ -132,9 +134,15 @@ class ViewSettings {
       JSON.stringify({
         mode: this.mode,
         sortLevels: this.sortLevels,
-        visibleColumns: this.visibleColumns
+        visibleColumns: this.visibleColumns,
+        groupBySeries: this.groupBySeries
       })
     );
+  }
+
+  toggleGroupBySeries() {
+    this.groupBySeries = !this.groupBySeries;
+    this.save();
   }
 
   isColumnVisible(id: ColumnId): boolean {

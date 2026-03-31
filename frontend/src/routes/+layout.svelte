@@ -16,6 +16,7 @@
   import BookEditSheet from '$lib/components/book-edit-sheet.svelte';
   import ShelfAssignDialog from '$lib/components/shelf-assign-dialog.svelte';
   import UploadDialog from '$lib/components/upload-dialog.svelte';
+  import GlobalSearch from '$lib/components/global-search.svelte';
 
   let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 
@@ -40,8 +41,8 @@
       <header
         class="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12"
       >
-        <div class="flex w-full items-center justify-between gap-2 px-4">
-          <div class="flex items-center">
+        <div class="flex w-full items-center gap-2 px-4">
+          <div class="flex shrink-0 items-center">
             <Sidebar.Trigger class="-ms-1" />
             <Separator orientation="vertical" class="me-2 data-[orientation=vertical]:h-4" />
             <Breadcrumb.Root>
@@ -65,7 +66,11 @@
               </div>
             {/if}
           </div>
-          <div class="flex items-center gap-1.5">
+          <div class="ml-3">
+            <GlobalSearch />
+          </div>
+          <div class="flex flex-1"></div>
+          <div class="flex shrink-0 items-center gap-1.5">
             <UploadDialog />
             <a href="/settings" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
               <SettingsIcon class="size-4" />

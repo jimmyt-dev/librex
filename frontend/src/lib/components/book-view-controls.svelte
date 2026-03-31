@@ -18,7 +18,11 @@
   import GripVerticalIcon from '@lucide/svelte/icons/grip-vertical';
   import FilterIcon from '@lucide/svelte/icons/sliders-horizontal';
   import ColumnsIcon from '@lucide/svelte/icons/columns-3';
+  import SearchIcon from '@lucide/svelte/icons/search';
+  import Layers2Icon from '@lucide/svelte/icons/layers-2';
   import { Button } from './ui/button';
+
+  let { searchQuery = $bindable('') }: { searchQuery?: string } = $props();
 
   let dragIndex = $state<number | null>(null);
   let dropIndex = $state<number | null>(null);
@@ -50,7 +54,16 @@
 </script>
 
 <div class="flex w-full items-center justify-between gap-2 rounded-md border bg-muted/20 p-2">
-  <div></div>
+  <!-- Search input -->
+  <div class="relative">
+    <SearchIcon class="text-muted-foreground absolute top-1/2 left-2 size-4 -translate-y-1/2" />
+    <input
+      type="search"
+      placeholder="Search books..."
+      bind:value={searchQuery}
+      class="rounded-md border bg-background py-1.5 pr-3 pl-8 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+    />
+  </div>
   <div class="flex gap-3">
     <!-- View toggle -->
     <div class="flex rounded-md border">
@@ -212,6 +225,17 @@
         {/if}
       </Popover.Content>
     </Popover.Root>
+
+    <!-- Group toggle (grid mode only) -->
+    {#if viewSettings.mode === 'grid'}
+      <Button
+        variant={viewSettings.groupBySeries ? 'default' : 'outline'}
+        onclick={() => viewSettings.toggleGroupBySeries()}
+      >
+        <Layers2Icon class="size-4" />
+        Group
+      </Button>
+    {/if}
 
     <!-- Filter toggle -->
     <Button variant={filterState.open ? 'default' : 'outline'} onclick={() => filterState.toggle()}>
