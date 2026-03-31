@@ -102,7 +102,6 @@
         <p class="px-3 py-2.5 text-sm text-muted-foreground">No results found.</p>
       {:else}
         {#each results as book (book.id)}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             class="flex cursor-pointer items-center gap-2.5 px-3 py-2 hover:bg-accent"
             role="button"

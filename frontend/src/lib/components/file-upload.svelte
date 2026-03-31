@@ -106,6 +106,7 @@
       try {
         const result = await uploadFile(file, url);
         allResults.push(...(Array.isArray(result) ? result : [result]));
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (e) {
         failedCount++;
       }
