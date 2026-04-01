@@ -140,7 +140,9 @@
     if (!name) return [];
     return booksState.all
       .filter((b) => b.metadata.seriesName === name && b.id !== book?.id)
-      .sort((a, b) => (a.metadata.seriesNumber ?? Infinity) - (b.metadata.seriesNumber ?? Infinity));
+      .sort(
+        (a, b) => (a.metadata.seriesNumber ?? Infinity) - (b.metadata.seriesNumber ?? Infinity)
+      );
   });
 
   function filterByGenre(name: string) {
