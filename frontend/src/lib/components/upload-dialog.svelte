@@ -12,6 +12,7 @@
   import FolderIcon from '@lucide/svelte/icons/folder';
   import InfoIcon from '@lucide/svelte/icons/info';
   import { Separator } from './ui/separator';
+  import { buttonVariants } from './ui/button';
 
   let open = $state(false);
   let activeTab = $state('library');
@@ -49,10 +50,8 @@
 </script>
 
 <Dialog.Root bind:open>
-  <Dialog.Trigger
-    class="inline-flex size-9 items-center justify-center rounded-md border border-input bg-background text-sm font-medium shadow-xs transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-1 focus-visible:ring-ring"
-  >
-    <UploadIcon class="size-4" />
+  <Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'icon' })}>
+    <UploadIcon />
     <span class="sr-only">Upload books</span>
   </Dialog.Trigger>
 
