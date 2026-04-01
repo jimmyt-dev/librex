@@ -16,7 +16,9 @@
   import { Button } from '$lib/components/ui/button';
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { toast } from 'svelte-sonner';
+  import BookCard from '$lib/components/book-card.svelte';
   import BookIcon from '@lucide/svelte/icons/book';
+  import BookCopyIcon from '@lucide/svelte/icons/book-copy';
   import PencilIcon from '@lucide/svelte/icons/pencil';
   import DownloadIcon from '@lucide/svelte/icons/download';
   import TrashIcon from '@lucide/svelte/icons/trash-2';
@@ -43,6 +45,7 @@
     const id = bookId;
     isLoading = true;
     errorMsg = null;
+    booksState.fetchAll().catch(() => {});
     Promise.all([
       apiFetch(`/api/books/${id}`),
       apiFetch(`/api/books/${id}/shelves`).catch(() => [])
@@ -131,6 +134,14 @@
   function formatExt(filePath: string): string {
     return filePath.split('.').pop()?.toUpperCase() ?? '';
   }
+
+  let seriesBooks = $derived.by(() => {
+    const name = book?.metadata.seriesName;
+    if (!name) return [];
+    return booksState.all
+      .filter((b) => b.metadata.seriesName === name && b.id !== book?.id)
+      .sort((a, b) => (a.metadata.seriesNumber ?? Infinity) - (b.metadata.seriesNumber ?? Infinity));
+  });
 
   function filterByGenre(name: string) {
     filterState.genreSelections = new SvelteMap<string, ItemState>([[name, 'include']]);
@@ -342,6 +353,31 @@
             >
               {shelf.title}
             </a>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
+    <!-- More in series -->
+    {#if seriesBooks.length > 0}
+      <div class="rounded-lg border p-4">
+        <div class="mb-3 flex items-center justify-between">
+          <h2 class="flex items-center gap-1.5 text-sm font-semibold">
+            <BookCopyIcon class="size-3.5" />
+            More in {book.metadata.seriesName}
+          </h2>
+          <a
+            href="/series/{encodeURIComponent(book.metadata.seriesName ?? '')}"
+            class="text-xs text-muted-foreground hover:text-foreground hover:underline"
+          >
+            View all
+          </a>
+        </div>
+        <div class="flex gap-4 overflow-x-auto pb-2">
+          {#each seriesBooks as sb (sb.id)}
+            <div class="w-28 shrink-0">
+              <BookCard book={sb} checkboxes={false} />
+            </div>
           {/each}
         </div>
       </div>

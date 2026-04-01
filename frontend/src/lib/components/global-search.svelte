@@ -3,6 +3,8 @@
   import { goto } from '$app/navigation';
   import SearchIcon from '@lucide/svelte/icons/search';
   import BookIcon from '@lucide/svelte/icons/book';
+  import * as InputGroup from '$lib/components/ui/input-group';
+  import * as Kbd from '$lib/components/ui/kbd';
 
   let query = $state('');
   let focused = $state(false);
@@ -10,7 +12,6 @@
   let inputEl = $state<HTMLInputElement | null>(null);
 
   let isMac = $derived(typeof navigator !== 'undefined' && navigator.platform.startsWith('Mac'));
-  let kbdHint = $derived(isMac ? '⌘K' : 'Ctrl K');
 
   let results = $derived.by((): Book[] => {
     const q = query.trim().toLowerCase();
@@ -71,28 +72,31 @@
   class:w-80={!focused}
   class:w-100={focused}
 >
-  <SearchIcon
-    class="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
-  />
-  <input
-    bind:this={inputEl}
-    bind:value={query}
-    onfocus={() => (focused = true)}
-    onblur={() => {
-      if (!mousedownOnResult) focused = false;
-    }}
-    onkeydown={handleKeydown}
-    type="search"
-    placeholder="Search by title, author, genre, ISBN..."
-    class="h-9 w-full rounded-md border bg-muted/40 pr-14 pl-8 text-sm placeholder:text-muted-foreground/60 focus:bg-background focus:ring-1 focus:ring-ring focus:outline-none"
-  />
-  {#if !focused}
-    <span
-      class="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded border bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground"
-    >
-      {kbdHint}
-    </span>
-  {/if}
+  <InputGroup.Root class="h-9">
+    <InputGroup.Addon align="inline-start">
+      <SearchIcon class="size-3.5" />
+    </InputGroup.Addon>
+
+    <InputGroup.Input
+      bind:ref={inputEl}
+      bind:value={query}
+      placeholder="Search by title, author, genre, ISBN..."
+      onfocus={() => (focused = true)}
+      onblur={() => {
+        if (!mousedownOnResult) focused = false;
+      }}
+      onkeydown={handleKeydown}
+    />
+
+    {#if !focused}
+      <InputGroup.Addon align="inline-end">
+        <Kbd.Group>
+          <Kbd.Root>{isMac ? '⌘' : 'Ctrl'}</Kbd.Root>
+          <Kbd.Root>K</Kbd.Root>
+        </Kbd.Group>
+      </InputGroup.Addon>
+    {/if}
+  </InputGroup.Root>
 
   {#if showDropdown}
     <div
