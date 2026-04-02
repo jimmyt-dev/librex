@@ -161,6 +161,14 @@ class BooksState {
     return result;
   }
 
+  async deleteProgress(bookId: string): Promise<void> {
+    await apiFetch(`/api/books/${bookId}/progress`, { method: 'DELETE' });
+    const book = this.find(bookId);
+    if (book) {
+      this.upsert({ ...book, progress: undefined });
+    }
+  }
+
   async fetchOne(bookId: string): Promise<Book> {
     const book: Book = await apiFetch(`/api/books/${bookId}`);
     this.upsert(book);

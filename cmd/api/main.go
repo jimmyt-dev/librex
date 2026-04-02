@@ -52,6 +52,7 @@ func main() {
 		r.Get("/{id}/shelves", handlers.ListBookShelves)
 		r.Get("/{id}/progress", handlers.GetReadingProgress)
 		r.Put("/{id}/progress", handlers.UpdateReadingProgress)
+		r.Delete("/{id}/progress", handlers.DeleteReadingProgress)
 		r.Get("/{id}/sessions", handlers.ListReadingSessions)
 		r.Post("/{id}/sessions", handlers.CreateReadingSession)
 	})

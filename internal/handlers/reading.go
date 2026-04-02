@@ -136,6 +136,22 @@ func UpdateReadingProgress(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(p)
 }
 
+// DeleteReadingProgress removes reading progress for a book.
+func DeleteReadingProgress(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	bookID := chi.URLParam(r, "id")
+
+	_, err := db.DB.Exec(r.Context(),
+		`DELETE FROM reading_progress WHERE book_id = $1 AND user_id = $2`,
+		bookID, userID)
+	if err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // ListReadingSessions returns all reading sessions for a book.
 func ListReadingSessions(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)

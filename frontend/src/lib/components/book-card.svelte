@@ -14,7 +14,6 @@
   import LibraryBigIcon from '@lucide/svelte/icons/library-big';
   import DownloadIcon from '@lucide/svelte/icons/download';
   import CheckIcon from '@lucide/svelte/icons/check';
-  import Undo2Icon from '@lucide/svelte/icons/undo-2';
   import { toast } from 'svelte-sonner';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import InfoIcon from '@lucide/svelte/icons/info';
@@ -43,6 +42,54 @@
   let deleteFile = $state(false);
   let deleting = $state(false);
   let dropdownOpen = $state(false);
+  let updatingStatus = $state(false);
+
+  const STATUS_OPTIONS = [
+    { value: 'unread', label: 'Unread' },
+    { value: 'reading', label: 'Reading' },
+    { value: 're-reading', label: 'Re-Reading' },
+    { value: 'partially-read', label: 'Partially Read' },
+    { value: 'paused', label: 'Paused' },
+    { value: 'finished', label: 'Read' },
+    { value: 'wont-read', label: "Won't Read" },
+    { value: 'abandoned', label: 'Abandoned' }
+  ] as const;
+
+  async function setStatus(status: string | null) {
+    if (updatingStatus) return;
+    updatingStatus = true;
+    try {
+      if (status === null) {
+        await booksState.deleteProgress(book.id);
+      } else {
+        await booksState.updateProgress(book.id, { status });
+      }
+    } catch {
+      toast.error('Failed to update reading status.');
+    } finally {
+      updatingStatus = false;
+    }
+  }
+
+  const STATUS_COLORS: Record<string, string> = {
+    reading: 'bg-blue-500 text-white',
+    'partially-read': 'bg-blue-500 text-white',
+    're-reading': 'bg-blue-500 text-white',
+    paused: 'bg-yellow-500 text-white',
+    finished: 'bg-green-500 text-white',
+    'wont-read': 'bg-muted text-muted-foreground',
+    abandoned: 'bg-red-500 text-white'
+  };
+
+  const STATUS_LABELS: Record<string, string> = {
+    reading: 'Reading',
+    'partially-read': 'Partial',
+    're-reading': 'Re-reading',
+    paused: 'Paused',
+    finished: 'Read',
+    'wont-read': "Won't Read",
+    abandoned: 'Abandoned'
+  };
 
   function handleCardClick(e: MouseEvent) {
     if (selectMode) {
@@ -132,14 +179,11 @@
           <BookOpenTextIcon class="size-4" />
         </Button>
       </div>
-      {#if book.progress?.status && book.progress.status !== 'unread'}
+      {#if book.progress?.status && book.progress.status !== 'unread' && STATUS_LABELS[book.progress.status]}
         <div
-          class="absolute bottom-1.5 left-1.5 z-10 rounded-full px-1.5 py-0.5 text-[10px] font-medium {book
-            .progress.status === 'reading'
-            ? 'bg-blue-500 text-white'
-            : 'bg-green-500 text-white'}"
+          class="absolute bottom-1.5 left-1.5 z-10 rounded-full px-1.5 py-0.5 text-[10px] font-medium {STATUS_COLORS[book.progress.status] ?? 'bg-muted text-muted-foreground'}"
         >
-          {book.progress.status === 'reading' ? 'Reading' : 'Done'}
+          {STATUS_LABELS[book.progress.status]}
         </div>
       {/if}
       {#if book.metadata.coverPath}
@@ -186,51 +230,25 @@
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content align="start" class="w-44">
-            {#if book.progress?.status !== 'reading'}
-              <DropdownMenu.Item
-                onclick={async (e) => {
-                  e.stopPropagation();
-                  try {
-                    await booksState.updateProgress(book.id, { status: 'reading' });
-                  } catch {
-                    toast.error('Failed to update status.');
-                  }
-                }}
-              >
-                <BookOpenTextIcon class="size-3.5" />
-                Mark as Reading
-              </DropdownMenu.Item>
-            {/if}
-            {#if book.progress?.status !== 'finished'}
-              <DropdownMenu.Item
-                onclick={async (e) => {
-                  e.stopPropagation();
-                  try {
-                    await booksState.updateProgress(book.id, { status: 'finished' });
-                  } catch {
-                    toast.error('Failed to update status.');
-                  }
-                }}
-              >
-                <CheckIcon class="size-3.5" />
-                Mark as Finished
-              </DropdownMenu.Item>
-            {/if}
-            {#if book.progress?.status && book.progress.status !== 'unread'}
-              <DropdownMenu.Item
-                onclick={async (e) => {
-                  e.stopPropagation();
-                  try {
-                    await booksState.updateProgress(book.id, { status: 'unread' });
-                  } catch {
-                    toast.error('Failed to update status.');
-                  }
-                }}
-              >
-                <Undo2Icon class="size-3.5" />
-                Mark as Unread
-              </DropdownMenu.Item>
-            {/if}
+            <DropdownMenu.Sub>
+              <DropdownMenu.SubTrigger disabled={updatingStatus}>Read Status</DropdownMenu.SubTrigger>
+              <DropdownMenu.SubContent>
+                {#each STATUS_OPTIONS as opt (opt.value)}
+                  <DropdownMenu.Item
+                    onclick={(e) => { e.stopPropagation(); setStatus(opt.value); }}
+                  >
+                    <CheckIcon class="size-3.5 {book.progress?.status === opt.value ? 'opacity-100' : 'opacity-0'}" />
+                    {opt.label}
+                  </DropdownMenu.Item>
+                {/each}
+                <DropdownMenu.Separator />
+                <DropdownMenu.Item
+                  onclick={(e) => { e.stopPropagation(); setStatus(null); }}
+                >
+                  Unset
+                </DropdownMenu.Item>
+              </DropdownMenu.SubContent>
+            </DropdownMenu.Sub>
             <DropdownMenu.Separator />
             <DropdownMenu.Item
               onclick={(e) => {
