@@ -8,7 +8,8 @@
   import {
     fetchAuthorSuggestions,
     fetchGenreSuggestions,
-    fetchTagSuggestions
+    fetchTagSuggestions,
+    fetchSeriesSuggestions
   } from '$lib/api/suggestions';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
@@ -27,6 +28,7 @@
   import ArrayField from '$lib/components/array-field.svelte';
   import StarRating from '$lib/components/star-rating.svelte';
   import { Label } from '$lib/components/ui/label';
+  import { Textarea } from '$lib/components/ui/textarea';
   import { toast } from 'svelte-sonner';
 
   interface StagedBook {
@@ -61,6 +63,13 @@
 
   function coverUrl(id: string) {
     return `/api/bookdrop/staged/${id}/cover`;
+  }
+
+  function normalizeDate(d: string | null | undefined): string {
+    if (!d) return '';
+    if (/^\d{4}$/.test(d)) return `${d}-01-01`;
+    if (/^\d{4}-\d{2}$/.test(d)) return `${d}-01`;
+    return d;
   }
 
   function subjectToTags(subject: string | null): string[] {
@@ -104,6 +113,9 @@
   let editPageCount = $state('');
   let editRating = $state('');
   let isSaving = $state(false);
+  let seriesSuggestions = $state<string[]>([]);
+  let showSeriesDropdown = $state(false);
+  let seriesHighlightIndex = $state(-1);
 
   let dirty = $derived.by(() => {
     const b = editingBook;
@@ -352,7 +364,7 @@
     editTags = subjectToTags(book.tags);
     editDescription = book.description ?? '';
     editPublisher = book.publisher ?? '';
-    editDate = book.date ?? '';
+    editDate = normalizeDate(book.date);
     editIdentifier = book.identifier ?? '';
     editLanguage = book.language ?? '';
     editSeriesName = book.seriesName ?? '';
@@ -360,6 +372,9 @@
     editSeriesTotal = book.seriesTotal?.toString() ?? '';
     editPageCount = book.pageCount?.toString() ?? '';
     editRating = book.rating?.toString() ?? '';
+    seriesSuggestions = [];
+    showSeriesDropdown = false;
+    seriesHighlightIndex = -1;
     sheetOpen = true;
   }
 
@@ -851,7 +866,11 @@
           </div>
           <div class="flex flex-col gap-1.5">
             <Label for="edit-description" class="text-sm font-medium">Description</Label>
-            <Input id="edit-description" bind:value={editDescription} placeholder="Synopsis" />
+            <Textarea
+              id="edit-description"
+              bind:value={editDescription}
+              placeholder="Description"
+            />
           </div>
           <div class="flex flex-col gap-1.5">
             <Label for="edit-publisher" class="text-sm font-medium">Publisher</Label>
@@ -860,7 +879,7 @@
           <div class="grid grid-cols-2 gap-4">
             <div class="flex flex-col gap-1.5">
               <Label for="edit-date" class="text-sm font-medium">Published Date</Label>
-              <Input id="edit-date" bind:value={editDate} placeholder="YYYY" />
+              <Input id="edit-date" type="date" bind:value={editDate} />
             </div>
             <div class="flex flex-col gap-1.5">
               <Label for="edit-language" class="text-sm font-medium">Language</Label>
@@ -878,7 +897,69 @@
           <div class="flex flex-col gap-1.5">
             <Label class="text-sm font-medium">Series</Label>
             <div class="grid grid-cols-[1fr_4rem] gap-2">
-              <Input bind:value={editSeriesName} placeholder="Series name" />
+              <div class="relative">
+                <Input
+                  bind:value={editSeriesName}
+                  placeholder="Series name"
+                  oninput={async () => {
+                    seriesHighlightIndex = -1;
+                    if (editSeriesName.trim().length < 1) {
+                      seriesSuggestions = [];
+                      showSeriesDropdown = false;
+                      return;
+                    }
+                    seriesSuggestions = await fetchSeriesSuggestions(editSeriesName.trim());
+                    showSeriesDropdown = seriesSuggestions.length > 0;
+                  }}
+                  onkeydown={(e) => {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      if (seriesSuggestions.length > 0) {
+                        showSeriesDropdown = true;
+                        seriesHighlightIndex = Math.min(
+                          seriesHighlightIndex + 1,
+                          seriesSuggestions.length - 1
+                        );
+                      }
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      seriesHighlightIndex = Math.max(seriesHighlightIndex - 1, -1);
+                    } else if (e.key === 'Enter' && seriesHighlightIndex >= 0) {
+                      e.preventDefault();
+                      editSeriesName = seriesSuggestions[seriesHighlightIndex];
+                      showSeriesDropdown = false;
+                      seriesHighlightIndex = -1;
+                    } else if (e.key === 'Escape') {
+                      showSeriesDropdown = false;
+                      seriesHighlightIndex = -1;
+                    }
+                  }}
+                  onfocus={() => {
+                    if (seriesSuggestions.length > 0) showSeriesDropdown = true;
+                  }}
+                  onblur={() => setTimeout(() => (showSeriesDropdown = false), 150)}
+                />
+                {#if showSeriesDropdown}
+                  <div
+                    class="absolute top-full right-0 left-0 z-50 mt-1 max-h-32 overflow-y-auto rounded-lg border bg-popover shadow-md"
+                  >
+                    {#each seriesSuggestions as s, i (i)}
+                      <button
+                        type="button"
+                        class="w-full px-2.5 py-1.5 text-left text-sm hover:bg-accent {i ===
+                        seriesHighlightIndex
+                          ? 'bg-accent'
+                          : ''}"
+                        onmousedown={() => {
+                          editSeriesName = s;
+                          showSeriesDropdown = false;
+                          seriesHighlightIndex = -1;
+                        }}>{s}</button
+                      >
+                    {/each}
+                  </div>
+                {/if}
+              </div>
               <Input type="number" bind:value={editSeriesNumber} placeholder="#" />
             </div>
             <div class="mt-1 grid grid-cols-2 gap-2">
@@ -910,16 +991,17 @@
           </div>
         </div>
         <Sheet.Footer>
+          {#if dirty}
+            <Button variant="outline" onclick={revertEdit}>
+              <RotateCcwIcon class="size-4" />
+              Revert
+            </Button>
+          {/if}
           <Sheet.Close>
             {#snippet child({ props })}
               <Button variant="outline" {...props}>Cancel</Button>
             {/snippet}
           </Sheet.Close>
-          {#if dirty}
-            <Button variant="ghost" size="icon" onclick={revertEdit} title="Revert changes">
-              <RotateCcwIcon class="size-4" />
-            </Button>
-          {/if}
           <Button onclick={saveEdit} disabled={isSaving || !editTitle.trim()}>
             {isSaving ? 'Saving…' : 'Save'}
           </Button>
