@@ -74,7 +74,8 @@
       if (results.length > 0) highlightedIndex = (highlightedIndex + 1) % results.length;
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (results.length > 0) highlightedIndex = (highlightedIndex - 1 + results.length) % results.length;
+      if (results.length > 0)
+        highlightedIndex = (highlightedIndex - 1 + results.length) % results.length;
     } else if (e.key === 'Enter' && highlightedIndex >= 0 && results[highlightedIndex]) {
       e.preventDefault();
       selectBook(results[highlightedIndex]);
@@ -132,7 +133,10 @@
       {:else}
         {#each results as book, i (book.id)}
           <div
-            class="flex cursor-pointer items-center gap-2.5 px-3 py-2 hover:bg-accent {i === highlightedIndex ? 'bg-accent' : ''}"
+            class="flex cursor-pointer items-center gap-2.5 px-3 py-2 hover:bg-accent {i ===
+            highlightedIndex
+              ? 'bg-accent'
+              : ''}"
             role="button"
             tabindex="0"
             onmousedown={() => (mousedownOnResult = true)}

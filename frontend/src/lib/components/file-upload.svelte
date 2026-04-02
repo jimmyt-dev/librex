@@ -43,13 +43,23 @@
 
     for (const f of Array.from(files)) {
       const ext = '.' + f.name.split('.').pop()?.toLowerCase();
-      if (!VALID_EXTS.has(ext)) { invalidExt++; continue; }
-      if (f.size > maxBytes) { tooLarge.push(f.name); continue; }
+      if (!VALID_EXTS.has(ext)) {
+        invalidExt++;
+        continue;
+      }
+      if (f.size > maxBytes) {
+        tooLarge.push(f.name);
+        continue;
+      }
       valid.push(f);
     }
 
-    if (invalidExt > 0) toast.warning(`${invalidExt} unsupported file${invalidExt > 1 ? 's' : ''} skipped.`);
-    if (tooLarge.length > 0) toast.error(`${tooLarge.length} file${tooLarge.length > 1 ? 's' : ''} exceed the ${maxFileSizeMB} MB limit and were skipped.`);
+    if (invalidExt > 0)
+      toast.warning(`${invalidExt} unsupported file${invalidExt > 1 ? 's' : ''} skipped.`);
+    if (tooLarge.length > 0)
+      toast.error(
+        `${tooLarge.length} file${tooLarge.length > 1 ? 's' : ''} exceed the ${maxFileSizeMB} MB limit and were skipped.`
+      );
 
     // Deduplicate by name
     const existing = new Set(selectedFiles.map((f) => f.name));

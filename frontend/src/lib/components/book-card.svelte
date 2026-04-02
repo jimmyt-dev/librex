@@ -181,7 +181,9 @@
       </div>
       {#if book.progress?.status && book.progress.status !== 'unread' && STATUS_LABELS[book.progress.status]}
         <div
-          class="absolute bottom-1.5 left-1.5 z-10 rounded-full px-1.5 py-0.5 text-[10px] font-medium {STATUS_COLORS[book.progress.status] ?? 'bg-muted text-muted-foreground'}"
+          class="absolute bottom-1.5 left-1.5 z-10 rounded-full px-1.5 py-0.5 text-[10px] font-medium {STATUS_COLORS[
+            book.progress.status
+          ] ?? 'bg-muted text-muted-foreground'}"
         >
           {STATUS_LABELS[book.progress.status]}
         </div>
@@ -231,19 +233,31 @@
         <DropdownMenu.Portal>
           <DropdownMenu.Content align="start" class="w-44">
             <DropdownMenu.Sub>
-              <DropdownMenu.SubTrigger disabled={updatingStatus}>Read Status</DropdownMenu.SubTrigger>
+              <DropdownMenu.SubTrigger disabled={updatingStatus}
+                >Read Status</DropdownMenu.SubTrigger
+              >
               <DropdownMenu.SubContent>
                 {#each STATUS_OPTIONS as opt (opt.value)}
                   <DropdownMenu.Item
-                    onclick={(e) => { e.stopPropagation(); setStatus(opt.value); }}
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      setStatus(opt.value);
+                    }}
                   >
-                    <CheckIcon class="size-3.5 {book.progress?.status === opt.value ? 'opacity-100' : 'opacity-0'}" />
+                    <CheckIcon
+                      class="size-3.5 {book.progress?.status === opt.value
+                        ? 'opacity-100'
+                        : 'opacity-0'}"
+                    />
                     {opt.label}
                   </DropdownMenu.Item>
                 {/each}
                 <DropdownMenu.Separator />
                 <DropdownMenu.Item
-                  onclick={(e) => { e.stopPropagation(); setStatus(null); }}
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    setStatus(null);
+                  }}
                 >
                   Unset
                 </DropdownMenu.Item>

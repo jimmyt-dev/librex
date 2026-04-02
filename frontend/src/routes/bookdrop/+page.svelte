@@ -480,7 +480,9 @@
   $effect(() => {
     loadStaged();
     apiFetch('/api/settings')
-      .then((s: { maxUploadSizeMb?: number }) => { if (s.maxUploadSizeMb) maxFileSizeMB = s.maxUploadSizeMb; })
+      .then((s: { maxUploadSizeMb?: number }) => {
+        if (s.maxUploadSizeMb) maxFileSizeMB = s.maxUploadSizeMb;
+      })
       .catch(() => {});
   });
 
@@ -1048,7 +1050,13 @@
 
 <AlertDialog.Root
   open={deleteDialogOpen}
-  onOpenChange={(o) => { if (!o) { deleteDialogOpen = false; deleteFile = false; isBulkDelete = false; } }}
+  onOpenChange={(o) => {
+    if (!o) {
+      deleteDialogOpen = false;
+      deleteFile = false;
+      isBulkDelete = false;
+    }
+  }}
 >
   <AlertDialog.Content>
     <AlertDialog.Header>
@@ -1056,7 +1064,8 @@
         {isBulkDelete ? `Delete ${selectedIds.size} books?` : `Delete "${deleteTargetTitle}"?`}
       </AlertDialog.Title>
       <AlertDialog.Description>
-        This will remove the {isBulkDelete ? 'books' : 'book'} from the bookdrop queue. This action cannot be undone.
+        This will remove the {isBulkDelete ? 'books' : 'book'} from the bookdrop queue. This action cannot
+        be undone.
       </AlertDialog.Description>
     </AlertDialog.Header>
     <Label class="flex cursor-pointer items-center gap-2 text-sm">

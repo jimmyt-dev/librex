@@ -23,7 +23,9 @@
     if (open) {
       import('$lib/api/client').then(({ apiFetch }) =>
         apiFetch('/api/settings')
-          .then((s: { maxUploadSizeMb?: number }) => { if (s.maxUploadSizeMb) maxFileSizeMB = s.maxUploadSizeMb; })
+          .then((s: { maxUploadSizeMb?: number }) => {
+            if (s.maxUploadSizeMb) maxFileSizeMB = s.maxUploadSizeMb;
+          })
           .catch(() => {})
       );
     }
