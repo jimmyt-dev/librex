@@ -508,20 +508,23 @@ func mergeCSV(existing *string, incoming []string) string {
 }
 
 // DeleteStagedBook removes a staged book by ID.
+// Pass ?deleteFile=true to also remove the original file from disk.
 func DeleteStagedBook(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
 	id := chi.URLParam(r, "id")
+	deleteFile := r.URL.Query().Get("deleteFile") == "true"
 
-	result, err := db.DB.Exec(r.Context(),
-		"DELETE FROM staged_books WHERE id = $1 AND user_id = $2", id, userID)
+	var originalPath string
+	err := db.DB.QueryRow(r.Context(),
+		"DELETE FROM staged_books WHERE id = $1 AND user_id = $2 RETURNING original_path",
+		id, userID).Scan(&originalPath)
 	if err != nil {
-		http.Error(w, "db error", http.StatusInternalServerError)
+		http.Error(w, "staged book not found", http.StatusNotFound)
 		return
 	}
 
-	if result.RowsAffected() == 0 {
-		http.Error(w, "staged book not found", http.StatusNotFound)
-		return
+	if deleteFile && originalPath != "" {
+		os.Remove(originalPath)
 	}
 
 	w.WriteHeader(http.StatusNoContent)

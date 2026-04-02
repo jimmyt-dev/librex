@@ -30,6 +30,7 @@
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
   import { toast } from 'svelte-sonner';
+  import * as AlertDialog from '$lib/components/ui/alert-dialog';
 
   interface StagedBook {
     id: string;
@@ -113,6 +114,12 @@
   let editPageCount = $state('');
   let editRating = $state('');
   let isSaving = $state(false);
+  let deleteDialogOpen = $state(false);
+  let deleteTargetId = $state<string | null>(null);
+  let deleteTargetTitle = $state('');
+  let deleteFile = $state(false);
+  let deleting = $state(false);
+  let isBulkDelete = $state(false);
   let seriesSuggestions = $state<string[]>([]);
   let showSeriesDropdown = $state(false);
   let seriesHighlightIndex = $state(-1);
@@ -411,31 +418,53 @@
     }
   }
 
-  async function handleDelete(id: string) {
+  function handleDelete(book: StagedBook) {
+    deleteTargetId = book.id;
+    deleteTargetTitle = book.title;
+    deleteFile = false;
+    deleteDialogOpen = true;
+  }
+
+  async function confirmDelete() {
+    deleting = true;
     try {
-      await apiFetch(`/api/bookdrop/staged/${id}`, { method: 'DELETE' });
-      stagedBooks = stagedBooks.filter((b) => b.id !== id);
-      selectedIds.delete(id);
-      selectedIds = new SvelteSet(selectedIds);
-      if (editingBook?.id === id) sheetOpen = false;
+      if (isBulkDelete) {
+        const ids = [...selectedIds];
+        const suffix = deleteFile ? '?deleteFile=true' : '';
+        const results = await Promise.all(
+          ids.map((id) =>
+            apiFetch(`/api/bookdrop/staged/${id}${suffix}`, { method: 'DELETE' })
+              .then(() => id)
+              .catch(() => null)
+          )
+        );
+        const deleted = new Set(results.filter((id) => id !== null));
+        stagedBooks = stagedBooks.filter((b) => !deleted.has(b.id));
+        selectedIds = new SvelteSet([...selectedIds].filter((id) => !deleted.has(id)));
+        if (editingBook && deleted.has(editingBook.id)) sheetOpen = false;
+      } else {
+        if (!deleteTargetId) return;
+        const url = `/api/bookdrop/staged/${deleteTargetId}${deleteFile ? '?deleteFile=true' : ''}`;
+        await apiFetch(url, { method: 'DELETE' });
+        stagedBooks = stagedBooks.filter((b) => b.id !== deleteTargetId);
+        selectedIds.delete(deleteTargetId);
+        selectedIds = new SvelteSet(selectedIds);
+        if (editingBook?.id === deleteTargetId) sheetOpen = false;
+      }
+      deleteDialogOpen = false;
     } catch {
-      // silently ignore
+      toast.error('Failed to delete.');
+    } finally {
+      deleting = false;
     }
   }
 
-  async function handleBulkDelete() {
-    const ids = [...selectedIds];
-    const results = await Promise.all(
-      ids.map((id) =>
-        apiFetch(`/api/bookdrop/staged/${id}`, { method: 'DELETE' })
-          .then(() => id)
-          .catch(() => null)
-      )
-    );
-    const deleted = new Set(results.filter((id) => id !== null));
-    stagedBooks = stagedBooks.filter((b) => !deleted.has(b.id));
-    selectedIds = new SvelteSet([...selectedIds].filter((id) => !deleted.has(id)));
-    if (editingBook && deleted.has(editingBook.id)) sheetOpen = false;
+  function handleBulkDelete() {
+    isBulkDelete = true;
+    deleteTargetId = null;
+    deleteTargetTitle = '';
+    deleteFile = false;
+    deleteDialogOpen = true;
   }
 
   function applyBulkLibrary(libId: string) {
@@ -649,7 +678,7 @@
                     size="sm"
                     variant="ghost"
                     class="text-destructive hover:text-destructive"
-                    onclick={() => handleDelete(book.id)}
+                    onclick={() => handleDelete(book)}
                   >
                     ✕
                   </Button>
@@ -1010,3 +1039,29 @@
     </Sheet.Content>
   </Sheet.Portal>
 </Sheet.Root>
+
+<AlertDialog.Root
+  open={deleteDialogOpen}
+  onOpenChange={(o) => { if (!o) { deleteDialogOpen = false; deleteFile = false; isBulkDelete = false; } }}
+>
+  <AlertDialog.Content>
+    <AlertDialog.Header>
+      <AlertDialog.Title>
+        {isBulkDelete ? `Delete ${selectedIds.size} books?` : `Delete "${deleteTargetTitle}"?`}
+      </AlertDialog.Title>
+      <AlertDialog.Description>
+        This will remove the {isBulkDelete ? 'books' : 'book'} from the bookdrop queue. This action cannot be undone.
+      </AlertDialog.Description>
+    </AlertDialog.Header>
+    <Label class="flex cursor-pointer items-center gap-2 text-sm">
+      <Checkbox bind:checked={deleteFile} />
+      Also delete the file from disk
+    </Label>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+      <AlertDialog.Action onclick={confirmDelete} disabled={deleting}>
+        {deleting ? 'Deleting...' : 'Delete'}
+      </AlertDialog.Action>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>
