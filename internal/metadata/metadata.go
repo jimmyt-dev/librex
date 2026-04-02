@@ -6,10 +6,37 @@ import (
 	"io"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	pdfcpuapi "github.com/pdfcpu/pdfcpu/pkg/api"
 )
+
+var (
+	reYearOnly      = regexp.MustCompile(`^(\d{4})$`)
+	reYearMonth     = regexp.MustCompile(`^(\d{4})-(\d{2})$`)
+	reYearMonthDay  = regexp.MustCompile(`^(\d{4})-(\d{2})-(\d{2})`)
+)
+
+// NormalizeDate converts partial dates to full YYYY-MM-DD.
+// "2020" → "2020-01-01", "2020-06" → "2020-06-01", anything else is
+// truncated to the first 10 characters if it starts with a full date.
+func NormalizeDate(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	if reYearOnly.MatchString(s) {
+		return s + "-01-01"
+	}
+	if reYearMonth.MatchString(s) {
+		return s + "-01"
+	}
+	if m := reYearMonthDay.FindString(s); m != "" {
+		return m
+	}
+	return ""
+}
 
 // BookMeta holds Dublin Core metadata and cover image extracted from a book file.
 type BookMeta struct {
@@ -191,7 +218,7 @@ func extractEPUB(filePath string) BookMeta {
 		Description: first(m.Description),
 		Publisher:   first(m.Publisher),
 		Contributor: joinAll(m.Contributor),
-		Date:        first(m.Date),
+		Date:        NormalizeDate(first(m.Date)),
 		Type:        first(m.Type),
 		Format:      first(m.Format),
 		Identifier:  first(m.Identifier),
@@ -229,7 +256,7 @@ func extractEPUB(filePath string) BookMeta {
 	if meta.Date == "" {
 		for _, mt := range m.Meta {
 			if strings.EqualFold(mt.Name, "date") {
-				meta.Date = mt.Content
+				meta.Date = NormalizeDate(mt.Content)
 				break
 			}
 		}

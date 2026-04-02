@@ -107,12 +107,7 @@
 
   function formatDate(d: string | null | undefined): string {
     if (!d) return '—';
-    const parts = d.split('-');
-    if (parts.length === 1) return parts[0];
-    if (parts.length === 2) {
-      return new Date(`${d}-01`).toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
-    }
-    return new Date(d).toLocaleDateString(undefined, {
+    return new Date(d + 'T00:00:00').toLocaleDateString(undefined, {
       year: 'numeric',
       month: 'long',
       day: 'numeric'

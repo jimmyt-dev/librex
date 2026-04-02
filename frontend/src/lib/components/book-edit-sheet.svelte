@@ -40,6 +40,13 @@
   let seriesSuggestions = $state<string[]>([]);
   let showSeriesDropdown = $state(false);
   let seriesHighlightIndex = $state(-1);
+  function normalizeDate(d: string | null | undefined): string {
+    if (!d) return '';
+    if (/^\d{4}$/.test(d)) return `${d}-01-01`;
+    if (/^\d{4}-\d{2}$/.test(d)) return `${d}-01`;
+    return d;
+  }
+
   let isSaving = $state(false);
   let errorMsg = $state<string | null>(null);
   let userHasEdited = $state(false);
@@ -53,7 +60,7 @@
       authors: JSON.stringify(editAuthors) !== JSON.stringify(b.authors.map((a) => a.name)),
       description: editDescription !== (b.metadata.description ?? ''),
       publisher: editPublisher !== (b.metadata.publisher ?? ''),
-      publishedDate: editPublishedDate !== (b.metadata.publishedDate ?? ''),
+      publishedDate: editPublishedDate !== normalizeDate(b.metadata.publishedDate),
       isbn13: editISBN13 !== (b.metadata.isbn13 ?? ''),
       isbn10: editISBN10 !== (b.metadata.isbn10 ?? ''),
       language: editLanguage !== (b.metadata.language ?? ''),
@@ -78,7 +85,7 @@
     editAuthors = book.authors.map((a) => a.name);
     editDescription = book.metadata.description ?? '';
     editPublisher = book.metadata.publisher ?? '';
-    editPublishedDate = book.metadata.publishedDate ?? '';
+    editPublishedDate = normalizeDate(book.metadata.publishedDate);
     editISBN13 = book.metadata.isbn13 ?? '';
     editISBN10 = book.metadata.isbn10 ?? '';
     editLanguage = book.metadata.language ?? '';
@@ -303,7 +310,7 @@
                     class="inline-block size-1.5 rounded-full bg-primary"
                   ></span>{/if}
               </Label>
-              <Input id="edit-date" bind:value={editPublishedDate} placeholder="YYYY" />
+              <Input id="edit-date" type="date" bind:value={editPublishedDate} />
             </div>
             <div class="flex flex-col gap-1.5">
               <Label for="edit-language">
