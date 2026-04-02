@@ -17,6 +17,17 @@
   let open = $state(false);
   let activeTab = $state('library');
   let selectedLibraryId = $state('');
+  let maxFileSizeMB = $state(500);
+
+  $effect(() => {
+    if (open) {
+      import('$lib/api/client').then(({ apiFetch }) =>
+        apiFetch('/api/settings')
+          .then((s: { maxUploadSizeMb?: number }) => { if (s.maxUploadSizeMb) maxFileSizeMB = s.maxUploadSizeMb; })
+          .catch(() => {})
+      );
+    }
+  });
 
   let libraries = $derived(librariesState.items.filter((l) => l.folder));
   let selectedLibrary = $derived(libraries.find((l) => l.id === selectedLibraryId) ?? null);
@@ -127,6 +138,7 @@
 
               <div class="pt-1">
                 <FileUpload
+                  {maxFileSizeMB}
                   onUploaded={handleLibraryUpload}
                   uploadUrl={selectedLibraryId
                     ? `/api/libraries/${selectedLibraryId}/upload`
@@ -160,7 +172,7 @@
               </div>
             </div>
           </div>
-          <FileUpload onUploaded={handleBookdropUploaded} />
+          <FileUpload {maxFileSizeMB} onUploaded={handleBookdropUploaded} />
         </Tabs.Content>
       </div>
     </Tabs.Root>

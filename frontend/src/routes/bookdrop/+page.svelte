@@ -475,8 +475,13 @@
     bookLibraryMap = new SvelteMap(bookLibraryMap);
   }
 
+  let maxFileSizeMB = $state(500);
+
   $effect(() => {
     loadStaged();
+    apiFetch('/api/settings')
+      .then((s: { maxUploadSizeMb?: number }) => { if (s.maxUploadSizeMb) maxFileSizeMB = s.maxUploadSizeMb; })
+      .catch(() => {});
   });
 
   // Page-level drag and drop
@@ -560,6 +565,7 @@
   {#if uploadOpen}
     <div class="rounded-lg border p-4">
       <FileUpload
+        {maxFileSizeMB}
         onUploaded={(result) => {
           stagedBooks = result as typeof stagedBooks;
           uploadOpen = false;

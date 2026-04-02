@@ -9,10 +9,12 @@
 
   let {
     onUploaded,
-    uploadUrl
+    uploadUrl,
+    maxFileSizeMB = 500
   }: {
     onUploaded: (result: unknown[]) => void;
     uploadUrl?: string;
+    maxFileSizeMB?: number;
   } = $props();
 
   const VALID_EXTS = new Set(['.epub', '.pdf', '.mobi', '.azw3', '.cbz', '.cbr']);
@@ -33,12 +35,21 @@
 
   function addFiles(files: FileList | null) {
     if (!files || uploading) return;
-    const valid = Array.from(files).filter((f) => {
+    const maxBytes = maxFileSizeMB * 1024 * 1024;
+
+    let invalidExt = 0;
+    let tooLarge: string[] = [];
+    const valid: File[] = [];
+
+    for (const f of Array.from(files)) {
       const ext = '.' + f.name.split('.').pop()?.toLowerCase();
-      return VALID_EXTS.has(ext);
-    });
-    const invalid = files.length - valid.length;
-    if (invalid > 0) toast.warning(`${invalid} unsupported file${invalid > 1 ? 's' : ''} skipped.`);
+      if (!VALID_EXTS.has(ext)) { invalidExt++; continue; }
+      if (f.size > maxBytes) { tooLarge.push(f.name); continue; }
+      valid.push(f);
+    }
+
+    if (invalidExt > 0) toast.warning(`${invalidExt} unsupported file${invalidExt > 1 ? 's' : ''} skipped.`);
+    if (tooLarge.length > 0) toast.error(`${tooLarge.length} file${tooLarge.length > 1 ? 's' : ''} exceed the ${maxFileSizeMB} MB limit and were skipped.`);
 
     // Deduplicate by name
     const existing = new Set(selectedFiles.map((f) => f.name));
