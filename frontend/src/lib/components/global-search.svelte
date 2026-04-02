@@ -46,13 +46,12 @@
   let showDropdown = $derived(focused && query.trim().length > 0);
 
   $effect(() => {
-    // Reset highlight when results change
-    results;
+    void results;
     highlightedIndex = -1;
   });
 
   $effect(() => {
-    page.url.pathname;
+    void page.url.pathname;
     query = '';
     focused = false;
     highlightedIndex = -1;
