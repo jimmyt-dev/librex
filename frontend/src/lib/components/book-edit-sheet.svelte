@@ -229,31 +229,6 @@
         <Sheet.Header>
           <div class="flex items-center justify-between gap-2">
             <Sheet.Title>Edit Metadata</Sheet.Title>
-            {#if bookEditState.inQueue}
-              <div class="flex items-center gap-0.5 text-muted-foreground">
-                <button
-                  type="button"
-                  class="rounded p-1 hover:bg-muted disabled:opacity-30"
-                  disabled={bookEditState.isFirst}
-                  onclick={() => bookEditState.prev()}
-                  title="Previous book"
-                >
-                  <ChevronLeftIcon class="size-4" />
-                </button>
-                <span class="min-w-10 text-center text-xs tabular-nums">
-                  {bookEditState.queueIndex + 1}&thinsp;/&thinsp;{bookEditState.queue.length}
-                </span>
-                <button
-                  type="button"
-                  class="rounded p-1 hover:bg-muted disabled:opacity-30"
-                  disabled={bookEditState.isLast}
-                  onclick={() => bookEditState.next()}
-                  title="Next book"
-                >
-                  <ChevronRightIcon class="size-4" />
-                </button>
-              </div>
-            {/if}
           </div>
           <Sheet.Description class="truncate text-xs text-muted-foreground">
             {bookEditState.book.filePath.split('/').pop()}
@@ -481,9 +456,9 @@
         <Sheet.Footer>
           {#if bookEditState.inQueue}
             <div class="mr-4 flex items-center gap-0.5 text-muted-foreground">
-              <button
-                type="button"
-                class="rounded p-1 hover:bg-muted disabled:opacity-30"
+              <Button
+                size="icon"
+                variant="outline"
                 onclick={() => {
                   if (bookEditState.isFirst) {
                     bookEditState.goTo(bookEditState.queue.length - 1);
@@ -494,13 +469,13 @@
                 title="Previous book"
               >
                 <ChevronLeftIcon class="size-4" />
-              </button>
+              </Button>
               <span class="min-w-10 text-center text-xs tabular-nums">
                 {bookEditState.queueIndex + 1}&nbsp;/&nbsp;{bookEditState.queue.length}
               </span>
-              <button
-                type="button"
-                class="rounded p-1 hover:bg-muted disabled:opacity-30"
+              <Button
+                size="icon"
+                variant="outline"
                 onclick={() => {
                   if (bookEditState.isLast) {
                     bookEditState.goTo(0);
@@ -511,7 +486,7 @@
                 title="Next book"
               >
                 <ChevronRightIcon class="size-4" />
-              </button>
+              </Button>
             </div>
           {/if}
           {#if dirty && userHasEdited && !isSaving}

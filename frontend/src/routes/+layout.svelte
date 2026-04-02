@@ -28,7 +28,7 @@
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
 <ModeWatcher />
-<Toaster richColors />
+<Toaster richColors position="top-right" />
 <BookEditSheet />
 <ShelfAssignDialog />
 
