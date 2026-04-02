@@ -35,10 +35,14 @@
   });
 
   const STATUSES = [
-    { value: 'unread', label: 'Not Started' },
+    { value: 'unread', label: 'Unread' },
     { value: 'reading', label: 'Reading' },
-    { value: 'finished', label: 'Finished' },
-    { value: 'dnf', label: 'Did Not Finish' }
+    { value: 're-reading', label: 'Re-Reading' },
+    { value: 'partially-read', label: 'Partially Read' },
+    { value: 'paused', label: 'Paused' },
+    { value: 'finished', label: 'Read' },
+    { value: 'wont-read', label: "Won't Read" },
+    { value: 'abandoned', label: 'Abandoned' }
   ];
 
   let sectionOpen = $state({
