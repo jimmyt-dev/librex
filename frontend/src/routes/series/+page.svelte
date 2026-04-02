@@ -48,7 +48,7 @@
   });
 </script>
 
-<div class="flex flex-1 flex-col gap-4 p-4 pt-0">
+<div class="page-content gap-4">
   {#if isLoading}
     <div
       class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8"

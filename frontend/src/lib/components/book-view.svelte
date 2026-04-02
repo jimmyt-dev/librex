@@ -107,7 +107,7 @@
     {#if isLoading}
       <div class="flex flex-col gap-4">
         <div
-          class="flex h-12.5 w-full items-center justify-between gap-2 rounded-md border bg-muted/20 p-2"
+          class="mt-4 flex h-12.5 w-full items-center justify-between gap-2 rounded-md border bg-muted/20 p-2"
         ></div>
         <div class={gridClasses}>
           <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
@@ -118,7 +118,7 @@
       </div>
     {:else if books.length === 0}
       <div
-        class="flex min-h-64 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20"
+        class="mt-4 flex min-h-64 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20"
         in:fade
       >
         <p class="text-muted-foreground">{emptyMessage}</p>

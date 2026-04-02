@@ -153,7 +153,7 @@
   }
 </script>
 
-<div class="flex flex-1 flex-col gap-6 p-4 pt-0">
+<div class="page-content gap-6">
   {#if errorMsg}
     <div class="rounded-xl bg-destructive/15 p-4 text-destructive">{errorMsg}</div>
   {/if}

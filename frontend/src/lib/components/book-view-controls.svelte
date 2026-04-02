@@ -53,7 +53,7 @@
   }
 </script>
 
-<div class="flex w-full items-center justify-between gap-2 rounded-md border bg-muted/20 p-2">
+<div class="mt-4 flex w-full items-center justify-between gap-2 rounded-md border bg-muted/20 p-2">
   <!-- Search input -->
   <div class="relative">
     <SearchIcon class="absolute top-1/2 left-2 size-4 -translate-y-1/2 text-muted-foreground" />

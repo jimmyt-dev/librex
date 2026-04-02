@@ -521,7 +521,7 @@
 <div
   role="region"
   aria-label="Bookdrop upload area"
-  class="relative flex flex-1 flex-col gap-4 p-4 pt-0"
+  class="relative page-content gap-4"
   ondragenter={(e) => {
     e.preventDefault();
     dragCounter++;

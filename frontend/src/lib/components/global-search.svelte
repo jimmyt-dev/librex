@@ -1,6 +1,7 @@
 <script lang="ts">
   import { booksState, type Book } from '$lib/api/books.svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
   import SearchIcon from '@lucide/svelte/icons/search';
   import BookIcon from '@lucide/svelte/icons/book';
   import * as InputGroup from '$lib/components/ui/input-group';
@@ -10,6 +11,7 @@
   let focused = $state(false);
   let mousedownOnResult = $state(false);
   let inputEl = $state<HTMLInputElement | null>(null);
+  let highlightedIndex = $state(-1);
 
   let isMac = $derived(typeof navigator !== 'undefined' && navigator.platform.startsWith('Mac'));
 
@@ -43,9 +45,23 @@
 
   let showDropdown = $derived(focused && query.trim().length > 0);
 
+  $effect(() => {
+    // Reset highlight when results change
+    results;
+    highlightedIndex = -1;
+  });
+
+  $effect(() => {
+    page.url.pathname;
+    query = '';
+    focused = false;
+    highlightedIndex = -1;
+  });
+
   function selectBook(book: Book) {
     query = '';
     focused = false;
+    highlightedIndex = -1;
     goto(`/books/${book.id}`);
   }
 
@@ -53,6 +69,15 @@
     if (e.key === 'Escape') {
       query = '';
       inputEl?.blur();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (results.length > 0) highlightedIndex = (highlightedIndex + 1) % results.length;
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (results.length > 0) highlightedIndex = (highlightedIndex - 1 + results.length) % results.length;
+    } else if (e.key === 'Enter' && highlightedIndex >= 0 && results[highlightedIndex]) {
+      e.preventDefault();
+      selectBook(results[highlightedIndex]);
     }
   }
 
@@ -105,13 +130,14 @@
       {#if results.length === 0}
         <p class="px-3 py-2.5 text-sm text-muted-foreground">No results found.</p>
       {:else}
-        {#each results as book (book.id)}
+        {#each results as book, i (book.id)}
           <div
-            class="flex cursor-pointer items-center gap-2.5 px-3 py-2 hover:bg-accent"
+            class="flex cursor-pointer items-center gap-2.5 px-3 py-2 hover:bg-accent {i === highlightedIndex ? 'bg-accent' : ''}"
             role="button"
             tabindex="0"
             onmousedown={() => (mousedownOnResult = true)}
             onmouseup={() => (mousedownOnResult = false)}
+            onmouseenter={() => (highlightedIndex = i)}
             onclick={() => selectBook(book)}
             onkeydown={(e) => e.key === 'Enter' && selectBook(book)}
           >

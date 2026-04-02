@@ -34,7 +34,7 @@
   );
 </script>
 
-<div class="flex flex-1 flex-col gap-6 p-4 pt-0">
+<div class="page-content gap-6">
   <!-- Stats row -->
   <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
     <div class="flex flex-col gap-1 rounded-lg border bg-card p-4 shadow-sm">
