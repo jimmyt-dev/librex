@@ -42,5 +42,6 @@ COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENV NODE_ENV=production
+ENV BODY_SIZE_LIMIT=Infinity
 EXPOSE 3000
 ENTRYPOINT ["docker-entrypoint.sh"]

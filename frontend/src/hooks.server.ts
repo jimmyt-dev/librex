@@ -17,6 +17,8 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
     const url = `${API_URL}${pathname}${event.url.search}`;
     const headers = new Headers(event.request.headers);
     headers.delete('host');
+    headers.delete('content-length');
+    headers.delete('transfer-encoding');
     const hasBody = !['GET', 'HEAD'].includes(event.request.method);
     const body = hasBody ? await event.request.arrayBuffer() : undefined;
     const res = await fetch(url, {
