@@ -17,12 +17,12 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
     const url = `${API_URL}${pathname}${event.url.search}`;
     const headers = new Headers(event.request.headers);
     headers.delete('host');
+    const hasBody = !['GET', 'HEAD'].includes(event.request.method);
+    const body = hasBody ? await event.request.arrayBuffer() : undefined;
     const res = await fetch(url, {
       method: event.request.method,
       headers,
-      body: ['GET', 'HEAD'].includes(event.request.method) ? undefined : event.request.body,
-      // @ts-expect-error duplex required for streaming request bodies in Node 18+
-      duplex: 'half'
+      body: body ? body : undefined,
     });
     return new Response(res.body, {
       status: res.status,
