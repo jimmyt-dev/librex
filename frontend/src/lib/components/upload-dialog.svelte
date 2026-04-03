@@ -13,11 +13,12 @@
   import InfoIcon from '@lucide/svelte/icons/info';
   import { Separator } from './ui/separator';
   import { buttonVariants } from './ui/button';
+  import * as Tooltip from '$lib/components/ui/tooltip';
 
   let open = $state(false);
   let activeTab = $state('library');
   let selectedLibraryId = $state('');
-  let maxFileSizeMB = $state(500);
+  let maxFileSizeMB = $state(100);
 
   $effect(() => {
     if (open) {
@@ -63,10 +64,19 @@
 </script>
 
 <Dialog.Root bind:open>
-  <Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'icon' })}>
-    <UploadIcon />
-    <span class="sr-only">Upload books</span>
-  </Dialog.Trigger>
+  <Tooltip.Provider delayDuration={400}>
+    <Tooltip.Root>
+      <Tooltip.Trigger asChild>
+        {#snippet child({ props })}
+          <Dialog.Trigger {...props} class={buttonVariants({ variant: 'outline', size: 'icon' })}>
+            <UploadIcon />
+            <span class="sr-only">Upload books</span>
+          </Dialog.Trigger>
+        {/snippet}
+      </Tooltip.Trigger>
+      <Tooltip.Content>Upload Books</Tooltip.Content>
+    </Tooltip.Root>
+  </Tooltip.Provider>
 
   <Dialog.Content class="flex flex-col gap-0 p-0 sm:h-145 sm:max-w-[42vw]">
     <Dialog.Header class="px-6 pt-5 pb-3">

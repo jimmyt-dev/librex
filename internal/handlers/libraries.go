@@ -428,7 +428,7 @@ func UploadToLibrary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID = middleware.GetUserID(r)
-	maxSize := int64(500 << 20) // Default 500 MB
+	maxSize := int64(100 << 20) // Default 100 MB
 	var userMaxMB int
 	err = db.DB.QueryRow(r.Context(), "SELECT max_upload_size_mb FROM user_settings WHERE user_id = $1", userID).Scan(&userMaxMB)
 	if err == nil && userMaxMB > 0 {

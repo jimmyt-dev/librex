@@ -23,7 +23,7 @@ func GetSettings(w http.ResponseWriter, r *http.Request) {
 		// Auto-create default settings
 		err = db.DB.QueryRow(r.Context(),
 			`INSERT INTO user_settings (user_id, file_naming_pattern, write_metadata_to_file, max_upload_size_mb)
-			VALUES ($1, $2, false, 500)
+			VALUES ($1, $2, false, 100)
 			RETURNING id, user_id, file_naming_pattern, write_metadata_to_file, max_upload_size_mb`,
 			userID, defaultFileNamingPattern).Scan(&s.ID, &s.UserID, &s.FileNamingPattern, &s.WriteMetadataToFile, &s.MaxUploadSizeMb)
 		if err != nil {
@@ -56,7 +56,7 @@ func UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	var s models.UserSettings
 	err := db.DB.QueryRow(r.Context(),
 		`INSERT INTO user_settings (user_id, file_naming_pattern, write_metadata_to_file, max_upload_size_mb)
-		VALUES ($1, $2, false, 500)
+		VALUES ($1, $2, false, 100)
 		ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
 		RETURNING id, user_id, file_naming_pattern, write_metadata_to_file, max_upload_size_mb`,
 		userID, defaultFileNamingPattern).Scan(&s.ID, &s.UserID, &s.FileNamingPattern, &s.WriteMetadataToFile, &s.MaxUploadSizeMb)

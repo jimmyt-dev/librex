@@ -84,12 +84,7 @@
                 <Tooltip.Content>Reading Stats</Tooltip.Content>
               </Tooltip.Root>
 
-              <Tooltip.Root>
-                <Tooltip.Trigger>
-                  <UploadDialog />
-                </Tooltip.Trigger>
-                <Tooltip.Content>Upload Books</Tooltip.Content>
-              </Tooltip.Root>
+              <UploadDialog />
 
               <Tooltip.Root>
                 <Tooltip.Trigger>

@@ -475,7 +475,7 @@
     bookLibraryMap = new SvelteMap(bookLibraryMap);
   }
 
-  let maxFileSizeMB = $state(500);
+  let maxFileSizeMB = $state(100);
 
   $effect(() => {
     loadStaged();
