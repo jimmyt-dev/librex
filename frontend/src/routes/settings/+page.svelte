@@ -301,9 +301,7 @@
             placeholder="500"
           />
         </div>
-        <p class="text-xs text-muted-foreground">
-          Maximum total size for a single upload request.
-        </p>
+        <p class="text-xs text-muted-foreground">Maximum total size for a single upload request.</p>
       </div>
 
       <div class="flex justify-end">

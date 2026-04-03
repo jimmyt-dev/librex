@@ -485,11 +485,9 @@
       })
       .catch(() => {});
   });
-
 </script>
 
 <div class="page-content gap-4">
-
   <div class="flex w-full items-center justify-end gap-2">
     <Button variant="outline" onclick={() => (uploadOpen = !uploadOpen)}>
       <UploadIcon class="size-4" />
