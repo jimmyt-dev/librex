@@ -486,67 +486,9 @@
       .catch(() => {});
   });
 
-  // Page-level drag and drop
-  let pageDragOver = $state(false);
-  let dragCounter = 0; // track enters/leaves for nested elements
-
-  async function handlePageDrop(e: DragEvent) {
-    e.preventDefault();
-    pageDragOver = false;
-    dragCounter = 0;
-    const files = e.dataTransfer?.files;
-    if (!files || files.length === 0) return;
-
-    const formData = new FormData();
-    let added = 0;
-    for (const f of Array.from(files)) {
-      const ext = '.' + f.name.split('.').pop()?.toLowerCase();
-      if (['.epub', '.pdf', '.mobi', '.azw3', '.cbz', '.cbr'].includes(ext)) {
-        formData.append('files', f);
-        added++;
-      }
-    }
-    if (added === 0) return;
-    try {
-      const result: StagedBook[] = await apiFetch('/api/bookdrop/upload', {
-        method: 'POST',
-        body: formData
-      });
-      stagedBooks = result;
-      toast.success(`${added} file${added !== 1 ? 's' : ''} uploaded to bookdrop.`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Upload failed.');
-    }
-  }
 </script>
 
-<div
-  role="region"
-  aria-label="Bookdrop upload area"
-  class="relative page-content gap-4"
-  ondragenter={(e) => {
-    e.preventDefault();
-    dragCounter++;
-    pageDragOver = true;
-  }}
-  ondragleave={() => {
-    dragCounter--;
-    if (dragCounter <= 0) {
-      pageDragOver = false;
-      dragCounter = 0;
-    }
-  }}
-  ondragover={(e) => e.preventDefault()}
-  ondrop={handlePageDrop}
->
-  {#if pageDragOver}
-    <div
-      class="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-primary bg-primary/5"
-    >
-      <UploadIcon class="size-10 text-primary" />
-      <p class="text-base font-medium text-primary">Drop to upload to bookdrop</p>
-    </div>
-  {/if}
+<div class="page-content gap-4">
 
   <div class="flex w-full items-center justify-end gap-2">
     <Button variant="outline" onclick={() => (uploadOpen = !uploadOpen)}>

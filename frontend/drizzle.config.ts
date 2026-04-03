@@ -12,7 +12,8 @@ export default defineConfig({
   schema: './src/lib/server/db/schema.ts',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL
+    url: process.env.DATABASE_URL,
+    ssl: false
   },
   verbose: true,
   // strict prompts for confirmation in interactive terminals; disable so

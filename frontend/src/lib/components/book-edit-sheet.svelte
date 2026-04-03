@@ -179,9 +179,9 @@
         seriesTotal: editSeriesTotal ? parseInt(editSeriesTotal) : null,
         rating: editRating ? parseInt(editRating) : null
       },
-      authors: editAuthors.map((name) => ({ id: '', name })), // Placeholder IDs
-      genres: editGenres.map((name) => ({ id: '', name })),
-      tags: editTags.map((name) => ({ id: '', name }))
+      authors: editAuthors.map((name) => ({ id: name, name })),
+      genres: editGenres.map((name) => ({ id: name, name })),
+      tags: editTags.map((name) => ({ id: name, name }))
     };
 
     // Optimistic update
