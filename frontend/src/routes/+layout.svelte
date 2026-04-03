@@ -19,6 +19,7 @@
   import UploadDialog from '$lib/components/upload-dialog.svelte';
   import GlobalSearch from '$lib/components/global-search.svelte';
   import BarChart3Icon from '@lucide/svelte/icons/bar-chart-3';
+  import * as Tooltip from '$lib/components/ui/tooltip';
 
   let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 
@@ -72,28 +73,52 @@
             <GlobalSearch />
           </div>
           <div class="flex flex-1"></div>
-          <div class="flex shrink-0 items-center gap-1.5">
-            <a href="/stats" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
-              <BarChart3Icon class="size-4" />
-            </a>
+          <Tooltip.Provider delayDuration={400}>
+            <div class="flex shrink-0 items-center gap-1.5">
+              <Tooltip.Root>
+                <Tooltip.Trigger>
+                  <a href="/stats" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
+                    <BarChart3Icon class="size-4" />
+                  </a>
+                </Tooltip.Trigger>
+                <Tooltip.Content>Reading Stats</Tooltip.Content>
+              </Tooltip.Root>
 
-            <UploadDialog />
-            <a href="/settings" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
-              <SettingsIcon class="size-4" />
-            </a>
-            <a
-              href="/bookdrop"
-              class="relative {buttonVariants({ variant: 'outline', size: 'icon' })}"
-            >
-              <InboxIcon class="size-4" />
-              {#if bookdropState.stagedCount > 0}
-                <span
-                  class="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-0.5 text-[10px] font-bold text-primary-foreground"
-                  >{bookdropState.stagedCount > 99 ? '99+' : bookdropState.stagedCount}</span
-                >
-              {/if}
-            </a>
-          </div>
+              <Tooltip.Root>
+                <Tooltip.Trigger>
+                  <UploadDialog />
+                </Tooltip.Trigger>
+                <Tooltip.Content>Upload Books</Tooltip.Content>
+              </Tooltip.Root>
+
+              <Tooltip.Root>
+                <Tooltip.Trigger>
+                  <a href="/settings" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
+                    <SettingsIcon class="size-4" />
+                  </a>
+                </Tooltip.Trigger>
+                <Tooltip.Content>Settings</Tooltip.Content>
+              </Tooltip.Root>
+
+              <Tooltip.Root>
+                <Tooltip.Trigger>
+                  <a
+                    href="/bookdrop"
+                    class="relative {buttonVariants({ variant: 'outline', size: 'icon' })}"
+                  >
+                    <InboxIcon class="size-4" />
+                    {#if bookdropState.stagedCount > 0}
+                      <span
+                        class="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-0.5 text-[10px] font-bold text-primary-foreground"
+                        >{bookdropState.stagedCount > 99 ? '99+' : bookdropState.stagedCount}</span
+                      >
+                    {/if}
+                  </a>
+                </Tooltip.Trigger>
+                <Tooltip.Content>Bookdrop</Tooltip.Content>
+              </Tooltip.Root>
+            </div>
+          </Tooltip.Provider>
         </div>
       </header>
       {#key page.url.pathname}
