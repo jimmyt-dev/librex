@@ -1,12 +1,12 @@
 services:
-  reliquary:
-    container_name: reliquary
+  librex:
+    container_name: librex
     build: .
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-reliquary}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-reliquary}}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-librex}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-librex}}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - ORIGIN=${ORIGIN:-http://localhost:3000}
       - API_PORT=${API_PORT:-6001}
@@ -14,27 +14,27 @@ services:
     volumes:
       - ${BOOKS_PATH:-./books}:/books
       - ${BOOKDROP_PATH:-./bookdrop}:/bookdrop
-      - reliquary_data:/app/data
+      - librex_data:/app/data
     depends_on:
       postgres:
         condition: service_healthy
 
   postgres:
-    container_name: reliquary_postgres
+    container_name: librex_postgres
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-reliquary}
+      POSTGRES_USER: ${POSTGRES_USER:-librex}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-reliquary}
+      POSTGRES_DB: ${POSTGRES_DB:-librex}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-reliquary} -d ${POSTGRES_DB:-reliquary}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-librex} -d ${POSTGRES_DB:-librex}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
 volumes:
-  reliquary_data:
+  librex_data:
   postgres_data:

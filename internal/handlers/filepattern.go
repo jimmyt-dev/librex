@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"reliquary/internal/db"
+	"librex/internal/db"
 )
 
 // PatternData holds the variables available for file naming pattern resolution.

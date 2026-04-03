@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"reliquary/internal/db"
-	"reliquary/internal/middleware"
-	"reliquary/internal/models"
+	"librex/internal/db"
+	"librex/internal/middleware"
+	"librex/internal/models"
 )
 
 const defaultFileNamingPattern = "{authors}/{title}{ext}"

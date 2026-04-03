@@ -1,11 +1,11 @@
 #!/bin/sh
 set -e
 
-echo "[reliquary] Applying database schema..."
+echo "[Librex] Applying database schema..."
 pnpm db:push
 
-echo "[reliquary] Starting API..."
+echo "[Librex] Starting API..."
 ./api &
 
-echo "[reliquary] Starting server..."
+echo "[Librex] Starting server..."
 exec node build

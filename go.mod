@@ -1,4 +1,4 @@
-module reliquary
+module librex
 
 go 1.25.5
 

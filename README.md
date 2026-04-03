@@ -1,8 +1,8 @@
-# Reliquary 📚
+# Librex
 
-Reliquary is a modern, self-hosted book management application designed as an open-source alternative to Calibre and Booklore. It provides a clean, responsive web interface for organizing personal book collections, tracking reading progress, and managing metadata.
+Librex is a modern, self-hosted book management application designed as an open-source alternative to Calibre and Booklore. It provides a clean, responsive web interface for organizing personal book collections, tracking reading progress, and managing metadata.
 
-![Reliquary Screenshot](https://raw.githubusercontent.com/j-m-m-y/reliquary/main/screenshot.png) *(Placeholder: Update with real screenshot)*
+
 
 ## Features
 
@@ -15,7 +15,7 @@ Reliquary is a modern, self-hosted book management application designed as an op
 
 ## Installation (Docker)
 
-The easiest way to run Reliquary is using Docker Compose.
+The easiest way to run Librex is using Docker Compose.
 
 ### 1. Prepare Environment
 Copy `.env.example` to `.env` and fill in your values.
@@ -36,13 +36,13 @@ Launch the stable production stack:
 docker compose up -d --build
 ```
 
-Reliquary will be available at `http://localhost:3000` (or whatever you set in `ORIGIN`).
+Librex will be available at `http://localhost:3000` (or whatever you set in `ORIGIN`).
 
 ---
 
 ## Running Stable & Dev Simultaneously
 
-If you want to use Reliquary to manage your real library while also developing it, you can run two independent instances by using Docker **Project Names** (`-p`).
+If you want to use Librex to manage your real library while also developing it, you can run two independent instances by using Docker **Project Names** (`-p`).
 
 ### 1. The Stable Instance (Full Stack)
 This runs your "actual" app in the background using the default `docker-compose.yml`.
@@ -52,7 +52,7 @@ This runs your "actual" app in the background using the default `docker-compose.
     ```
 2.  Launch:
     ```bash
-    docker compose -p reliquary up -d --build
+    docker compose -p librex up -d --build
     ```
 
 ### 2. The Development Environment (Database Only)
@@ -63,7 +63,7 @@ This provides the database for your local `air` and `pnpm dev` processes using `
     ```
 2.  Launch the database:
     ```bash
-    docker compose -p reliquary-dev -f docker-compose.dev.yml up -d --build
+    docker compose -p librex-dev -f docker-compose.dev.yml up -d --build
     ```
 3.  Run your local dev tools: `air` and `pnpm dev`.
 
@@ -73,7 +73,7 @@ By using `-p`, Docker creates separate volumes and networks for each, so your "r
 
 ## Development Setup
 
-Reliquary consists of a Go backend and a SvelteKit frontend.
+Librex consists of a Go backend and a SvelteKit frontend.
 
 ### Prerequisites
 

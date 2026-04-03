@@ -31,7 +31,7 @@ func SendError(w http.ResponseWriter, code int, err string, message string, fiel
 // AllowedRoots returns the list of directories that the application is allowed to access.
 // In a real app, this should be configurable via env or database.
 func AllowedRoots() []string {
-	roots := os.Getenv("RELIQUARY_ALLOWED_ROOTS")
+	roots := os.Getenv("LIBREX_ALLOWED_ROOTS")
 	if roots == "" {
 		// If not set, we default to the entire filesystem for now,
 		// but this function provides the hook to restrict it.

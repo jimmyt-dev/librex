@@ -11,10 +11,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"reliquary/internal/db"
-	"reliquary/internal/metadata"
-	"reliquary/internal/middleware"
-	"reliquary/internal/models"
+	"librex/internal/db"
+	"librex/internal/metadata"
+	"librex/internal/middleware"
+	"librex/internal/models"
 )
 
 type libraryBody struct {

@@ -9,9 +9,9 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
 
-	"reliquary/internal/db"
-	"reliquary/internal/handlers"
-	"reliquary/internal/middleware"
+	"librex/internal/db"
+	"librex/internal/handlers"
+	"librex/internal/middleware"
 )
 
 func main() {
