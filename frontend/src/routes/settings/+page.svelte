@@ -12,10 +12,9 @@
   import MoonIcon from '@lucide/svelte/icons/moon';
   import MonitorIcon from '@lucide/svelte/icons/monitor';
   import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+  import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
   import FolderOpenIcon from '@lucide/svelte/icons/folder-open';
   import FolderIcon from '@lucide/svelte/icons/folder';
-  import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
-  import XIcon from '@lucide/svelte/icons/x';
   import FolderPicker from '$lib/components/folder-picker.svelte';
   import * as Dialog from '$lib/components/ui/dialog';
   import { buttonVariants } from '$lib/components/ui/button';
@@ -31,9 +30,7 @@
 
   let pattern = $state('');
   let writeMetadata = $state(false);
-  let bookdropPath = $state('');
   let maxUploadSizeMb = $state(500);
-  let folderDialogOpen = $state(false);
   let saving = $state(false);
 
   // Libraries
@@ -47,7 +44,6 @@
   let dirty = $derived(
     pattern !== (settingsState.settings?.fileNamingPattern ?? DEFAULT_PATTERN) ||
       writeMetadata !== (settingsState.settings?.writeMetadataToFile ?? false) ||
-      bookdropPath !== (settingsState.settings?.bookdropPath ?? '') ||
       maxUploadSizeMb !== (settingsState.settings?.maxUploadSizeMb ?? 500)
   );
 
@@ -144,7 +140,6 @@
     settingsState.fetch().then(() => {
       pattern = settingsState.settings?.fileNamingPattern ?? DEFAULT_PATTERN;
       writeMetadata = settingsState.settings?.writeMetadataToFile ?? false;
-      bookdropPath = settingsState.settings?.bookdropPath ?? '';
       maxUploadSizeMb = settingsState.settings?.maxUploadSizeMb ?? 500;
     });
     librariesState.fetchAll();
@@ -190,7 +185,6 @@
     const ok = await settingsState.update({
       fileNamingPattern: pattern,
       writeMetadataToFile: writeMetadata,
-      bookdropPath: bookdropPath,
       maxUploadSizeMb: maxUploadSizeMb
     });
     if (ok) {
@@ -209,72 +203,6 @@
 </script>
 
 <div class="mx-auto flex max-w-2xl flex-col gap-8 p-6">
-  <!-- Bookdrop -->
-  <section>
-    <h2 class="text-lg font-semibold">Bookdrop & Uploads</h2>
-    <p class="mt-1 text-sm text-muted-foreground">Configure your staging area and upload limits.</p>
-    <div class="mt-4 flex flex-col gap-4">
-      <div class="flex flex-col gap-1.5">
-        <Label class="text-sm font-medium">Bookdrop Folder</Label>
-        <Button
-          type="button"
-          variant="outline"
-          class="w-full justify-start gap-2 font-normal {!bookdropPath
-            ? 'text-muted-foreground'
-            : ''}"
-          onclick={() => (folderDialogOpen = true)}
-        >
-          {#if bookdropPath}
-            <FolderOpenIcon class="size-4 shrink-0" />
-            <span class="truncate">{bookdropPath}</span>
-            <button
-              type="button"
-              class="ml-auto text-muted-foreground hover:text-foreground"
-              onclick={(e) => {
-                e.stopPropagation();
-                bookdropPath = '';
-              }}
-            >
-              <XIcon class="size-3" />
-            </button>
-          {:else}
-            <FolderIcon class="size-4 shrink-0" />
-            Select folder...
-          {/if}
-        </Button>
-      </div>
-
-      <div class="flex flex-col gap-1.5">
-        <Label for="max-upload" class="text-sm font-medium">Maximum Upload Size (MB)</Label>
-        <div class="relative">
-          <HardDriveIcon
-            class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            id="max-upload"
-            type="number"
-            bind:value={maxUploadSizeMb}
-            min="1"
-            class="pl-9"
-            placeholder="500"
-          />
-        </div>
-        <p class="text-xs text-muted-foreground">
-          Maximum total size for a single upload request. Increase this if you have large ebooks or
-          PDFs.
-        </p>
-      </div>
-
-      <div class="flex justify-end">
-        <Button onclick={saveSettings} disabled={saving || !dirty} size="sm">
-          {saving ? 'Saving...' : 'Save'}
-        </Button>
-      </div>
-    </div>
-  </section>
-
-  <Separator />
-
   <!-- Libraries -->
   <section>
     <div class="flex items-center justify-between">
@@ -358,6 +286,26 @@
         </div>
       </Label>
 
+      <div class="flex flex-col gap-1.5">
+        <Label for="max-upload" class="text-sm font-medium">Maximum Upload Size (MB)</Label>
+        <div class="relative">
+          <HardDriveIcon
+            class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            id="max-upload"
+            type="number"
+            bind:value={maxUploadSizeMb}
+            min="1"
+            class="pl-9"
+            placeholder="500"
+          />
+        </div>
+        <p class="text-xs text-muted-foreground">
+          Maximum total size for a single upload request.
+        </p>
+      </div>
+
       <div class="flex justify-end">
         <Button onclick={saveSettings} disabled={saving || !dirty} size="sm">
           {saving ? 'Saving...' : 'Save'}
@@ -440,23 +388,6 @@
     </p>
   </section>
 </div>
-
-<Dialog.Root bind:open={folderDialogOpen}>
-  <Dialog.Content class="sm:max-w-2xl">
-    <Dialog.Header>
-      <Dialog.Title>Select Bookdrop Folder</Dialog.Title>
-      <Dialog.Description>Choose the folder to scan for new books.</Dialog.Description>
-    </Dialog.Header>
-    <FolderPicker bind:value={bookdropPath} />
-    <Dialog.Footer>
-      <Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cancel</Dialog.Close>
-      <Button onclick={() => (folderDialogOpen = false)} disabled={!bookdropPath}>
-        <FolderOpenIcon class="size-4" />
-        Select Folder
-      </Button>
-    </Dialog.Footer>
-  </Dialog.Content>
-</Dialog.Root>
 
 <!-- Add Library dialog -->
 <Dialog.Root bind:open={addLibOpen}>

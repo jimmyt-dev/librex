@@ -116,6 +116,10 @@
   async function uploadAll() {
     if (selectedFiles.length === 0) return;
     uploading = true;
+    // Reset progress for any previously failed files so they get retried
+    for (const file of selectedFiles) {
+      if (errors[file.name]) delete progress[file.name];
+    }
     errors = {};
     const url = uploadUrl || '/api/bookdrop/upload';
     const allResults: unknown[] = [];

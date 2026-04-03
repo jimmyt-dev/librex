@@ -5,7 +5,6 @@ export type UserSettings = {
   userId: string;
   fileNamingPattern: string;
   writeMetadataToFile: boolean;
-  bookdropPath: string | null;
   maxUploadSizeMb: number;
 };
 
@@ -27,7 +26,6 @@ class SettingsState {
   async update(data: {
     fileNamingPattern?: string;
     writeMetadataToFile?: boolean;
-    bookdropPath?: string;
     maxUploadSizeMb?: number;
   }): Promise<boolean> {
     try {

@@ -19,6 +19,15 @@ import (
 	"librex/internal/models"
 )
 
+// bookdropPath returns the server-level bookdrop directory from the BOOKDROP_PATH
+// env var, defaulting to /bookdrop (the Docker volume mount point).
+func bookdropPath() string {
+	if p := os.Getenv("BOOKDROP_PATH"); p != "" {
+		return p
+	}
+	return "/bookdrop"
+}
+
 var validBookExts = map[string]bool{
 	".epub": true,
 	".pdf":  true,
@@ -67,20 +76,7 @@ func ScanBookdrop(w http.ResponseWriter, r *http.Request) {
 	}
 	defer UnlockScan("bookdrop_" + userID)
 
-	targetDir := r.URL.Query().Get("path")
-	if targetDir == "" {
-		// Fall back to the user's saved bookdrop path
-		var saved *string
-		_ = db.DB.QueryRow(r.Context(),
-			"SELECT bookdrop_path FROM user_settings WHERE user_id = $1", userID).Scan(&saved)
-		if saved != nil && *saved != "" {
-			targetDir = *saved
-		}
-	}
-	if targetDir == "" {
-		http.Error(w, "no bookdrop path configured", http.StatusBadRequest)
-		return
-	}
+	targetDir := bookdropPath()
 
 	cleanedDir, err := ValidatePath(targetDir)
 	if err != nil {
@@ -826,18 +822,7 @@ func UploadToBookdrop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Resolve destination directory (user's bookdrop path)
-	var bookdropPath *string
-	_ = db.DB.QueryRow(r.Context(),
-		"SELECT bookdrop_path FROM user_settings WHERE user_id = $1", userID).Scan(&bookdropPath)
-
-	var destDir string
-	if bookdropPath != nil && *bookdropPath != "" {
-		destDir = *bookdropPath
-	} else {
-		http.Error(w, "no bookdrop path configured — set it in Settings first", http.StatusBadRequest)
-		return
-	}
+	destDir := bookdropPath()
 
 	cleanedDir, err := ValidatePath(destDir)
 	if err != nil {
