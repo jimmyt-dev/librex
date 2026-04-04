@@ -5,15 +5,15 @@ import { env } from '$env/dynamic/private';
 import { auth } from '$lib/server/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 
-const PUBLIC_PATHS = ['/login', '/register', '/api/auth'];
+const PUBLIC_PATHS = ['/login', '/register', '/api/auth', '/opds'];
 const API_URL = env.API_URL ?? `http://127.0.0.1:${env.API_PORT ?? '6001'}`;
 
 const handleBetterAuth: Handle = async ({ event, resolve }) => {
   const { pathname } = event.url;
 
   // In production (adapter-node) there is no Vite proxy, so the Node server
-  // receives all browser fetch calls. Proxy non-auth /api/* to the Go backend.
-  if (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/')) {
+  // receives all browser fetch calls. Proxy non-auth /api/* and /opds/* to the Go backend.
+  if ((pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/')) || pathname.startsWith('/opds')) {
     const url = `${API_URL}${pathname}${event.url.search}`;
     const headers = new Headers(event.request.headers);
     headers.delete('host');

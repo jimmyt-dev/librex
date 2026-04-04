@@ -4,6 +4,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/http"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"librex/internal/db"
@@ -227,24 +229,27 @@ func getBaseURL(r *http.Request) string {
 	if xfp := r.Header.Get("X-Forwarded-Proto"); xfp != "" {
 		scheme = xfp
 	}
-	return fmt.Sprintf("%s://%s", scheme, r.Host)
+
+	host := r.Host
+	if xfh := r.Header.Get("X-Forwarded-Host"); xfh != "" {
+		host = xfh
+	}
+
+	return fmt.Sprintf("%s://%s", scheme, host)
 }
 
 func getMimeType(path string) string {
-	ext := ""
-	for i := len(path) - 1; i >= 0 && path[i] != '.'; i-- {
-		ext = string(path[i]) + ext
-	}
+	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
-	case "epub":
+	case ".epub":
 		return "application/epub+zip"
-	case "pdf":
+	case ".pdf":
 		return "application/pdf"
-	case "mobi":
+	case ".mobi":
 		return "application/x-mobipocket-ebook"
-	case "azw3":
+	case ".azw3":
 		return "application/x-mobi8-ebook"
-	case "cbz":
+	case ".cbz":
 		return "application/x-cbz"
 	default:
 		return "application/octet-stream"
