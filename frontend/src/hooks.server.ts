@@ -60,7 +60,15 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
     return redirect(302, '/');
   }
 
-  return svelteKitHandler({ event, resolve, auth, building });
+  // Use a custom resolve to disable preloading of JS/CSS chunks in the Link header.
+  // This prevents the header from becoming too large and triggering 502 errors 
+  // in Nginx/OpenResty on pages with many components (like the book list).
+  return svelteKitHandler({
+    event,
+    resolve: (e) => resolve(e, { preload: () => false }),
+    auth,
+    building
+  });
 };
 
 export const handle: Handle = handleBetterAuth;
