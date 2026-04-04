@@ -27,22 +27,27 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
     headers.delete('host');
     headers.delete('content-length');
     headers.delete('transfer-encoding');
+    // Prevent undici from reusing stale keepalive connections to the Go backend.
+    headers.set('connection', 'close');
     const hasBody = !['GET', 'HEAD'].includes(event.request.method);
-    // For HEAD requests, proxy as GET to avoid undici HEAD response body handling issues,
-    // then return null body with the response headers.
-    const proxyMethod = event.request.method === 'HEAD' ? 'GET' : event.request.method;
-    const fetchInit: RequestInit = { method: proxyMethod, headers };
-    if (hasBody) {
-      fetchInit.body = event.request.body;
-      // @ts-expect-error duplex required for streaming request bodies in Node 18+
-      fetchInit.duplex = 'half';
+    try {
+      const res = await fetch(url, {
+        method: event.request.method,
+        headers,
+        body: hasBody ? event.request.body : undefined,
+        // @ts-expect-error duplex required for streaming request bodies in Node 18+
+        duplex: 'half'
+      });
+      return new Response(res.body, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: res.headers
+      });
+    } catch (err: unknown) {
+      const cause = (err as { cause?: { code?: string } })?.cause;
+      console.error(`[proxy] ${event.request.method} ${url} failed:`, cause?.code ?? String(err));
+      return new Response('Bad Gateway', { status: 502 });
     }
-    const res = await fetch(url, fetchInit);
-    return new Response(event.request.method === 'HEAD' ? null : res.body, {
-      status: res.status,
-      statusText: res.statusText,
-      headers: res.headers
-    });
   }
 
   const session = await auth.api.getSession({ headers: event.request.headers });
