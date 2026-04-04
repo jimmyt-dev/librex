@@ -17,7 +17,6 @@
   import { toast } from 'svelte-sonner';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import InfoIcon from '@lucide/svelte/icons/info';
-  import BookOpenTextIcon from '@lucide/svelte/icons/book-open-text'; // Import Read icon
   import Button from './ui/button/button.svelte';
   import { cn } from '$lib/utils';
   import { Label } from './ui/label';

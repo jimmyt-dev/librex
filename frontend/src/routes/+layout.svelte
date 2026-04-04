@@ -21,6 +21,7 @@
   import { dev } from '$app/environment';
   import { fly } from 'svelte/transition';
   import TailwindIndicators from '$lib/components/tailwind-indicators.svelte';
+  import { headerState } from '$lib/state/header.svelte';
 
   let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 
@@ -28,7 +29,10 @@
   let mobileSearchOpen = $state(false);
 </script>
 
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
+<svelte:head>
+  <link rel="icon" href={favicon} />
+  <title>{headerState.title ? `${headerState.title} | Librex` : 'Librex'}</title>
+</svelte:head>
 
 <ModeWatcher />
 <Toaster richColors closeButton position="top-center" />

@@ -50,7 +50,7 @@ func GetOPDSRoot(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().Format(time.RFC3339)
 	feed := OPDSFeed{
 		ID:      baseURL + "/opds",
-		Title:   "Reliquary OPDS Catalog",
+		Title:   "Librex OPDS Catalog",
 		Updated: now,
 		Links: []OPDSLink{
 			{Rel: "self", Href: baseURL + "/opds", Type: "application/atom+xml;profile=opds-catalog;kind=navigation"},
