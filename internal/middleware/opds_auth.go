@@ -15,7 +15,7 @@ func OPDSAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Basic ") {
-			w.Header().Set("WWW-Authenticate", `Basic realm="Reliquary OPDS"`)
+			w.Header().Set("WWW-Authenticate", `Basic realm="Librex OPDS"`)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -43,13 +43,13 @@ func OPDSAuth(next http.Handler) http.Handler {
 			username).Scan(&userID, &passwordHash, &enabled)
 
 		if err != nil || !enabled {
-			w.Header().Set("WWW-Authenticate", `Basic realm="Reliquary OPDS"`)
+			w.Header().Set("WWW-Authenticate", `Basic realm="Librex OPDS"`)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
 		if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil {
-			w.Header().Set("WWW-Authenticate", `Basic realm="Reliquary OPDS"`)
+			w.Header().Set("WWW-Authenticate", `Basic realm="Librex OPDS"`)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}

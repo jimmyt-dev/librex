@@ -16,6 +16,11 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
   if ((pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/')) || pathname.startsWith('/opds')) {
     const url = `${API_URL}${pathname}${event.url.search}`;
     const headers = new Headers(event.request.headers);
+    
+    // Set forwarding headers so the backend knows the real origin
+    headers.set('X-Forwarded-Host', event.url.host);
+    headers.set('X-Forwarded-Proto', event.url.protocol.replace(':', ''));
+    
     headers.delete('host');
     headers.delete('content-length');
     headers.delete('transfer-encoding');
