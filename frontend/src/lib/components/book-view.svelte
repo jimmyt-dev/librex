@@ -8,6 +8,7 @@
   import BookTable from '$lib/components/book-table.svelte';
   import BookViewControls from '$lib/components/book-view-controls.svelte';
   import BookFilterSidebar from '$lib/components/book-filter-sidebar.svelte';
+  import * as Sheet from '$lib/components/ui/sheet';
   import SelectionToolbar from '$lib/components/selection-toolbar.svelte';
   import SeriesGroup from '$lib/components/series-group.svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -26,6 +27,15 @@
   } = $props();
 
   let searchQuery = $state('');
+
+  let isMobile = $state(false);
+  $effect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    isMobile = mq.matches;
+    const handler = (e: MediaQueryListEvent) => (isMobile = e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  });
 
   let searchedBooks = $derived.by(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -182,10 +192,26 @@
     {/if}
   </div>
 
-  {#if filterState.open}
+  <!-- Desktop: inline sidebar -->
+  {#if filterState.open && !isMobile}
     <BookFilterSidebar {books} />
   {/if}
 </div>
+
+<!-- Mobile: sheet -->
+{#if isMobile}
+  <Sheet.Root
+    open={filterState.open}
+    onOpenChange={(o) => { if (!o) filterState.toggle(); }}
+  >
+    <Sheet.Portal>
+      <Sheet.Overlay />
+      <Sheet.Content side="right" class="flex w-80 flex-col p-0">
+        <BookFilterSidebar {books} sheet />
+      </Sheet.Content>
+    </Sheet.Portal>
+  </Sheet.Root>
+{/if}
 
 <SelectionToolbar
   {selectedIds}

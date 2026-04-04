@@ -523,7 +523,7 @@
 
   <!-- Bulk action bar -->
   {#if selectedIds.size > 0}
-    <div class="flex items-center gap-3 rounded-lg border bg-muted/50 px-4 py-2">
+    <div class="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 px-4 py-2">
       <span class="text-sm text-muted-foreground">{selectedIds.size} selected</span>
       <Button size="sm" onclick={openBulkEdit}>Bulk Edit</Button>
       <div class="flex">
@@ -538,12 +538,12 @@
           </Select.Content>
         </Select.Root>
         {#if selectedLibraryId}
-          <Button variant="ghost" class="ml-2" onclick={() => applyBulkLibrary(selectedLibraryId)}>
-            Apply Library
+          <Button size="sm" variant="ghost" onclick={() => applyBulkLibrary(selectedLibraryId)}>
+            Apply
           </Button>
         {/if}
       </div>
-      <Button size="sm" variant="destructive" onclick={handleBulkDelete}>Delete selected</Button>
+      <Button size="sm" variant="destructive" onclick={handleBulkDelete}>Delete</Button>
       <Button size="sm" variant="ghost" onclick={() => (selectedIds = new SvelteSet())}>
         Clear
       </Button>
@@ -555,7 +555,68 @@
       <p class="text-muted-foreground">Loading…</p>
     </div>
   {:else if stagedBooks.length > 0}
-    <div class="rounded-lg border">
+    <!-- Mobile card list -->
+    <div class="flex flex-col gap-2 md:hidden">
+      {#each stagedBooks as book (book.id)}
+        <div
+          class="flex items-center gap-3 rounded-lg border bg-card px-3 py-2 {selectedIds.has(book.id) ? 'ring-1 ring-primary' : ''}"
+        >
+          <Checkbox
+            checked={selectedIds.has(book.id)}
+            onCheckedChange={() => toggleOne(book.id)}
+          />
+          {#if book.hasCover}
+            <img src={coverUrl(book.id)} alt="" class="h-12 w-8 shrink-0 rounded object-cover shadow-sm" />
+          {:else}
+            <div class="h-12 w-8 shrink-0 rounded bg-muted"></div>
+          {/if}
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-sm font-medium">{book.title}</p>
+            <p class="truncate text-xs text-muted-foreground">{book.author ?? '—'} · {book.ext.slice(1).toUpperCase()}</p>
+            <Select.Root
+              type="single"
+              value={bookLibraryMap.get(book.id) ?? ''}
+              onValueChange={(v) => {
+                bookLibraryMap.set(book.id, v);
+                bookLibraryMap = new SvelteMap(bookLibraryMap);
+              }}
+            >
+              <Select.Trigger class="mt-1 h-7 text-xs">
+                {getBookLibraryTitle(book.id)}
+              </Select.Trigger>
+              <Select.Content>
+                {#each librariesState.items as lib (lib.id)}
+                  <Select.Item value={lib.id}>{lib.title}</Select.Item>
+                {/each}
+              </Select.Content>
+            </Select.Root>
+          </div>
+          <div class="flex shrink-0 flex-col gap-1">
+            <Button size="sm" variant="ghost" onclick={() => openEdit(book)}>Edit</Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              class="text-destructive hover:text-destructive"
+              onclick={() => handleDelete(book)}
+            >✕</Button>
+          </div>
+        </div>
+      {/each}
+      {#if readyToImportCount > 0}
+        <div class="flex justify-end pt-1">
+          <Button onclick={handleAddAllToLibraries} disabled={isImporting}>
+            {#if isImporting}
+              Importing… <Spinner />
+            {:else}
+              Add {readyToImportCount} book{readyToImportCount === 1 ? '' : 's'} to {readyToImportCount === 1 ? 'library' : 'libraries'}
+            {/if}
+          </Button>
+        </div>
+      {/if}
+    </div>
+
+    <!-- Desktop table -->
+    <div class="hidden rounded-lg border md:block">
       <table class="w-full text-sm">
         <thead>
           <tr class="border-b bg-muted/50">
@@ -651,6 +712,7 @@
         </div>
       {/if}
     </div>
+    <!-- /Desktop table -->
   {:else}
     <div
       class="flex min-h-100 flex-1 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20"

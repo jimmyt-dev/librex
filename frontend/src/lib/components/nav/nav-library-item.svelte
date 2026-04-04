@@ -27,11 +27,16 @@
 
   import { booksState } from '$lib/api/books.svelte';
   import { shelvesState } from '$lib/api/shelves.svelte';
+  import EditLibraryDialog from '$lib/components/edit-library-dialog.svelte';
+  import PencilIcon from '@lucide/svelte/icons/pencil';
 
   let confirmOpen = $state(false);
+  let editOpen = $state(false);
   let isDeleting = $state(false);
   let isScanning = $state(false);
   let dropdownOpen = $state(false);
+
+  let libraryForEdit = $derived(librariesState.items.find((l) => l.id === item.id) ?? null);
 
   async function handleScan() {
     isScanning = true;
@@ -106,6 +111,10 @@
         {/snippet}
       </DropdownMenu.Trigger>
       <DropdownMenu.Content class="w-48 rounded-lg" align={sidebar.isMobile ? 'end' : 'start'}>
+        <DropdownMenu.Item onclick={() => { dropdownOpen = false; editOpen = true; }}>
+          <PencilIcon class="text-muted-foreground" />
+          <span>Edit Library</span>
+        </DropdownMenu.Item>
         <DropdownMenu.Item onclick={handleScan} disabled={isScanning}>
           <FolderSyncIcon class="text-muted-foreground" />
           <span>{isScanning ? 'Scanning…' : 'Rescan Library'}</span>
@@ -141,3 +150,7 @@
     </Sidebar.MenuBadge>
   </Sidebar.MenuItem>
 </div>
+
+{#if libraryForEdit}
+  <EditLibraryDialog bind:open={editOpen} library={libraryForEdit} />
+{/if}

@@ -8,7 +8,7 @@
   import XIcon from '@lucide/svelte/icons/x';
   import { SvelteSet } from 'svelte/reactivity';
 
-  let { books }: { books: Book[] } = $props();
+  let { books, sheet = false }: { books: Book[]; sheet?: boolean } = $props();
 
   let availableAuthors = $derived.by(() => {
     const names = new SvelteSet<string>();
@@ -140,7 +140,12 @@
   </button>
 {/snippet}
 
-<aside class="sticky top-4 flex w-64 shrink-0 flex-col self-start rounded-lg border bg-card">
+<svelte:element
+  this={sheet ? 'div' : 'aside'}
+  class={sheet
+    ? 'flex flex-1 flex-col overflow-hidden'
+    : 'sticky top-4 flex w-64 shrink-0 flex-col self-start rounded-lg border bg-card'}
+>
   <div class="flex items-center justify-between border-b px-4 py-3">
     <span class="text-sm font-semibold">Filters</span>
     {#if filterState.activeCount > 0}
@@ -324,4 +329,4 @@
       </div>
     {/if}
   </div>
-</aside>
+</svelte:element>

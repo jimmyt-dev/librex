@@ -21,11 +21,25 @@
   import SearchIcon from '@lucide/svelte/icons/search';
   import Layers2Icon from '@lucide/svelte/icons/layers-2';
   import { Button } from './ui/button';
+  import { fly } from 'svelte/transition';
 
   let { searchQuery = $bindable('') }: { searchQuery?: string } = $props();
 
   let dragIndex = $state<number | null>(null);
   let dropIndex = $state<number | null>(null);
+  let mobileSearchOpen = $state(false);
+  let mobileSearchInput = $state<HTMLInputElement | null>(null);
+
+  function openMobileSearch() {
+    mobileSearchOpen = true;
+    // Focus after DOM update
+    setTimeout(() => mobileSearchInput?.focus(), 0);
+  }
+
+  function closeMobileSearch() {
+    mobileSearchOpen = false;
+    searchQuery = '';
+  }
 
   function onDragStart(e: DragEvent, i: number) {
     dragIndex = i;
@@ -54,200 +68,239 @@
 </script>
 
 <div class="mt-4 flex w-full items-center justify-between gap-2 rounded-md border bg-muted/20 p-2">
-  <!-- Search input -->
-  <div class="relative">
-    <SearchIcon class="absolute top-1/2 left-2 size-4 -translate-y-1/2 text-muted-foreground" />
-    <input
-      type="search"
-      placeholder="Search books..."
-      bind:value={searchQuery}
-      class="rounded-md border bg-background py-1.5 pr-3 pl-8 text-sm focus:ring-1 focus:ring-ring focus:outline-none"
-    />
-  </div>
-  <div class="flex gap-3">
-    <!-- View toggle -->
-    <div class="flex rounded-md border">
+  <!-- Mobile search overlay -->
+  {#if mobileSearchOpen}
+    <div transition:fly={{ x: -16, duration: 200, opacity: 0 }} class="flex flex-1 items-center gap-2 md:hidden">
+      <div class="relative flex-1">
+        <SearchIcon class="absolute top-1/2 left-2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          bind:this={mobileSearchInput}
+          type="search"
+          placeholder="Search books..."
+          bind:value={searchQuery}
+          class="w-full rounded-md border bg-background py-1.5 pr-3 pl-8 text-sm focus:ring-1 focus:ring-ring focus:outline-none"
+        />
+      </div>
       <button
         type="button"
-        class="flex items-center gap-1.5 rounded-l-md px-2.5 py-1.5 text-sm transition-colors {viewSettings.mode ===
-        'grid'
-          ? 'bg-primary text-primary-foreground'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
-        onclick={() => viewSettings.setMode('grid')}
-        title="Grid view"
+        class="shrink-0 text-sm text-muted-foreground hover:text-foreground"
+        onclick={closeMobileSearch}
       >
-        <LayoutGridIcon class="size-4" />
-      </button>
-      <button
-        type="button"
-        class="flex items-center gap-1.5 rounded-r-md px-2.5 py-1.5 text-sm transition-colors {viewSettings.mode ===
-        'table'
-          ? 'bg-primary text-primary-foreground'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
-        onclick={() => viewSettings.setMode('table')}
-        title="Table view"
-      >
-        <TableIcon class="size-4" />
+        Cancel
       </button>
     </div>
+  {/if}
 
-    <!-- Columns (table mode only) -->
-    {#if viewSettings.mode === 'table'}
+  <!-- Normal layout (hidden on mobile when search is open) -->
+  <div class="flex flex-1 items-center justify-between gap-2 {mobileSearchOpen ? 'hidden md:flex' : 'flex'}">
+    <!-- Search: icon button on mobile, full input on md+ -->
+    <div>
+      <!-- Mobile search icon -->
+      <button
+        type="button"
+        class="flex items-center rounded-md border p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+        onclick={openMobileSearch}
+        title="Search"
+      >
+        <SearchIcon class="size-4" />
+      </button>
+      <!-- Desktop search input -->
+      <div class="relative hidden md:block">
+        <SearchIcon class="absolute top-1/2 left-2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          placeholder="Search books..."
+          bind:value={searchQuery}
+          class="rounded-md border bg-background py-1.5 pr-3 pl-8 text-sm focus:ring-1 focus:ring-ring focus:outline-none"
+        />
+      </div>
+    </div>
+
+    <div class="flex gap-3">
+      <!-- View toggle -->
+      <div class="flex rounded-md border">
+        <button
+          type="button"
+          class="flex items-center gap-1.5 rounded-l-md px-2.5 py-1.5 text-sm transition-colors {viewSettings.mode ===
+          'grid'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+          onclick={() => viewSettings.setMode('grid')}
+          title="Grid view"
+        >
+          <LayoutGridIcon class="size-4" />
+        </button>
+        <button
+          type="button"
+          class="flex items-center gap-1.5 rounded-r-md px-2.5 py-1.5 text-sm transition-colors {viewSettings.mode ===
+          'table'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+          onclick={() => viewSettings.setMode('table')}
+          title="Table view"
+        >
+          <TableIcon class="size-4" />
+        </button>
+      </div>
+
+      <!-- Columns (table mode only) -->
+      {#if viewSettings.mode === 'table'}
+        <Popover.Root>
+          <Popover.Trigger class="flex items-center gap-1.5">
+            {#snippet child({ props })}
+              <Button {...props} variant="outline">
+                <ColumnsIcon class="size-4" />
+                <span class="hidden md:inline">Columns</span>
+              </Button>
+            {/snippet}
+          </Popover.Trigger>
+          <Popover.Content class="w-52 p-3" align="end">
+            <p class="mb-2 text-sm font-medium">Visible Columns</p>
+            <div class="flex flex-col gap-1">
+              {#each ALL_COLUMNS as col (col.id)}
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <span
+                  class="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-muted"
+                  onclick={() => viewSettings.toggleColumn(col.id)}
+                >
+                  <Checkbox checked={viewSettings.isColumnVisible(col.id)} />
+                  {col.label}
+                </span>
+              {/each}
+            </div>
+          </Popover.Content>
+        </Popover.Root>
+      {/if}
+
+      <!-- Sort -->
       <Popover.Root>
         <Popover.Trigger class="flex items-center gap-1.5">
           {#snippet child({ props })}
             <Button {...props} variant="outline">
-              <ColumnsIcon class="size-4" />
-              Columns
+              <ArrowUpDownIcon class="size-4" />
+              <span class="hidden md:inline">Sort</span>
+              {#if viewSettings.sortLevels.length > 0}
+                <span
+                  class="rounded-full border border-background bg-primary px-1.5 py-0 text-xs leading-5 text-primary-foreground"
+                >
+                  {viewSettings.sortLevels.length}
+                </span>
+              {/if}
             </Button>
           {/snippet}
         </Popover.Trigger>
-        <Popover.Content class="w-52 p-3" align="end">
-          <p class="mb-2 text-sm font-medium">Visible Columns</p>
+        <Popover.Content class="w-72 p-3" align="end">
+          <div class="mb-2 flex items-center justify-between">
+            <p class="text-sm font-medium">Sort Order</p>
+            <button
+              type="button"
+              class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              onclick={() => viewSettings.resetSort()}
+            >
+              <RotateCcwIcon class="size-3" /> Reset
+            </button>
+          </div>
+
           <div class="flex flex-col gap-1">
-            {#each ALL_COLUMNS as col (col.id)}
-              <!-- svelte-ignore a11y_click_events_have_key_events -->
+            {#each viewSettings.sortLevels as level, i (i)}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <span
-                class="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-muted"
-                onclick={() => viewSettings.toggleColumn(col.id)}
+              <div
+                aria-label="Sort level {i + 1}: {level.field} {level.dir === 'asc'
+                  ? 'Ascending'
+                  : 'Descending'}"
+                class="flex items-center gap-1.5 rounded-md px-1 py-0.5 transition-colors {dropIndex ===
+                  i && dragIndex !== i
+                  ? 'bg-primary/10 ring-1 ring-primary/30'
+                  : ''} {dragIndex === i ? 'opacity-40' : ''}"
+                draggable="true"
+                ondragstart={(e) => onDragStart(e, i)}
+                ondragover={(e) => onDragOver(e, i)}
+                ondrop={(e) => onDrop(e, i)}
+                ondragend={onDragEnd}
+                ondragleave={() => {
+                  if (dropIndex === i) dropIndex = null;
+                }}
               >
-                <Checkbox checked={viewSettings.isColumnVisible(col.id)} />
-                {col.label}
-              </span>
+                <GripVerticalIcon
+                  class="size-3.5 shrink-0 cursor-grab text-muted-foreground/50 active:cursor-grabbing"
+                />
+
+                <span class="w-4 shrink-0 text-right text-xs text-muted-foreground">{i + 1}.</span>
+
+                <select
+                  class="flex-1 rounded-md border bg-background px-2 py-1 text-xs focus:outline-none"
+                  value={level.field}
+                  onchange={(e) =>
+                    viewSettings.updateLevel(i, {
+                      field: (e.currentTarget as HTMLSelectElement).value as SortField
+                    })}
+                >
+                  {#each SORT_FIELDS as f (f.value)}
+                    <option value={f.value}>{f.label}</option>
+                  {/each}
+                </select>
+
+                <button
+                  type="button"
+                  class="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  title={level.dir === 'asc' ? 'Ascending' : 'Descending'}
+                  onclick={() =>
+                    viewSettings.updateLevel(i, { dir: level.dir === 'asc' ? 'desc' : 'asc' })}
+                >
+                  {#if level.dir === 'asc'}
+                    <ArrowUpIcon class="size-3.5" />
+                  {:else}
+                    <ArrowDownIcon class="size-3.5" />
+                  {/if}
+                </button>
+
+                <button
+                  type="button"
+                  class="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-destructive"
+                  onclick={() => viewSettings.removeLevel(i)}
+                >
+                  <XIcon class="size-3.5" />
+                </button>
+              </div>
             {/each}
           </div>
+
+          {#if viewSettings.sortLevels.length < SORT_FIELDS.length}
+            <button
+              type="button"
+              class="mt-2 w-full rounded-md border border-dashed py-1 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+              onclick={() => viewSettings.addLevel()}
+            >
+              + Add level
+            </button>
+          {/if}
         </Popover.Content>
       </Popover.Root>
-    {/if}
 
-    <!-- Sort -->
-    <Popover.Root>
-      <Popover.Trigger class="flex items-center gap-1.5">
-        {#snippet child({ props })}
-          <Button {...props} variant="outline">
-            <ArrowUpDownIcon class="size-4" />
-            Sort
-            {#if viewSettings.sortLevels.length > 0}
-              <span
-                class="rounded-full border border-background bg-primary px-1.5 py-0 text-xs leading-5 text-primary-foreground"
-              >
-                {viewSettings.sortLevels.length}
-              </span>
-            {/if}
-          </Button>
-        {/snippet}
-      </Popover.Trigger>
-      <Popover.Content class="w-72 p-3" align="end">
-        <div class="mb-2 flex items-center justify-between">
-          <p class="text-sm font-medium">Sort Order</p>
-          <button
-            type="button"
-            class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            onclick={() => viewSettings.resetSort()}
-          >
-            <RotateCcwIcon class="size-3" /> Reset
-          </button>
-        </div>
-
-        <div class="flex flex-col gap-1">
-          {#each viewSettings.sortLevels as level, i (i)}
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div
-              aria-label="Sort level {i + 1}: {level.field} {level.dir === 'asc'
-                ? 'Ascending'
-                : 'Descending'}"
-              class="flex items-center gap-1.5 rounded-md px-1 py-0.5 transition-colors {dropIndex ===
-                i && dragIndex !== i
-                ? 'bg-primary/10 ring-1 ring-primary/30'
-                : ''} {dragIndex === i ? 'opacity-40' : ''}"
-              draggable="true"
-              ondragstart={(e) => onDragStart(e, i)}
-              ondragover={(e) => onDragOver(e, i)}
-              ondrop={(e) => onDrop(e, i)}
-              ondragend={onDragEnd}
-              ondragleave={() => {
-                if (dropIndex === i) dropIndex = null;
-              }}
-            >
-              <GripVerticalIcon
-                class="size-3.5 shrink-0 cursor-grab text-muted-foreground/50 active:cursor-grabbing"
-              />
-
-              <span class="w-4 shrink-0 text-right text-xs text-muted-foreground">{i + 1}.</span>
-
-              <select
-                class="flex-1 rounded-md border bg-background px-2 py-1 text-xs focus:outline-none"
-                value={level.field}
-                onchange={(e) =>
-                  viewSettings.updateLevel(i, {
-                    field: (e.currentTarget as HTMLSelectElement).value as SortField
-                  })}
-              >
-                {#each SORT_FIELDS as f (f.value)}
-                  <option value={f.value}>{f.label}</option>
-                {/each}
-              </select>
-
-              <button
-                type="button"
-                class="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                title={level.dir === 'asc' ? 'Ascending' : 'Descending'}
-                onclick={() =>
-                  viewSettings.updateLevel(i, { dir: level.dir === 'asc' ? 'desc' : 'asc' })}
-              >
-                {#if level.dir === 'asc'}
-                  <ArrowUpIcon class="size-3.5" />
-                {:else}
-                  <ArrowDownIcon class="size-3.5" />
-                {/if}
-              </button>
-
-              <button
-                type="button"
-                class="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-destructive"
-                onclick={() => viewSettings.removeLevel(i)}
-              >
-                <XIcon class="size-3.5" />
-              </button>
-            </div>
-          {/each}
-        </div>
-
-        {#if viewSettings.sortLevels.length < SORT_FIELDS.length}
-          <button
-            type="button"
-            class="mt-2 w-full rounded-md border border-dashed py-1 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
-            onclick={() => viewSettings.addLevel()}
-          >
-            + Add level
-          </button>
-        {/if}
-      </Popover.Content>
-    </Popover.Root>
-
-    <!-- Group toggle (grid mode only) -->
-    {#if viewSettings.mode === 'grid'}
-      <Button
-        variant={viewSettings.groupBySeries ? 'default' : 'outline'}
-        onclick={() => viewSettings.toggleGroupBySeries()}
-      >
-        <Layers2Icon class="size-4" />
-        Group
-      </Button>
-    {/if}
-
-    <!-- Filter toggle -->
-    <Button variant={filterState.open ? 'default' : 'outline'} onclick={() => filterState.toggle()}>
-      <FilterIcon class="size-4" />
-      Filter
-      {#if filterState.activeCount > 0}
-        <span
-          class="rounded-full border border-background bg-primary-foreground px-1.5 py-0 text-xs leading-5 text-primary"
+      <!-- Group toggle (grid mode only) -->
+      {#if viewSettings.mode === 'grid'}
+        <Button
+          variant={viewSettings.groupBySeries ? 'default' : 'outline'}
+          onclick={() => viewSettings.toggleGroupBySeries()}
         >
-          {filterState.activeCount}
-        </span>
+          <Layers2Icon class="size-4" />
+          <span class="hidden md:inline">Group</span>
+        </Button>
       {/if}
-    </Button>
+
+      <!-- Filter toggle -->
+      <Button variant={filterState.open ? 'default' : 'outline'} onclick={() => filterState.toggle()}>
+        <FilterIcon class="size-4" />
+        <span class="hidden md:inline">Filter</span>
+        {#if filterState.activeCount > 0}
+          <span
+            class="rounded-full border border-background bg-primary-foreground px-1.5 py-0 text-xs leading-5 text-primary"
+          >
+            {filterState.activeCount}
+          </span>
+        {/if}
+      </Button>
+    </div>
   </div>
 </div>

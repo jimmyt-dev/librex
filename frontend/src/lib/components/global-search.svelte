@@ -7,6 +7,8 @@
   import * as InputGroup from '$lib/components/ui/input-group';
   import * as Kbd from '$lib/components/ui/kbd';
 
+  let { autofocus = false }: { autofocus?: boolean } = $props();
+
   let query = $state('');
   let focused = $state(false);
   let mousedownOnResult = $state(false);
@@ -14,6 +16,12 @@
   let highlightedIndex = $state(-1);
 
   let isMac = $derived(typeof navigator !== 'undefined' && navigator.platform.startsWith('Mac'));
+
+  $effect(() => {
+    if (autofocus) {
+      setTimeout(() => inputEl?.focus(), 0);
+    }
+  });
 
   let results = $derived.by((): Book[] => {
     const q = query.trim().toLowerCase();
@@ -93,9 +101,9 @@
 <svelte:window onkeydown={handleGlobalKeydown} />
 
 <div
-  class="relative transition-[width] duration-200 ease-in-out"
-  class:w-80={!focused}
-  class:w-100={focused}
+  class="relative transition-[width] duration-200 ease-in-out {autofocus ? 'w-full' : ''}"
+  class:w-60={!autofocus && !focused}
+  class:w-80={!autofocus && focused}
 >
   <InputGroup.Root class="h-9">
     <InputGroup.Addon align="inline-start">
@@ -105,7 +113,7 @@
     <InputGroup.Input
       bind:ref={inputEl}
       bind:value={query}
-      placeholder="Search by title, author, genre, ISBN..."
+      placeholder="Search books..."
       onfocus={() => (focused = true)}
       onblur={() => {
         if (!mousedownOnResult) focused = false;
@@ -114,7 +122,7 @@
     />
 
     {#if !focused}
-      <InputGroup.Addon align="inline-end">
+      <InputGroup.Addon align="inline-end" class="hidden sm:block">
         <Kbd.Group>
           <Kbd.Root>{isMac ? '⌘' : 'Ctrl'}</Kbd.Root>
           <Kbd.Root>K</Kbd.Root>

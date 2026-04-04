@@ -64,6 +64,22 @@ class LibrariesState {
     await this.fetchAll();
   };
 
+  update = async (
+    id: string,
+    fields: { name: string; icon?: string; folder?: string; fileNamingPattern?: string }
+  ): Promise<void> => {
+    await apiFetch(`/api/libraries/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        name: fields.name,
+        icon: fields.icon || null,
+        folder: fields.folder || null,
+        fileNamingPattern: fields.fileNamingPattern || null
+      })
+    });
+    await this.fetchAll();
+  };
+
   delete = async (id: string) => {
     this.items = this.items.filter((l) => l.id !== id);
     try {

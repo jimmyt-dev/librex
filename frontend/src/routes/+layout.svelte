@@ -4,11 +4,8 @@
   import { Toaster } from '$lib/components/ui/sonner/index.js';
   import AppSidebar from '$lib/components/nav/app-sidebar.svelte';
   import * as Sidebar from '$lib/components/ui/sidebar';
-  import * as Breadcrumb from '$lib/components/ui/breadcrumb';
-  import { Separator } from '$lib/components/ui/separator';
   import { page } from '$app/state';
   import type { LayoutData } from './$types';
-  import { headerState } from '$lib/state/header.svelte';
   import './layout.css';
   import InboxIcon from '@lucide/svelte/icons/inbox';
   import SettingsIcon from '@lucide/svelte/icons/settings';
@@ -18,12 +15,17 @@
   import ShelfAssignDialog from '$lib/components/shelf-assign-dialog.svelte';
   import UploadDialog from '$lib/components/upload-dialog.svelte';
   import GlobalSearch from '$lib/components/global-search.svelte';
+  import SearchIcon from '@lucide/svelte/icons/search';
   import BarChart3Icon from '@lucide/svelte/icons/bar-chart-3';
   import * as Tooltip from '$lib/components/ui/tooltip';
+  import { dev } from '$app/environment';
+  import { fly } from 'svelte/transition';
+  import TailwindIndicators from '$lib/components/tailwind-indicators.svelte';
 
   let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 
   let isAuthPage = $derived(page.url.pathname === '/login' || page.url.pathname === '/register');
+  let mobileSearchOpen = $state(false);
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
@@ -45,75 +47,80 @@
         class="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 border-b bg-background transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12"
       >
         <div class="flex w-full items-center gap-2 px-4">
-          <div class="flex shrink-0 items-center">
-            <Sidebar.Trigger class="-ms-1" />
-            <Separator orientation="vertical" class="me-2 data-[orientation=vertical]:h-4" />
-            <Breadcrumb.Root>
-              <Breadcrumb.List>
-                <Breadcrumb.Item>
-                  <Breadcrumb.Page>{headerState.title}</Breadcrumb.Page>
-                </Breadcrumb.Item>
-              </Breadcrumb.List>
-            </Breadcrumb.Root>
-            {#if headerState.subtitle}
-              <span class="ml-2 text-sm text-muted-foreground">{headerState.subtitle}</span>
-            {/if}
-            {#if headerState.counts.length > 0}
-              <div class="ml-2 flex items-center gap-1.5">
-                {#each headerState.counts as count (count.label)}
-                  <span class="rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                    {count.value}
-                    {count.label}
-                  </span>
-                {/each}
-              </div>
-            {/if}
-          </div>
-          <div class="ml-3">
-            <GlobalSearch />
-          </div>
-          <div class="flex flex-1"></div>
-          <Tooltip.Provider delayDuration={400}>
-            <div class="flex shrink-0 items-center gap-1.5">
-              <Tooltip.Root>
-                <Tooltip.Trigger>
-                  <a href="/stats" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
-                    <BarChart3Icon class="size-4" />
-                  </a>
-                </Tooltip.Trigger>
-                <Tooltip.Content>Reading Stats</Tooltip.Content>
-              </Tooltip.Root>
-
-              <UploadDialog />
-
-              <Tooltip.Root>
-                <Tooltip.Trigger>
-                  <a href="/settings" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
-                    <SettingsIcon class="size-4" />
-                  </a>
-                </Tooltip.Trigger>
-                <Tooltip.Content>Settings</Tooltip.Content>
-              </Tooltip.Root>
-
-              <Tooltip.Root>
-                <Tooltip.Trigger>
-                  <a
-                    href="/bookdrop"
-                    class="relative {buttonVariants({ variant: 'outline', size: 'icon' })}"
-                  >
-                    <InboxIcon class="size-4" />
-                    {#if bookdropState.stagedCount > 0}
-                      <span
-                        class="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-0.5 text-[10px] font-bold text-primary-foreground"
-                        >{bookdropState.stagedCount > 99 ? '99+' : bookdropState.stagedCount}</span
-                      >
-                    {/if}
-                  </a>
-                </Tooltip.Trigger>
-                <Tooltip.Content>Bookdrop</Tooltip.Content>
-              </Tooltip.Root>
+          <!-- Mobile search overlay -->
+          {#if mobileSearchOpen}
+            <div transition:fly={{ x: -16, duration: 200, opacity: 0 }} class="flex flex-1 items-center gap-2 sm:hidden">
+              <GlobalSearch autofocus />
+              <button
+                type="button"
+                class="shrink-0 text-sm text-muted-foreground hover:text-foreground"
+                onclick={() => (mobileSearchOpen = false)}
+              >
+                Cancel
+              </button>
             </div>
-          </Tooltip.Provider>
+          {/if}
+
+          <!-- Normal header (hidden on mobile when search is open) -->
+          <div class="flex flex-1 items-center gap-2 {mobileSearchOpen ? 'hidden sm:flex' : 'flex'}">
+            <div class="flex shrink-0 items-center">
+              <Sidebar.Trigger class="-ms-1" />
+            </div>
+            <!-- Mobile search icon -->
+            <button
+              type="button"
+              class="flex items-center rounded-md border p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground sm:hidden"
+              onclick={() => (mobileSearchOpen = true)}
+              title="Search"
+            >
+              <SearchIcon class="size-4" />
+            </button>
+            <div class="hidden sm:block">
+              <GlobalSearch />
+            </div>
+            <div class="flex flex-1"></div>
+            <Tooltip.Provider delayDuration={400}>
+              <div class="flex shrink-0 items-center gap-1.5">
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    <a href="/stats" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
+                      <BarChart3Icon class="size-4" />
+                    </a>
+                  </Tooltip.Trigger>
+                  <Tooltip.Content>Reading Stats</Tooltip.Content>
+                </Tooltip.Root>
+
+                <UploadDialog />
+
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    <a href="/settings" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
+                      <SettingsIcon class="size-4" />
+                    </a>
+                  </Tooltip.Trigger>
+                  <Tooltip.Content>Settings</Tooltip.Content>
+                </Tooltip.Root>
+
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    <a
+                      href="/bookdrop"
+                      class="relative {buttonVariants({ variant: 'outline', size: 'icon' })}"
+                    >
+                      <InboxIcon class="size-4" />
+                      {#if bookdropState.stagedCount > 0}
+                        <span
+                          class="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-0.5 text-[10px] font-bold text-primary-foreground"
+                          >{bookdropState.stagedCount > 99 ? '99+' : bookdropState.stagedCount}</span
+                        >
+                      {/if}
+                    </a>
+                  </Tooltip.Trigger>
+                  <Tooltip.Content>Bookdrop</Tooltip.Content>
+                </Tooltip.Root>
+              </div>
+            </Tooltip.Provider>
+          </div>
         </div>
       </header>
       {#key page.url.pathname}
@@ -121,4 +128,8 @@
       {/key}
     </Sidebar.Inset>
   </Sidebar.Provider>
+{/if}
+
+{#if dev}
+  <TailwindIndicators />
 {/if}

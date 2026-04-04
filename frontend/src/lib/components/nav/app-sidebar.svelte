@@ -51,6 +51,7 @@
   import { authorsState } from '$lib/api/authors.svelte';
   import { bookdropState } from '$lib/api/bookdrop.svelte';
   import { apiFetch } from '$lib/api/client';
+  import { page } from '$app/state';
 
   let totalSeries = $state(0);
 
@@ -62,6 +63,12 @@
     apiFetch('/api/series')
       .then((s: string[]) => (totalSeries = s.length))
       .catch(() => {});
+  });
+
+  const sidebar = Sidebar.useSidebar();
+  $effect(() => {
+    void page.url.pathname;
+    sidebar.setOpenMobile(false);
   });
 
   let totalBooks = $derived(librariesState.items.reduce((sum, l) => sum + l.books, 0));

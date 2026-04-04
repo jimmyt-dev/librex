@@ -22,9 +22,13 @@
   import { goto } from '$app/navigation';
   import PlusIcon from '@lucide/svelte/icons/plus';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
+  import PencilIcon from '@lucide/svelte/icons/pencil';
   import LibraryIcon from '@lucide/svelte/icons/library';
   import { dev } from '$app/environment';
   import { Label } from '$lib/components/ui/label';
+  import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import EditLibraryDialog from '$lib/components/edit-library-dialog.svelte';
+  import type { Library } from '$lib/api/libraries.svelte';
 
   const DEFAULT_PATTERN = '{authors}/{title}{ext}';
 
@@ -41,6 +45,9 @@
   let newLibPattern = $state('');
   let addingLib = $state(false);
   let deletingLibId = $state<string | null>(null);
+  let deleteConfirmLib = $state<Library | null>(null);
+  let editingLib = $state<Library | null>(null);
+  let editLibOpen = $state(false);
   let dirty = $derived(
     pattern !== (settingsState.settings?.fileNamingPattern ?? DEFAULT_PATTERN) ||
       writeMetadata !== (settingsState.settings?.writeMetadataToFile ?? false) ||
@@ -169,11 +176,13 @@
     addingLib = false;
   }
 
-  async function deleteLibrary(id: string) {
-    deletingLibId = id;
+  async function confirmDeleteLibrary() {
+    if (!deleteConfirmLib) return;
+    deletingLibId = deleteConfirmLib.id;
     try {
-      await librariesState.delete(id);
+      await librariesState.delete(deleteConfirmLib.id);
       toast.success('Library removed.');
+      deleteConfirmLib = null;
     } catch {
       toast.error('Failed to remove library.');
     }
@@ -202,10 +211,10 @@
   let currentTheme = $derived(userPrefersMode.current);
 </script>
 
-<div class="mx-auto flex max-w-2xl flex-col gap-8 p-6">
+<div class="mx-auto w-full max-w-2xl overflow-x-hidden flex flex-col gap-8 p-4 sm:p-6">
   <!-- Libraries -->
   <section>
-    <div class="flex items-center justify-between">
+    <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h2 class="text-lg font-semibold">Libraries</h2>
         <p class="mt-1 text-sm text-muted-foreground">
@@ -227,7 +236,7 @@
         </p>
       {:else}
         {#each librariesState.items as lib (lib.id)}
-          <div class="flex items-center gap-3 rounded-lg border px-3 py-2.5">
+          <div class="flex items-center gap-2 rounded-lg border px-3 py-2.5">
             <LibraryIcon class="size-4 shrink-0 text-muted-foreground" />
             <div class="min-w-0 flex-1">
               <p class="truncate text-sm font-medium">{lib.title}</p>
@@ -239,8 +248,16 @@
             <Button
               variant="ghost"
               size="icon"
+              class="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+              onclick={() => { editingLib = lib; editLibOpen = true; }}
+            >
+              <PencilIcon class="size-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               class="size-7 shrink-0 text-muted-foreground hover:text-destructive"
-              onclick={() => deleteLibrary(lib.id)}
+              onclick={() => (deleteConfirmLib = lib)}
               disabled={deletingLibId === lib.id}
             >
               <Trash2Icon class="size-3.5" />
@@ -264,7 +281,7 @@
       <div class="flex flex-col gap-1.5">
         <Label for="pattern" class="text-sm font-medium">Default Naming Pattern</Label>
         <div class="flex gap-2">
-          <Input id="pattern" bind:value={pattern} class="font-mono text-sm" />
+          <Input id="pattern" bind:value={pattern} class="min-w-0 flex-1 font-mono text-sm" />
           <Button variant="outline" size="icon" onclick={resetPattern} title="Reset to default">
             <RotateCcwIcon class="size-4" />
           </Button>
@@ -314,7 +331,8 @@
     <div class="mt-4">
       <p class="mb-2 text-xs font-medium text-muted-foreground">Available Variables</p>
       <div class="rounded-lg border">
-        <table class="w-full text-sm">
+        <!-- Desktop table -->
+        <table class="hidden w-full text-sm sm:table">
           <thead>
             <tr class="border-b bg-muted/30">
               <th class="px-3 py-1.5 text-left text-xs font-medium">Variable</th>
@@ -332,6 +350,17 @@
             {/each}
           </tbody>
         </table>
+        <!-- Mobile list -->
+        <div class="flex flex-col divide-y sm:hidden">
+          {#each variables as v (v.name)}
+            <div class="px-3 py-2">
+              <span class="font-mono text-xs font-medium">{v.name}</span>
+              <p class="text-xs text-muted-foreground">
+                {v.description} · <span class="text-foreground">{v.example}</span>
+              </p>
+            </div>
+          {/each}
+        </div>
       </div>
       <p class="mt-2 text-xs text-muted-foreground">
         Wrap optional segments in <code class="rounded bg-muted px-1">&lt;...&gt;</code> — they are
@@ -386,6 +415,32 @@
     </p>
   </section>
 </div>
+
+<!-- Edit Library dialog -->
+{#if editingLib}
+  <EditLibraryDialog bind:open={editLibOpen} library={editingLib} />
+{/if}
+
+<!-- Delete Library confirmation -->
+<AlertDialog.Root
+  open={!!deleteConfirmLib}
+  onOpenChange={(o) => { if (!o) deleteConfirmLib = null; }}
+>
+  <AlertDialog.Content>
+    <AlertDialog.Header>
+      <AlertDialog.Title>Remove "{deleteConfirmLib?.title}"?</AlertDialog.Title>
+      <AlertDialog.Description>
+        This removes the library from Librex. Your files on disk will not be deleted.
+      </AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+      <AlertDialog.Action onclick={confirmDeleteLibrary} disabled={!!deletingLibId}>
+        {deletingLibId ? 'Removing...' : 'Remove'}
+      </AlertDialog.Action>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>
 
 <!-- Add Library dialog -->
 <Dialog.Root bind:open={addLibOpen}>
