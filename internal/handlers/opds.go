@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -222,6 +223,12 @@ func GetOPDSNew(w http.ResponseWriter, r *http.Request) {
 }
 
 func getBaseURL(r *http.Request) string {
+	// 1. Prefer explicitly configured ORIGIN
+	if origin := os.Getenv("ORIGIN"); origin != "" {
+		return strings.TrimSuffix(origin, "/")
+	}
+
+	// 2. Fallback to header detection
 	scheme := "http"
 	if r.TLS != nil {
 		scheme = "https"
