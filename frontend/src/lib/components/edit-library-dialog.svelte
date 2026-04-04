@@ -88,7 +88,7 @@
         >
           {#if folder}
             <FolderOpenIcon class="size-4 shrink-0" />
-            <span class="truncate">{folder}</span>
+            <span class="min-w-0 truncate">{folder}</span>
           {:else}
             <FolderIcon class="size-4 shrink-0" />
             Select folder...

@@ -34,6 +34,8 @@ func main() {
 		r.Get("/", handlers.GetOPDSRoot)
 		r.Get("/all.xml", handlers.GetOPDSAll)
 		r.Get("/new.xml", handlers.GetOPDSNew)
+		r.Get("/books/{id}/cover", handlers.GetBookCover)
+		r.Get("/books/{id}/download", handlers.DownloadBook)
 	})
 
 	// Authenticated API Routes

@@ -436,50 +436,64 @@ func UploadToLibrary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, maxSize)
-	if err := r.ParseMultipartForm(64 << 20); err != nil {
-		if strings.Contains(err.Error(), "request body too large") {
-			http.Error(w, fmt.Sprintf("Upload too large. The current limit is %d MB. You can increase this in Settings.", userMaxMB), http.StatusRequestEntityTooLarge)
-		} else {
-			http.Error(w, "failed to parse upload: "+err.Error(), http.StatusBadRequest)
-		}
+	mr, err := r.MultipartReader()
+	if err != nil {
+		http.Error(w, "failed to parse upload: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	files := r.MultipartForm.File["files"]
-	if len(files) == 0 {
-		http.Error(w, "no files provided", http.StatusBadRequest)
-		return
+	limitMB := userMaxMB
+	if limitMB == 0 {
+		limitMB = 100
 	}
 
 	var added []models.Book
 
-	for _, fh := range files {
-		ext := strings.ToLower(filepath.Ext(fh.Filename))
-		if !validBookExts[ext] {
-			continue
+	for {
+		part, err := mr.NextPart()
+		if err == io.EOF {
+			break
 		}
-
-		src, err := fh.Open()
 		if err != nil {
+			if strings.Contains(err.Error(), "request body too large") {
+				http.Error(w, fmt.Sprintf("Upload too large. The current limit is %d MB. You can increase this in Settings.", limitMB), http.StatusRequestEntityTooLarge)
+				return
+			}
+			break
+		}
+
+		filename := part.FileName()
+		if part.FormName() != "files" || filename == "" {
+			part.Close()
 			continue
 		}
 
-		destPath := filepath.Join(cleanedDir, filepath.Base(fh.Filename))
+		ext := strings.ToLower(filepath.Ext(filename))
+		if !validBookExts[ext] {
+			part.Close()
+			continue
+		}
+
+		destPath := filepath.Join(cleanedDir, filepath.Base(filename))
 		if _, err := os.Stat(destPath); err == nil {
-			base := strings.TrimSuffix(filepath.Base(fh.Filename), ext)
+			base := strings.TrimSuffix(filepath.Base(filename), ext)
 			destPath = filepath.Join(cleanedDir, fmt.Sprintf("%s_%d%s", base, os.Getpid(), ext))
 		}
 
 		dst, err := os.Create(destPath)
 		if err != nil {
-			src.Close()
+			part.Close()
 			continue
 		}
-		_, copyErr := io.Copy(dst, src)
-		src.Close()
+		_, copyErr := io.Copy(dst, part)
 		dst.Close()
+		part.Close()
 		if copyErr != nil {
 			os.Remove(destPath)
+			if strings.Contains(copyErr.Error(), "request body too large") {
+				http.Error(w, fmt.Sprintf("Upload too large. The current limit is %d MB. You can increase this in Settings.", limitMB), http.StatusRequestEntityTooLarge)
+				return
+			}
 			continue
 		}
 
@@ -495,7 +509,7 @@ func UploadToLibrary(w http.ResponseWriter, r *http.Request) {
 		meta := metadata.Extract(destPath)
 		title := meta.Title
 		if title == "" {
-			title = strings.TrimSuffix(filepath.Base(fh.Filename), ext)
+			title = strings.TrimSuffix(filepath.Base(filename), ext)
 		}
 
 		tx, err := db.DB.Begin(r.Context())

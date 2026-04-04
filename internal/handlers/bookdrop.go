@@ -809,17 +809,9 @@ func UploadToBookdrop(w http.ResponseWriter, r *http.Request) {
 	// Limit total upload size to the user's setting
 	r.Body = http.MaxBytesReader(w, r.Body, maxSize)
 
-	if err := r.ParseMultipartForm(64 << 20); err != nil {
-		if strings.Contains(err.Error(), "request body too large") {
-			msg := fmt.Sprintf("Upload too large. The current limit is %d MB. You can increase this in Settings.", userMaxMB)
-			if userMaxMB == 0 {
-				msg = "Upload too large. The current limit is 100 MB. You can increase this in Settings."
-			}
-			http.Error(w, msg, http.StatusRequestEntityTooLarge)
-		} else {
-			http.Error(w, "failed to parse upload: "+err.Error(), http.StatusBadRequest)
-		}
-		return
+	limitMB := userMaxMB
+	if limitMB == 0 {
+		limitMB = 100
 	}
 
 	destDir := bookdropPath()
@@ -835,40 +827,58 @@ func UploadToBookdrop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	files := r.MultipartForm.File["files"]
-	if len(files) == 0 {
-		http.Error(w, "no files provided", http.StatusBadRequest)
+	mr, err := r.MultipartReader()
+	if err != nil {
+		http.Error(w, "failed to parse upload: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	for _, fh := range files {
-		ext := strings.ToLower(filepath.Ext(fh.Filename))
-		if !validBookExts[ext] {
-			continue // skip unsupported formats silently
+	for {
+		part, err := mr.NextPart()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			if strings.Contains(err.Error(), "request body too large") {
+				http.Error(w, fmt.Sprintf("Upload too large. The current limit is %d MB. You can increase this in Settings.", limitMB), http.StatusRequestEntityTooLarge)
+				return
+			}
+			break
 		}
 
-		src, err := fh.Open()
-		if err != nil {
+		filename := part.FileName()
+		if part.FormName() != "files" || filename == "" {
+			part.Close()
 			continue
 		}
 
-		destPath := filepath.Join(cleanedDir, filepath.Base(fh.Filename))
+		ext := strings.ToLower(filepath.Ext(filename))
+		if !validBookExts[ext] {
+			part.Close()
+			continue // skip unsupported formats silently
+		}
+
+		destPath := filepath.Join(cleanedDir, filepath.Base(filename))
 		// Avoid overwriting existing files
 		if _, err := os.Stat(destPath); err == nil {
-			base := strings.TrimSuffix(filepath.Base(fh.Filename), ext)
+			base := strings.TrimSuffix(filepath.Base(filename), ext)
 			destPath = filepath.Join(cleanedDir, fmt.Sprintf("%s_%d%s", base, os.Getpid(), ext))
 		}
 
 		dst, err := os.Create(destPath)
 		if err != nil {
-			src.Close()
+			part.Close()
 			continue
 		}
-		_, copyErr := io.Copy(dst, src)
-		src.Close()
+		_, copyErr := io.Copy(dst, part)
 		dst.Close()
+		part.Close()
 		if copyErr != nil {
 			os.Remove(destPath)
+			if strings.Contains(copyErr.Error(), "request body too large") {
+				http.Error(w, fmt.Sprintf("Upload too large. The current limit is %d MB. You can increase this in Settings.", limitMB), http.StatusRequestEntityTooLarge)
+				return
+			}
 			continue
 		}
 
@@ -884,7 +894,7 @@ func UploadToBookdrop(w http.ResponseWriter, r *http.Request) {
 		meta := metadata.Extract(destPath)
 		title := meta.Title
 		if title == "" {
-			title = strings.TrimSuffix(filepath.Base(fh.Filename), ext)
+			title = strings.TrimSuffix(filepath.Base(filename), ext)
 		}
 
 		var coverImage []byte
@@ -909,7 +919,7 @@ func UploadToBookdrop(w http.ResponseWriter, r *http.Request) {
 			nilIfEmpty(meta.Source), nilIfEmpty(meta.Language),
 			nilIfEmpty(meta.Relation), nilIfEmpty(meta.Coverage),
 			coverImage, coverMime,
-			filepath.Base(fh.Filename), ext, destPath, userID)
+			filepath.Base(filename), ext, destPath, userID)
 	}
 
 	listStagedBooks(w, r, userID)

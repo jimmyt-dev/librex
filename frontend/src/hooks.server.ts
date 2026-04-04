@@ -28,14 +28,17 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
     headers.delete('content-length');
     headers.delete('transfer-encoding');
     const hasBody = !['GET', 'HEAD'].includes(event.request.method);
-    const res = await fetch(url, {
-      method: event.request.method,
-      headers,
-      body: hasBody ? event.request.body : undefined,
+    // For HEAD requests, proxy as GET to avoid undici HEAD response body handling issues,
+    // then return null body with the response headers.
+    const proxyMethod = event.request.method === 'HEAD' ? 'GET' : event.request.method;
+    const fetchInit: RequestInit = { method: proxyMethod, headers };
+    if (hasBody) {
+      fetchInit.body = event.request.body;
       // @ts-expect-error duplex required for streaming request bodies in Node 18+
-      duplex: 'half'
-    });
-    return new Response(res.body, {
+      fetchInit.duplex = 'half';
+    }
+    const res = await fetch(url, fetchInit);
+    return new Response(event.request.method === 'HEAD' ? null : res.body, {
       status: res.status,
       statusText: res.statusText,
       headers: res.headers

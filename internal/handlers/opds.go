@@ -128,7 +128,7 @@ func GetOPDSAll(w http.ResponseWriter, r *http.Request) {
 		// Download link
 		entry.Links = append(entry.Links, OPDSLink{
 			Rel:  "http://opds-spec.org/acquisition",
-			Href: fmt.Sprintf("%s/api/books/%s/download", baseURL, b.ID),
+			Href: fmt.Sprintf("%s/opds/books/%s/download", baseURL, b.ID),
 			Type: getMimeType(b.FilePath),
 		})
 
@@ -140,12 +140,12 @@ func GetOPDSAll(w http.ResponseWriter, r *http.Request) {
 			}
 			entry.Links = append(entry.Links, OPDSLink{
 				Rel:  "http://opds-spec.org/image",
-				Href: fmt.Sprintf("%s/api/books/%s/cover", baseURL, b.ID),
+				Href: fmt.Sprintf("%s/opds/books/%s/cover", baseURL, b.ID),
 				Type: mime,
 			})
 			entry.Links = append(entry.Links, OPDSLink{
 				Rel:  "http://opds-spec.org/image/thumbnail",
-				Href: fmt.Sprintf("%s/api/books/%s/cover", baseURL, b.ID),
+				Href: fmt.Sprintf("%s/opds/books/%s/cover", baseURL, b.ID),
 				Type: mime,
 			})
 		}
@@ -207,7 +207,7 @@ func GetOPDSNew(w http.ResponseWriter, r *http.Request) {
 
 		entry.Links = append(entry.Links, OPDSLink{
 			Rel:  "http://opds-spec.org/acquisition",
-			Href: fmt.Sprintf("%s/api/books/%s/download", baseURL, b.ID),
+			Href: fmt.Sprintf("%s/opds/books/%s/download", baseURL, b.ID),
 			Type: getMimeType(b.FilePath),
 		})
 
@@ -218,7 +218,7 @@ func GetOPDSNew(w http.ResponseWriter, r *http.Request) {
 			}
 			entry.Links = append(entry.Links, OPDSLink{
 				Rel:  "http://opds-spec.org/image",
-				Href: fmt.Sprintf("%s/api/books/%s/cover", baseURL, b.ID),
+				Href: fmt.Sprintf("%s/opds/books/%s/cover", baseURL, b.ID),
 				Type: mime,
 			})
 		}
