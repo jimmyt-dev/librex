@@ -118,7 +118,7 @@ func GetOPDSAll(w http.ResponseWriter, r *http.Request) {
 			ID:      fmt.Sprintf("book:%s", b.ID),
 			Title:   b.Metadata.Title,
 			Updated: b.AddedOn.Format(time.RFC3339),
-			Summary: *b.Metadata.Description,
+			Summary: getString(b.Metadata.Description),
 		}
 
 		for _, a := range b.Authors {
@@ -134,15 +134,19 @@ func GetOPDSAll(w http.ResponseWriter, r *http.Request) {
 
 		// Cover link
 		if b.Metadata.CoverPath != nil {
+			mime := getString(b.Metadata.CoverMime)
+			if mime == "" {
+				mime = "image/jpeg" // Fallback
+			}
 			entry.Links = append(entry.Links, OPDSLink{
 				Rel:  "http://opds-spec.org/image",
 				Href: fmt.Sprintf("%s/api/books/%s/cover", baseURL, b.ID),
-				Type: *b.Metadata.CoverMime,
+				Type: mime,
 			})
 			entry.Links = append(entry.Links, OPDSLink{
 				Rel:  "http://opds-spec.org/image/thumbnail",
 				Href: fmt.Sprintf("%s/api/books/%s/cover", baseURL, b.ID),
-				Type: *b.Metadata.CoverMime,
+				Type: mime,
 			})
 		}
 
@@ -194,7 +198,7 @@ func GetOPDSNew(w http.ResponseWriter, r *http.Request) {
 			ID:      fmt.Sprintf("book:%s", b.ID),
 			Title:   b.Metadata.Title,
 			Updated: b.AddedOn.Format(time.RFC3339),
-			Summary: *b.Metadata.Description,
+			Summary: getString(b.Metadata.Description),
 		}
 
 		for _, a := range b.Authors {
@@ -208,10 +212,14 @@ func GetOPDSNew(w http.ResponseWriter, r *http.Request) {
 		})
 
 		if b.Metadata.CoverPath != nil {
+			mime := getString(b.Metadata.CoverMime)
+			if mime == "" {
+				mime = "image/jpeg"
+			}
 			entry.Links = append(entry.Links, OPDSLink{
 				Rel:  "http://opds-spec.org/image",
 				Href: fmt.Sprintf("%s/api/books/%s/cover", baseURL, b.ID),
-				Type: *b.Metadata.CoverMime,
+				Type: mime,
 			})
 		}
 
@@ -220,6 +228,13 @@ func GetOPDSNew(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/atom+xml; charset=utf-8")
 	xml.NewEncoder(w).Encode(feed)
+}
+
+func getString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 func getBaseURL(r *http.Request) string {
