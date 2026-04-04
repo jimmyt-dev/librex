@@ -61,7 +61,10 @@
       <Dialog.Description>Update the name, icon, or folder for this library.</Dialog.Description>
     </Dialog.Header>
     <form
-      onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}
+      onsubmit={(e) => {
+        e.preventDefault();
+        handleSubmit();
+      }}
       class="flex flex-col gap-4 py-2"
     >
       <div class="grid grid-cols-[1fr_auto] gap-4">

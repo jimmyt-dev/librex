@@ -111,7 +111,12 @@
         {/snippet}
       </DropdownMenu.Trigger>
       <DropdownMenu.Content class="w-48 rounded-lg" align={sidebar.isMobile ? 'end' : 'start'}>
-        <DropdownMenu.Item onclick={() => { dropdownOpen = false; editOpen = true; }}>
+        <DropdownMenu.Item
+          onclick={() => {
+            dropdownOpen = false;
+            editOpen = true;
+          }}
+        >
           <PencilIcon class="text-muted-foreground" />
           <span>Edit Library</span>
         </DropdownMenu.Item>

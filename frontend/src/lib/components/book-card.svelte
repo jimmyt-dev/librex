@@ -125,8 +125,9 @@
 >
   {#if checkboxes}
     <button
-      class="absolute top-1.5 left-1.5 z-10 opacity-0 transition-opacity group-hover:opacity-100"
+      class="absolute top-1.5 left-1.5 z-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto"
       class:opacity-100={selected}
+      class:pointer-events-auto={selected}
       onclick={(e) => e.stopPropagation()}
     >
       <Checkbox
@@ -149,13 +150,14 @@
   {/if}
 
   <div
-    class="focus-none flex flex-col overflow-hidden rounded-md border bg-card text-card-foreground shadow-sm transition-all"
+    class="flex flex-col overflow-hidden rounded-md border bg-card text-card-foreground shadow-sm transition-all focus:outline-none group-focus-within:ring-2 group-focus-within:ring-primary/50"
     class:ring-2={selected}
     class:ring-primary={selected}
+    class:!ring-primary={selected}
   >
     <div class="relative aspect-2/3 w-full overflow-hidden bg-muted">
       <div
-        class="absolute top-1/2 left-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-y-2 opacity-0 transition-opacity group-hover:opacity-100"
+        class="absolute top-1/2 left-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-y-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto"
       >
         <Button
           class="border-accent"
