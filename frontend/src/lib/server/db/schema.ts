@@ -248,7 +248,7 @@ export const userSettings = pgTable('user_settings', {
   fileNamingPattern: text('file_naming_pattern').notNull().default('{authors}/{title}{ext}'),
   writeMetadataToFile: boolean('write_metadata_to_file').notNull().default(false),
   bookdropPath: text('bookdrop_path'),
-  maxUploadSizeMb: integer('max_upload_size_mb').notNull().default(500)
+  maxUploadSizeMb: integer('max_upload_size_mb').notNull().default(100)
 });
 
 export * from './auth.schema';

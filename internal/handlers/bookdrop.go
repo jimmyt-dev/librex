@@ -813,7 +813,7 @@ func UploadToBookdrop(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(err.Error(), "request body too large") {
 			msg := fmt.Sprintf("Upload too large. The current limit is %d MB. You can increase this in Settings.", userMaxMB)
 			if userMaxMB == 0 {
-				msg = "Upload too large. The current limit is 500 MB. You can increase this in Settings."
+				msg = "Upload too large. The current limit is 100 MB. You can increase this in Settings."
 			}
 			http.Error(w, msg, http.StatusRequestEntityTooLarge)
 		} else {

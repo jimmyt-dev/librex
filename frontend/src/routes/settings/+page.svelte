@@ -34,7 +34,7 @@
 
   let pattern = $state('');
   let writeMetadata = $state(false);
-  let maxUploadSizeMb = $state(500);
+  let maxUploadSizeMb = $state(100);
   let saving = $state(false);
 
   // Libraries
@@ -51,7 +51,7 @@
   let dirty = $derived(
     pattern !== (settingsState.settings?.fileNamingPattern ?? DEFAULT_PATTERN) ||
       writeMetadata !== (settingsState.settings?.writeMetadataToFile ?? false) ||
-      maxUploadSizeMb !== (settingsState.settings?.maxUploadSizeMb ?? 500)
+      maxUploadSizeMb !== (settingsState.settings?.maxUploadSizeMb ?? 100)
   );
 
   // Example data for live preview
@@ -147,7 +147,7 @@
     settingsState.fetch().then(() => {
       pattern = settingsState.settings?.fileNamingPattern ?? DEFAULT_PATTERN;
       writeMetadata = settingsState.settings?.writeMetadataToFile ?? false;
-      maxUploadSizeMb = settingsState.settings?.maxUploadSizeMb ?? 500;
+      maxUploadSizeMb = settingsState.settings?.maxUploadSizeMb ?? 100;
     });
     librariesState.fetchAll();
   });
