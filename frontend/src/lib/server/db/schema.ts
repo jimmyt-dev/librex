@@ -251,4 +251,15 @@ export const userSettings = pgTable('user_settings', {
   maxUploadSizeMb: integer('max_upload_size_mb').notNull().default(100)
 });
 
+export const opdsCredentials = pgTable('opds_credentials', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .unique()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  username: text('username').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  enabled: boolean('enabled').notNull().default(true)
+});
+
 export * from './auth.schema';

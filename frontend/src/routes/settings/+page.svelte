@@ -24,7 +24,7 @@
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import PencilIcon from '@lucide/svelte/icons/pencil';
   import LibraryIcon from '@lucide/svelte/icons/library';
-  import { dev } from '$app/environment';
+  import { browser, dev } from '$app/environment';
   import { Label } from '$lib/components/ui/label';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import EditLibraryDialog from '$lib/components/edit-library-dialog.svelte';
@@ -36,6 +36,17 @@
   let writeMetadata = $state(false);
   let maxUploadSizeMb = $state(100);
   let saving = $state(false);
+
+  // OPDS
+  let opdsUsername = $state('');
+  let opdsPassword = $state('');
+  let opdsEnabled = $state(false);
+  let savingOPDS = $state(false);
+  let opdsDirty = $derived(
+    opdsUsername !== (settingsState.opds?.username ?? '') ||
+      opdsEnabled !== (settingsState.opds?.enabled ?? false) ||
+      opdsPassword !== ''
+  );
 
   // Libraries
   let addLibOpen = $state(false);
@@ -148,6 +159,8 @@
       pattern = settingsState.settings?.fileNamingPattern ?? DEFAULT_PATTERN;
       writeMetadata = settingsState.settings?.writeMetadataToFile ?? false;
       maxUploadSizeMb = settingsState.settings?.maxUploadSizeMb ?? 100;
+      opdsUsername = settingsState.opds?.username ?? '';
+      opdsEnabled = settingsState.opds?.enabled ?? false;
     });
     librariesState.fetchAll();
   });
@@ -204,6 +217,30 @@
     saving = false;
   }
 
+  async function saveOPDSSettings() {
+    if (opdsEnabled && !opdsUsername) {
+      toast.error('Username is required to enable OPDS.');
+      return;
+    }
+    if (opdsEnabled && !settingsState.opds?.username && !opdsPassword) {
+      toast.error('Password is required to enable OPDS for the first time.');
+      return;
+    }
+    savingOPDS = true;
+    const ok = await settingsState.updateOPDS({
+      username: opdsUsername,
+      password: opdsPassword || undefined,
+      enabled: opdsEnabled
+    });
+    if (ok) {
+      toast.success('OPDS settings saved.');
+      opdsPassword = '';
+    } else {
+      toast.error('Failed to save OPDS settings.');
+    }
+    savingOPDS = false;
+  }
+
   function resetPattern() {
     pattern = DEFAULT_PATTERN;
   }
@@ -211,7 +248,7 @@
   let currentTheme = $derived(userPrefersMode.current);
 </script>
 
-<div class="mx-auto w-full max-w-2xl overflow-x-hidden flex flex-col gap-8 p-4 sm:p-6">
+<div class="mx-auto flex w-full max-w-2xl flex-col gap-8 overflow-x-hidden p-4 sm:p-6">
   <!-- Libraries -->
   <section>
     <div class="flex flex-wrap items-start justify-between gap-3">
@@ -249,7 +286,10 @@
               variant="ghost"
               size="icon"
               class="size-7 shrink-0 text-muted-foreground hover:text-foreground"
-              onclick={() => { editingLib = lib; editLibOpen = true; }}
+              onclick={() => {
+                editingLib = lib;
+                editLibOpen = true;
+              }}
             >
               <PencilIcon class="size-3.5" />
             </Button>
@@ -372,6 +412,63 @@
 
   <Separator />
 
+  <!-- OPDS -->
+  <section>
+    <h2 class="text-lg font-semibold">OPDS Support</h2>
+    <p class="mt-1 text-sm text-muted-foreground">
+      Enable OPDS to connect with e-reader apps like Moon+ Reader, KyBook, or Panels.
+    </p>
+
+    <div class="mt-4 flex flex-col gap-4">
+      <Label class="flex cursor-pointer items-center gap-2 text-sm">
+        <Checkbox bind:checked={opdsEnabled} />
+        <div>
+          <span class="font-medium">Enable OPDS Catalog</span>
+          <p class="text-xs text-muted-foreground">
+            Allow third-party apps to browse and download your books.
+          </p>
+        </div>
+      </Label>
+
+      {#if opdsEnabled}
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="flex flex-col gap-1.5">
+            <Label for="opds-user" class="text-xs">Username</Label>
+            <Input id="opds-user" bind:value={opdsUsername} placeholder="opds-user" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <Label for="opds-pass" class="text-xs">
+              Password {settingsState.opds?.username ? '(leave blank to keep)' : ''}
+            </Label>
+            <Input
+              id="opds-pass"
+              type="password"
+              bind:value={opdsPassword}
+              placeholder="••••••••"
+            />
+          </div>
+        </div>
+
+        {#if settingsState.opds?.username}
+          <div class="rounded-lg border bg-muted/50 px-3 py-2">
+            <p class="text-xs font-medium text-muted-foreground">Catalog URL</p>
+            <p class="mt-0.5 font-mono text-sm select-all">
+              {browser ? window.location.origin : ''}/opds
+            </p>
+          </div>
+        {/if}
+      {/if}
+
+      <div class="flex justify-end">
+        <Button onclick={saveOPDSSettings} disabled={savingOPDS || !opdsDirty} size="sm">
+          {savingOPDS ? 'Saving...' : 'Save OPDS Settings'}
+        </Button>
+      </div>
+    </div>
+  </section>
+
+  <Separator />
+
   <!-- Appearance -->
   <section>
     <h2 class="text-lg font-semibold">Appearance</h2>
@@ -424,7 +521,9 @@
 <!-- Delete Library confirmation -->
 <AlertDialog.Root
   open={!!deleteConfirmLib}
-  onOpenChange={(o) => { if (!o) deleteConfirmLib = null; }}
+  onOpenChange={(o) => {
+    if (!o) deleteConfirmLib = null;
+  }}
 >
   <AlertDialog.Content>
     <AlertDialog.Header>

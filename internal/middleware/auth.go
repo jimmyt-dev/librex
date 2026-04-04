@@ -2,10 +2,15 @@ package middleware
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"os"
 	"strings"
+
+	"golang.org/x/crypto/bcrypt"
+
+	"librex/internal/db"
 )
 
 type contextKey string
@@ -48,23 +53,45 @@ func Auth(next http.Handler) http.Handler {
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil || resp.StatusCode != http.StatusOK {
-			http.Error(w, "invalid token", http.StatusUnauthorized)
-			return
+			goto fallback
 		}
 		defer resp.Body.Close()
 
-		var session sessionResponse
-		if err := json.NewDecoder(resp.Body).Decode(&session); err != nil || session.Session == nil {
-			http.Error(w, "invalid token", http.StatusUnauthorized)
-			return
+		{
+			var session sessionResponse
+			if err := json.NewDecoder(resp.Body).Decode(&session); err == nil && session.Session != nil && session.User.ID != "" {
+				ctx := context.WithValue(r.Context(), userIDKey, session.User.ID)
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
 		}
 
-		if session.User.ID == "" {
-			http.Error(w, "invalid token", http.StatusUnauthorized)
-			return
+	fallback:
+		// Fallback to Basic Auth (for OPDS clients)
+		if authHeader := r.Header.Get("Authorization"); strings.HasPrefix(authHeader, "Basic ") {
+			payload, err := base64.StdEncoding.DecodeString(authHeader[6:])
+			if err == nil {
+				parts := strings.SplitN(string(payload), ":", 2)
+				if len(parts) == 2 {
+					username, password := parts[0], parts[1]
+
+					var userID, passwordHash string
+					var enabled bool
+					err = db.DB.QueryRow(r.Context(),
+						"SELECT user_id, password_hash, enabled FROM opds_credentials WHERE username = $1",
+						username).Scan(&userID, &passwordHash, &enabled)
+
+					if err == nil && enabled {
+						if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err == nil {
+							ctx := context.WithValue(r.Context(), userIDKey, userID)
+							next.ServeHTTP(w, r.WithContext(ctx))
+							return
+						}
+					}
+				}
+			}
 		}
 
-		ctx := context.WithValue(r.Context(), userIDKey, session.User.ID)
-		next.ServeHTTP(w, r.WithContext(ctx))
+		http.Error(w, "invalid token", http.StatusUnauthorized)
 	})
 }

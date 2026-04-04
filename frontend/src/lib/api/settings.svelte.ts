@@ -8,14 +8,21 @@ export type UserSettings = {
   maxUploadSizeMb: number;
 };
 
+export type OPDSSettings = {
+  username: string;
+  enabled: boolean;
+};
+
 class SettingsState {
   settings = $state<UserSettings | null>(null);
+  opds = $state<OPDSSettings | null>(null);
   loading = $state(false);
 
   async fetch(): Promise<void> {
     this.loading = true;
     try {
       this.settings = await apiFetch('/api/settings');
+      this.opds = await apiFetch('/api/settings/opds');
     } catch (e) {
       console.error('Failed to fetch settings', e);
     } finally {
@@ -36,6 +43,24 @@ class SettingsState {
       return true;
     } catch (e) {
       console.error('Failed to update settings', e);
+      return false;
+    }
+  }
+
+  async updateOPDS(data: {
+    username?: string;
+    password?: string;
+    enabled?: boolean;
+  }): Promise<boolean> {
+    try {
+      await apiFetch('/api/settings/opds', {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      });
+      this.opds = await apiFetch('/api/settings/opds');
+      return true;
+    } catch (e) {
+      console.error('Failed to update OPDS settings', e);
       return false;
     }
   }
