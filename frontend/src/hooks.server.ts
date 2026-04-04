@@ -27,27 +27,19 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
     headers.delete('host');
     headers.delete('content-length');
     headers.delete('transfer-encoding');
-    // Prevent undici from reusing stale keepalive connections to the Go backend.
-    headers.set('connection', 'close');
     const hasBody = !['GET', 'HEAD'].includes(event.request.method);
-    try {
-      const res = await fetch(url, {
-        method: event.request.method,
-        headers,
-        body: hasBody ? event.request.body : undefined,
-        // @ts-expect-error duplex required for streaming request bodies in Node 18+
-        duplex: 'half'
-      });
-      return new Response(res.body, {
-        status: res.status,
-        statusText: res.statusText,
-        headers: res.headers
-      });
-    } catch (err: unknown) {
-      const cause = (err as { cause?: { code?: string } })?.cause;
-      console.error(`[proxy] ${event.request.method} ${url} failed:`, cause?.code ?? String(err));
-      return new Response('Bad Gateway', { status: 502 });
-    }
+    const res = await fetch(url, {
+      method: event.request.method,
+      headers,
+      body: hasBody ? event.request.body : undefined,
+      // @ts-expect-error duplex required for streaming request bodies in Node 18+
+      duplex: 'half'
+    });
+    return new Response(res.body, {
+      status: res.status,
+      statusText: res.statusText,
+      headers: res.headers
+    });
   }
 
   const session = await auth.api.getSession({ headers: event.request.headers });
