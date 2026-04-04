@@ -202,7 +202,9 @@
 {#if isMobile}
   <Sheet.Root
     open={filterState.open}
-    onOpenChange={(o) => { if (!o) filterState.toggle(); }}
+    onOpenChange={(o) => {
+      if (!o) filterState.toggle();
+    }}
   >
     <Sheet.Portal>
       <Sheet.Overlay />

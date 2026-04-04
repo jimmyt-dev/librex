@@ -559,20 +559,27 @@
     <div class="flex flex-col gap-2 md:hidden">
       {#each stagedBooks as book (book.id)}
         <div
-          class="flex items-center gap-3 rounded-lg border bg-card px-3 py-2 {selectedIds.has(book.id) ? 'ring-1 ring-primary' : ''}"
+          class="flex items-center gap-3 rounded-lg border bg-card px-3 py-2 {selectedIds.has(
+            book.id
+          )
+            ? 'ring-1 ring-primary'
+            : ''}"
         >
-          <Checkbox
-            checked={selectedIds.has(book.id)}
-            onCheckedChange={() => toggleOne(book.id)}
-          />
+          <Checkbox checked={selectedIds.has(book.id)} onCheckedChange={() => toggleOne(book.id)} />
           {#if book.hasCover}
-            <img src={coverUrl(book.id)} alt="" class="h-12 w-8 shrink-0 rounded object-cover shadow-sm" />
+            <img
+              src={coverUrl(book.id)}
+              alt=""
+              class="h-12 w-8 shrink-0 rounded object-cover shadow-sm"
+            />
           {:else}
             <div class="h-12 w-8 shrink-0 rounded bg-muted"></div>
           {/if}
           <div class="min-w-0 flex-1">
             <p class="truncate text-sm font-medium">{book.title}</p>
-            <p class="truncate text-xs text-muted-foreground">{book.author ?? '—'} · {book.ext.slice(1).toUpperCase()}</p>
+            <p class="truncate text-xs text-muted-foreground">
+              {book.author ?? '—'} · {book.ext.slice(1).toUpperCase()}
+            </p>
             <Select.Root
               type="single"
               value={bookLibraryMap.get(book.id) ?? ''}
@@ -597,8 +604,8 @@
               size="sm"
               variant="ghost"
               class="text-destructive hover:text-destructive"
-              onclick={() => handleDelete(book)}
-            >✕</Button>
+              onclick={() => handleDelete(book)}>✕</Button
+            >
           </div>
         </div>
       {/each}
@@ -608,7 +615,10 @@
             {#if isImporting}
               Importing… <Spinner />
             {:else}
-              Add {readyToImportCount} book{readyToImportCount === 1 ? '' : 's'} to {readyToImportCount === 1 ? 'library' : 'libraries'}
+              Add {readyToImportCount} book{readyToImportCount === 1 ? '' : 's'} to {readyToImportCount ===
+              1
+                ? 'library'
+                : 'libraries'}
             {/if}
           </Button>
         </div>

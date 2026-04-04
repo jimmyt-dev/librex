@@ -49,7 +49,10 @@
         <div class="flex w-full items-center gap-2 px-4">
           <!-- Mobile search overlay -->
           {#if mobileSearchOpen}
-            <div transition:fly={{ x: -16, duration: 200, opacity: 0 }} class="flex flex-1 items-center gap-2 sm:hidden">
+            <div
+              transition:fly={{ x: -16, duration: 200, opacity: 0 }}
+              class="flex flex-1 items-center gap-2 sm:hidden"
+            >
               <GlobalSearch autofocus />
               <button
                 type="button"
@@ -62,7 +65,9 @@
           {/if}
 
           <!-- Normal header (hidden on mobile when search is open) -->
-          <div class="flex flex-1 items-center gap-2 {mobileSearchOpen ? 'hidden sm:flex' : 'flex'}">
+          <div
+            class="flex flex-1 items-center gap-2 {mobileSearchOpen ? 'hidden sm:flex' : 'flex'}"
+          >
             <div class="flex shrink-0 items-center">
               <Sidebar.Trigger class="-ms-1" />
             </div>
@@ -94,7 +99,10 @@
 
                 <Tooltip.Root>
                   <Tooltip.Trigger>
-                    <a href="/settings" class={buttonVariants({ variant: 'outline', size: 'icon' })}>
+                    <a
+                      href="/settings"
+                      class={buttonVariants({ variant: 'outline', size: 'icon' })}
+                    >
                       <SettingsIcon class="size-4" />
                     </a>
                   </Tooltip.Trigger>
@@ -111,7 +119,9 @@
                       {#if bookdropState.stagedCount > 0}
                         <span
                           class="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-0.5 text-[10px] font-bold text-primary-foreground"
-                          >{bookdropState.stagedCount > 99 ? '99+' : bookdropState.stagedCount}</span
+                          >{bookdropState.stagedCount > 99
+                            ? '99+'
+                            : bookdropState.stagedCount}</span
                         >
                       {/if}
                     </a>

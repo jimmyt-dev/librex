@@ -70,7 +70,10 @@
 <div class="mt-4 flex w-full items-center justify-between gap-2 rounded-md border bg-muted/20 p-2">
   <!-- Mobile search overlay -->
   {#if mobileSearchOpen}
-    <div transition:fly={{ x: -16, duration: 200, opacity: 0 }} class="flex flex-1 items-center gap-2 md:hidden">
+    <div
+      transition:fly={{ x: -16, duration: 200, opacity: 0 }}
+      class="flex flex-1 items-center gap-2 md:hidden"
+    >
       <div class="relative flex-1">
         <SearchIcon class="absolute top-1/2 left-2 size-4 -translate-y-1/2 text-muted-foreground" />
         <input
@@ -92,7 +95,11 @@
   {/if}
 
   <!-- Normal layout (hidden on mobile when search is open) -->
-  <div class="flex flex-1 items-center justify-between gap-2 {mobileSearchOpen ? 'hidden md:flex' : 'flex'}">
+  <div
+    class="flex flex-1 items-center justify-between gap-2 {mobileSearchOpen
+      ? 'hidden md:flex'
+      : 'flex'}"
+  >
     <!-- Search: icon button on mobile, full input on md+ -->
     <div>
       <!-- Mobile search icon -->
@@ -290,7 +297,10 @@
       {/if}
 
       <!-- Filter toggle -->
-      <Button variant={filterState.open ? 'default' : 'outline'} onclick={() => filterState.toggle()}>
+      <Button
+        variant={filterState.open ? 'default' : 'outline'}
+        onclick={() => filterState.toggle()}
+      >
         <FilterIcon class="size-4" />
         <span class="hidden md:inline">Filter</span>
         {#if filterState.activeCount > 0}
