@@ -5,15 +5,8 @@
   import { bookEditState } from '$lib/state/book-edit.svelte';
   import { shelfAssignState } from '$lib/state/shelf-assign.svelte';
   import * as Tooltip from '$lib/components/ui/tooltip';
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import BookIcon from '@lucide/svelte/icons/book';
-  import EllipsisVerticalIcon from '@lucide/svelte/icons/ellipsis-vertical';
-  import PencilIcon from '@lucide/svelte/icons/pencil';
-  import TrashIcon from '@lucide/svelte/icons/trash-2';
-  import LibraryBigIcon from '@lucide/svelte/icons/library-big';
-  import DownloadIcon from '@lucide/svelte/icons/download';
-  import CheckIcon from '@lucide/svelte/icons/check';
   import { toast } from 'svelte-sonner';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import InfoIcon from '@lucide/svelte/icons/info';
@@ -22,6 +15,8 @@
   import { cn } from '$lib/utils';
   import { Label } from './ui/label';
   import { fade } from 'svelte/transition';
+  import BookActionsDropdown from './book-actions-dropdown.svelte';
+  import { STATUS_COLORS, STATUS_LABELS } from '$lib/constants/books';
 
   let {
     book,
@@ -41,55 +36,7 @@
   let deleteOpen = $state(false);
   let deleteFile = $state(false);
   let deleting = $state(false);
-  let dropdownOpen = $state(false);
   let updatingStatus = $state(false);
-
-  const STATUS_OPTIONS = [
-    { value: 'unread', label: 'Unread' },
-    { value: 'reading', label: 'Reading' },
-    { value: 're-reading', label: 'Re-Reading' },
-    { value: 'partially-read', label: 'Partially Read' },
-    { value: 'paused', label: 'Paused' },
-    { value: 'finished', label: 'Read' },
-    { value: 'wont-read', label: "Won't Read" },
-    { value: 'abandoned', label: 'Abandoned' }
-  ] as const;
-
-  async function setStatus(status: string | null) {
-    if (updatingStatus) return;
-    updatingStatus = true;
-    try {
-      if (status === null) {
-        await booksState.deleteProgress(book.id);
-      } else {
-        await booksState.updateProgress(book.id, { status });
-      }
-    } catch {
-      toast.error('Failed to update reading status.');
-    } finally {
-      updatingStatus = false;
-    }
-  }
-
-  const STATUS_COLORS: Record<string, string> = {
-    reading: 'bg-blue-500 text-white',
-    'partially-read': 'bg-blue-500 text-white',
-    're-reading': 'bg-blue-500 text-white',
-    paused: 'bg-yellow-500 text-white',
-    finished: 'bg-green-500 text-white',
-    'wont-read': 'bg-muted text-muted-foreground',
-    abandoned: 'bg-red-500 text-white'
-  };
-
-  const STATUS_LABELS: Record<string, string> = {
-    reading: 'Reading',
-    'partially-read': 'Partial',
-    're-reading': 'Re-reading',
-    paused: 'Paused',
-    finished: 'Read',
-    'wont-read': "Won't Read",
-    abandoned: 'Abandoned'
-  };
 
   function handleCardClick(e: MouseEvent) {
     if (selectMode) {
@@ -225,105 +172,11 @@
         </Tooltip.Root>
       </Tooltip.Provider>
 
-      <DropdownMenu.Root bind:open={dropdownOpen}>
-        <DropdownMenu.Trigger
-          onclick={(e) => e.stopPropagation()}
-          class="flex shrink-0 items-center justify-around rounded-none px-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <EllipsisVerticalIcon class="size-4" />
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content align="start" class="w-44">
-            <DropdownMenu.Sub>
-              <DropdownMenu.SubTrigger disabled={updatingStatus}
-                >Read Status</DropdownMenu.SubTrigger
-              >
-              <DropdownMenu.SubContent>
-                {#each STATUS_OPTIONS as opt (opt.value)}
-                  <DropdownMenu.Item
-                    onclick={(e) => {
-                      e.stopPropagation();
-                      setStatus(opt.value);
-                    }}
-                  >
-                    <CheckIcon
-                      class="size-3.5 {book.progress?.status === opt.value
-                        ? 'opacity-100'
-                        : 'opacity-0'}"
-                    />
-                    {opt.label}
-                  </DropdownMenu.Item>
-                {/each}
-                <DropdownMenu.Separator />
-                <DropdownMenu.Item
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    setStatus(null);
-                  }}
-                >
-                  Unset
-                </DropdownMenu.Item>
-              </DropdownMenu.SubContent>
-            </DropdownMenu.Sub>
-            <DropdownMenu.Separator />
-            <DropdownMenu.Item
-              onclick={(e) => {
-                e.stopPropagation();
-                bookEditState.openFor(book);
-              }}
-            >
-              <PencilIcon class="size-3.5" />
-              Edit
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              onclick={(e) => {
-                e.stopPropagation();
-                shelfAssignState.openFor([book.id]);
-              }}
-            >
-              <LibraryBigIcon class="size-3.5" />
-              Shelves
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              onclick={async (e) => {
-                e.stopPropagation();
-                try {
-                  const token = localStorage.getItem('bearer_token') || '';
-                  const res = await fetch(`/api/books/${book.id}/download`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                  });
-                  if (!res.ok) throw new Error('Download failed');
-                  const blob = await res.blob();
-                  const disposition = res.headers.get('Content-Disposition') || '';
-                  const match = disposition.match(/filename="(.+?)"/);
-                  const filename = match ? match[1] : book.metadata.title;
-                  const a = document.createElement('a');
-                  a.href = URL.createObjectURL(blob);
-                  a.download = filename;
-                  a.click();
-                  URL.revokeObjectURL(a.href);
-                } catch {
-                  toast.error('Failed to download book.');
-                }
-              }}
-            >
-              <DownloadIcon class="size-3.5" />
-              Download
-            </DropdownMenu.Item>
-            <DropdownMenu.Separator />
-            <DropdownMenu.Item
-              class="text-destructive focus:text-destructive"
-              onclick={(e) => {
-                e.stopPropagation();
-                deleteOpen = true;
-              }}
-            >
-              <TrashIcon class="size-3.5" />
-              Delete
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
+      <BookActionsDropdown
+        {book}
+        onDelete={() => (deleteOpen = true)}
+        class="rounded-none px-1.5"
+      />
     </div>
   </div>
 </div>

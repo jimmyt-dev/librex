@@ -9,17 +9,13 @@
   import { SvelteMap } from 'svelte/reactivity';
   import { goto } from '$app/navigation';
   import { Checkbox } from '$lib/components/ui/checkbox';
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { toast } from 'svelte-sonner';
   import BookIcon from '@lucide/svelte/icons/book';
-  import EllipsisVerticalIcon from '@lucide/svelte/icons/ellipsis-vertical';
-  import PencilIcon from '@lucide/svelte/icons/pencil';
-  import LibraryBigIcon from '@lucide/svelte/icons/library-big';
-  import DownloadIcon from '@lucide/svelte/icons/download';
-  import TrashIcon from '@lucide/svelte/icons/trash-2';
   import { Label } from '$lib/components/ui/label';
   import { Skeleton } from '$lib/components/ui/skeleton';
+  import BookActionsDropdown from './book-actions-dropdown.svelte';
+  import { cn } from '$lib/utils';
 
   let {
     books,
@@ -38,6 +34,7 @@
   let bookToDelete = $state<Book | null>(null);
   let deleteFile = $state(false);
   let deleting = $state(false);
+  let lastClickShift = false;
 
   async function confirmDelete() {
     if (!bookToDelete) return;
@@ -52,26 +49,6 @@
       toast.error(e instanceof Error ? e.message : 'Failed to delete book.');
     } finally {
       deleting = false;
-    }
-  }
-
-  async function download(book: Book) {
-    try {
-      const token = localStorage.getItem('bearer_token') || '';
-      const res = await fetch(`/api/books/${book.id}/download`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error();
-      const blob = await res.blob();
-      const match = (res.headers.get('Content-Disposition') || '').match(/filename="(.+?)"/);
-      const filename = match ? match[1] : book.metadata.title;
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    } catch {
-      toast.error('Failed to download book.');
     }
   }
 
@@ -175,7 +152,9 @@
         {#if col('tags')}<th class="px-4 py-2.5 text-left font-medium">Tags</th>{/if}
         {#if col('format')}<th class="px-4 py-2.5 text-left font-medium">Format</th>{/if}
         {#if col('addedOn')}<th class="px-4 py-2.5 text-left font-medium">Added</th>{/if}
-        <th class="px-4 py-2.5"></th>
+        <th
+          class="sticky right-0 z-20 w-12 bg-muted/95 px-4 py-2.5 shadow-[-1px_0_0_rgba(0,0,0,0.1)] backdrop-blur-sm"
+        ></th>
       </tr>
     </thead>
     <tbody>
@@ -204,13 +183,15 @@
             {#if col('tags')}<td class="px-4 py-2"><Skeleton class="h-4 w-20" /></td>{/if}
             {#if col('format')}<td class="px-4 py-2"><Skeleton class="h-3 w-8" /></td>{/if}
             {#if col('addedOn')}<td class="px-4 py-2"><Skeleton class="h-4 w-20" /></td>{/if}
-            <td class="px-4 py-2"></td>
+            <td
+              class="sticky right-0 z-10 bg-background/95 px-4 py-2 shadow-[-1px_0_0_rgba(0,0,0,0.1)] backdrop-blur-sm"
+            ></td>
           </tr>
         {/each}
       {:else}
         {#each books as book (book.id)}
           <tr
-            class="border-b transition-colors last:border-0 hover:bg-muted/30 {selectedIds.has(
+            class="group border-b transition-colors last:border-0 hover:bg-muted/30 {selectedIds.has(
               book.id
             )
               ? 'bg-muted/20'
@@ -222,7 +203,8 @@
             <td class="px-4 py-2" onclick={(e) => e.stopPropagation()}>
               <Checkbox
                 checked={selectedIds.has(book.id)}
-                onCheckedChange={(v) => onselect?.(book.id, !!v, false)}
+                onCheckedChange={(v) => onselect?.(book.id, !!v, lastClickShift)}
+                onclick={(e) => (lastClickShift = e.shiftKey)}
               />
             </td>
 
@@ -382,37 +364,22 @@
               </td>
             {/if}
 
-            <td class="px-4 py-2" onclick={(e) => e.stopPropagation()}>
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger
-                  class="flex items-center justify-center rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  <EllipsisVerticalIcon class="size-4" />
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                  <DropdownMenu.Content align="end" class="w-40">
-                    <DropdownMenu.Item onclick={() => bookEditState.openFor(book)}>
-                      <PencilIcon class="size-3.5" /> Edit
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Item onclick={() => shelfAssignState.openFor([book.id])}>
-                      <LibraryBigIcon class="size-3.5" /> Shelves
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Item onclick={() => download(book)}>
-                      <DownloadIcon class="size-3.5" /> Download
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Separator />
-                    <DropdownMenu.Item
-                      class="text-destructive focus:text-destructive"
-                      onclick={() => {
-                        bookToDelete = book;
-                        deleteFile = false;
-                      }}
-                    >
-                      <TrashIcon class="size-3.5" /> Delete
-                    </DropdownMenu.Item>
-                  </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-              </DropdownMenu.Root>
+            <td
+              class={cn(
+                'sticky right-0 z-10 bg-background/95 px-4 py-2 shadow-[-1px_0_0_rgba(0,0,0,0.1)] backdrop-blur-sm transition-colors group-hover:bg-muted/50',
+                selectedIds.has(book.id) && '!bg-muted/40'
+              )}
+              onclick={(e) => e.stopPropagation()}
+            >
+              <BookActionsDropdown
+                {book}
+                align="end"
+                onDelete={() => {
+                  bookToDelete = book;
+                  deleteFile = false;
+                }}
+                class="rounded p-1"
+              />
             </td>
           </tr>
         {/each}

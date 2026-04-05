@@ -109,7 +109,7 @@
 </script>
 
 <div class="flex flex-1 gap-4 p-4 pt-0">
-  <div class="flex min-w-0 flex-1 flex-col gap-4">
+  <div class="flex min-w-0 flex-1 flex-col gap-4 pb-28">
     {#if errorMsg}
       <div class="rounded-xl bg-destructive/15 p-4 text-destructive" in:fade>{errorMsg}</div>
     {/if}
