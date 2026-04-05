@@ -2,8 +2,6 @@
   import { booksState, type Book } from '$lib/api/books.svelte';
   import { librariesState } from '$lib/api/libraries.svelte';
   import { shelvesState } from '$lib/api/shelves.svelte';
-  import { bookEditState } from '$lib/state/book-edit.svelte';
-  import { shelfAssignState } from '$lib/state/shelf-assign.svelte';
   import { viewSettings } from '$lib/state/view-settings.svelte';
   import { filterState, type ItemState } from '$lib/state/filter.svelte';
   import { SvelteMap } from 'svelte/reactivity';

@@ -2,8 +2,6 @@
   import { booksState, type Book } from '$lib/api/books.svelte';
   import { librariesState } from '$lib/api/libraries.svelte';
   import { shelvesState } from '$lib/api/shelves.svelte';
-  import { bookEditState } from '$lib/state/book-edit.svelte';
-  import { shelfAssignState } from '$lib/state/shelf-assign.svelte';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import BookIcon from '@lucide/svelte/icons/book';
@@ -36,7 +34,6 @@
   let deleteOpen = $state(false);
   let deleteFile = $state(false);
   let deleting = $state(false);
-  let updatingStatus = $state(false);
 
   function handleCardClick(e: MouseEvent) {
     if (selectMode) {
