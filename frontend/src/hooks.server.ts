@@ -27,6 +27,7 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
     headers.delete('host');
     headers.delete('content-length');
     headers.delete('transfer-encoding');
+    headers.delete('connection');
     const hasBody = !['GET', 'HEAD'].includes(event.request.method);
     const fetchOptions: RequestInit & { duplex?: string } = {
       method: event.request.method,
@@ -36,12 +37,18 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
     if (hasBody) {
       fetchOptions.duplex = 'half';
     }
-    const res = await fetch(url, fetchOptions);
-    return new Response(res.body, {
-      status: res.status,
-      statusText: res.statusText,
-      headers: res.headers
-    });
+    try {
+      const res = await fetch(url, fetchOptions);
+      return new Response(res.body, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: res.headers
+      });
+    } catch (err) {
+      const cause = (err as any)?.cause;
+      console.error(`[proxy] ${event.request.method} ${url} failed:`, cause?.code ?? String(err));
+      return new Response('Bad Gateway', { status: 502 });
+    }
   }
 
   const session = await auth.api.getSession({ headers: event.request.headers });
