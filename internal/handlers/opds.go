@@ -311,15 +311,15 @@ func renderBookList(w http.ResponseWriter, r *http.Request, title, path string, 
 			entry.Authors = append(entry.Authors, OPDSAuthor{Name: a.Name})
 		}
 		entry.Links = append(entry.Links, OPDSLink{
-			Rel: "http://opds-spec.org/acquisition", Href: fmt.Sprintf("%s/api/books/%s/download", baseURL, b.ID), Type: getMimeType(b.FilePath),
+			Rel: "http://opds-spec.org/acquisition", Href: fmt.Sprintf("%s/opds/books/%s/download", baseURL, b.ID), Type: getMimeType(b.FilePath),
 		})
 		if b.Metadata.CoverPath != nil {
 			mime := getString(b.Metadata.CoverMime)
 			if mime == "" {
 				mime = "image/jpeg"
 			}
-			entry.Links = append(entry.Links, OPDSLink{Rel: "http://opds-spec.org/image", Href: fmt.Sprintf("%s/api/books/%s/cover", baseURL, b.ID), Type: mime})
-			entry.Links = append(entry.Links, OPDSLink{Rel: "http://opds-spec.org/image/thumbnail", Href: fmt.Sprintf("%s/api/books/%s/cover", baseURL, b.ID), Type: mime})
+			entry.Links = append(entry.Links, OPDSLink{Rel: "http://opds-spec.org/image", Href: fmt.Sprintf("%s/opds/books/%s/cover", baseURL, b.ID), Type: mime})
+			entry.Links = append(entry.Links, OPDSLink{Rel: "http://opds-spec.org/image/thumbnail", Href: fmt.Sprintf("%s/opds/books/%s/cover", baseURL, b.ID), Type: mime})
 		}
 		feed.Entries = append(feed.Entries, entry)
 	}
