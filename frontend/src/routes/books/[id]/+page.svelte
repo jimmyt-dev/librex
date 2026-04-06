@@ -69,24 +69,8 @@
     if (stateBook) book = stateBook;
   });
 
-  async function download() {
-    try {
-      const token = localStorage.getItem('bearer_token') || '';
-      const res = await fetch(`/api/books/${bookId}/download`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Download failed');
-      const blob = await res.blob();
-      const match = (res.headers.get('Content-Disposition') || '').match(/filename="(.+?)"/);
-      const filename = match ? match[1] : (book?.metadata.title ?? 'book');
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    } catch {
-      toast.error('Failed to download book.');
-    }
+  function download() {
+    window.location.assign(`/api/books/${bookId}/download`);
   }
 
   async function confirmDelete() {

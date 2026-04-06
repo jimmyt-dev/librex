@@ -11,7 +11,6 @@
   import CheckIcon from '@lucide/svelte/icons/check';
   import { toast } from 'svelte-sonner';
   import { STATUS_OPTIONS } from '$lib/constants/books';
-  import { getToken } from '$lib/api/client';
   import { cn } from '$lib/utils';
 
   let {
@@ -44,24 +43,11 @@
     }
   }
 
-  async function download() {
-    try {
-      const token = getToken();
-      const res = await fetch(`/api/books/${book.id}/download`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error();
-      const blob = await res.blob();
-      const match = (res.headers.get('Content-Disposition') || '').match(/filename="(.+?)"/);
-      const filename = match ? match[1] : book.metadata.title;
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    } catch {
-      toast.error('Failed to download book.');
-    }
+  function download() {
+    // Using window.location.assign allows the browser to handle the download directly.
+    // This shows the download progress immediately and avoids memory issues with large files.
+    // Authentication is handled via session cookies.
+    window.location.assign(`/api/books/${book.id}/download`);
   }
 </script>
 

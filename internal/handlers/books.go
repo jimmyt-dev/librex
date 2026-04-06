@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -422,7 +424,25 @@ func DownloadBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filepath.Base(filePath)))
+	ext := strings.ToLower(filepath.Ext(filePath))
+	mimeType := "application/octet-stream"
+	switch ext {
+	case ".epub":
+		mimeType = "application/epub+zip"
+	case ".pdf":
+		mimeType = "application/pdf"
+	case ".mobi":
+		mimeType = "application/x-mobipocket-ebook"
+	case ".azw3":
+		mimeType = "application/x-mobi8-ebook"
+	case ".cbz":
+		mimeType = "application/x-cbz"
+	}
+
+	filename := filepath.Base(filePath)
+	// RFC 6266 format for modern browsers to handle special characters
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"; filename*=UTF-8''%s`, filename, url.PathEscape(filename)))
+	w.Header().Set("Content-Type", mimeType)
 	http.ServeFile(w, r, filePath)
 }
 
