@@ -2,19 +2,19 @@
   import { booksState, type Book } from '$lib/api/books.svelte';
   import { librariesState } from '$lib/api/libraries.svelte';
   import { shelvesState } from '$lib/api/shelves.svelte';
-  import * as Tooltip from '$lib/components/ui/tooltip';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import BookIcon from '@lucide/svelte/icons/book';
-  import { toast } from 'svelte-sonner';
   import { Checkbox } from '$lib/components/ui/checkbox';
-  import InfoIcon from '@lucide/svelte/icons/info';
-  import BookOpenTextIcon from '@lucide/svelte/icons/book-open-text';
-  import Button from './ui/button/button.svelte';
+  import * as Tooltip from '$lib/components/ui/tooltip';
+  import { STATUS_COLORS, STATUS_LABELS } from '$lib/constants/books';
   import { cn } from '$lib/utils';
-  import { Label } from './ui/label';
+  import BookIcon from '@lucide/svelte/icons/book';
+  import BookOpenTextIcon from '@lucide/svelte/icons/book-open-text';
+  import InfoIcon from '@lucide/svelte/icons/info';
+  import { toast } from 'svelte-sonner';
   import { fade } from 'svelte/transition';
   import BookActionsDropdown from './book-actions-dropdown.svelte';
-  import { STATUS_COLORS, STATUS_LABELS } from '$lib/constants/books';
+  import Button from './ui/button/button.svelte';
+  import { Label } from './ui/label';
 
   let {
     book,
@@ -63,7 +63,6 @@
   class="group relative cursor-default outline-none"
   class:!cursor-pointer={selectMode}
   tabindex="0"
-  style="content-visibility: auto; contain-intrinsic-size: auto 320px;"
   onclick={(e) => handleCardClick(e)}
   transition:fade
   onkeydown={(e) => e.key === 'Enter' && handleCardClick(new MouseEvent('click'))}

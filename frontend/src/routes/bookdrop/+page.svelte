@@ -1,33 +1,32 @@
 <script lang="ts">
-  import * as Sheet from '$lib/components/ui/sheet';
-  import { headerState } from '$lib/state/header.svelte';
-  headerState.title = 'Bookdrop';
-  headerState.subtitle = null;
-  headerState.counts = [];
-  import { apiFetch } from '$lib/api/client';
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { librariesState } from '$lib/api/libraries.svelte';
   import { booksState } from '$lib/api/books.svelte';
+  import { apiFetch } from '$lib/api/client';
+  import { librariesState } from '$lib/api/libraries.svelte';
   import { shelvesState } from '$lib/api/shelves.svelte';
-  import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-  import * as Select from '$lib/components/ui/select';
-  import RotateCW from '@lucide/svelte/icons/rotate-cw';
-  import FileUpload from '$lib/components/file-upload.svelte';
-  import UploadIcon from '@lucide/svelte/icons/upload';
-  import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
-  import { Spinner } from '$lib/components/ui/spinner';
-  import { Checkbox } from '$lib/components/ui/checkbox';
-  import ArrayField from '$lib/components/array-field.svelte';
-  import { Label } from '$lib/components/ui/label';
-  import { toast } from 'svelte-sonner';
-  import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import BookMetaForm from '$lib/components/book-meta-form.svelte';
   import {
     fetchAuthorSuggestions,
     fetchGenreSuggestions,
     fetchTagSuggestions
   } from '$lib/api/suggestions';
+  import ArrayField from '$lib/components/array-field.svelte';
+  import BookMetaForm from '$lib/components/book-meta-form.svelte';
+  import FileUpload from '$lib/components/file-upload.svelte';
+  import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import { Button } from '$lib/components/ui/button';
+  import { Checkbox } from '$lib/components/ui/checkbox';
+  import { Input } from '$lib/components/ui/input';
+  import { Label } from '$lib/components/ui/label';
+  import * as Select from '$lib/components/ui/select';
+  import * as Sheet from '$lib/components/ui/sheet';
+  import { Spinner } from '$lib/components/ui/spinner';
+  import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
+  import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+  import PenLineIcon from '@lucide/svelte/icons/pen-line';
+  import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+  import RotateCW from '@lucide/svelte/icons/rotate-cw';
+  import UploadIcon from '@lucide/svelte/icons/upload';
+  import { toast } from 'svelte-sonner';
+  import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
   interface StagedBook {
     id: string;
@@ -117,6 +116,10 @@
   let deleteFile = $state(false);
   let deleting = $state(false);
   let isBulkDelete = $state(false);
+
+  // Edit Each queue
+  let editQueue = $state<StagedBook[]>([]);
+  let editQueueIndex = $state(0);
 
   let dirtyFields = $derived.by((): Record<string, boolean> => {
     const b = editingBook;
@@ -403,8 +406,17 @@
           rating: editRating ? parseInt(editRating) : null
         })
       });
-      stagedBooks = stagedBooks.map((b) => (b.id === updated.id ? updated : b));
-      sheetOpen = false;
+      const newStagedBooks = stagedBooks.map((b) => (b.id === updated.id ? updated : b));
+      stagedBooks = newStagedBooks;
+      if (editQueue.length > 0 && editQueueIndex < editQueue.length - 1) {
+        editQueueIndex++;
+        const nextInQueue = editQueue[editQueueIndex];
+        openEdit(newStagedBooks.find((b) => b.id === nextInQueue.id) ?? nextInQueue);
+      } else {
+        editQueue = [];
+        editQueueIndex = 0;
+        sheetOpen = false;
+      }
     } catch {
       errorMsg = 'Failed to save changes.';
     } finally {
@@ -461,6 +473,26 @@
     deleteDialogOpen = true;
   }
 
+  function openEditEach() {
+    const selectedBooks = stagedBooks.filter((b) => selectedIds.has(b.id));
+    if (selectedBooks.length === 0) return;
+    editQueue = selectedBooks;
+    editQueueIndex = 0;
+    openEdit(selectedBooks[0]);
+  }
+
+  function queuePrev() {
+    editQueueIndex = editQueueIndex <= 0 ? editQueue.length - 1 : editQueueIndex - 1;
+    const q = editQueue[editQueueIndex];
+    openEdit(stagedBooks.find((b) => b.id === q.id) ?? q);
+  }
+
+  function queueNext() {
+    editQueueIndex = editQueueIndex >= editQueue.length - 1 ? 0 : editQueueIndex + 1;
+    const q = editQueue[editQueueIndex];
+    openEdit(stagedBooks.find((b) => b.id === q.id) ?? q);
+  }
+
   function applyBulkLibrary(libId: string) {
     selectedLibraryId = libId;
     for (const id of selectedIds) {
@@ -482,7 +514,37 @@
 </script>
 
 <div class="page-content gap-4">
-  <div class="flex w-full items-center justify-end gap-2">
+  <div class="flex w-full flex-wrap items-center gap-2">
+    {#if selectedIds.size > 0}
+      <span class="text-sm text-muted-foreground">{selectedIds.size} selected</span>
+      <Button size="sm" onclick={openBulkEdit}>Bulk Edit</Button>
+      <Button size="sm" variant="outline" onclick={openEditEach}>
+        <PenLineIcon class="size-3.5" />
+        Edit Each
+      </Button>
+      <div class="flex items-center">
+        <Select.Root type="single" bind:value={selectedLibraryId}>
+          <Select.Trigger class="h-8">
+            {selectedLibraryTitle}
+          </Select.Trigger>
+          <Select.Content>
+            {#each librariesState.items as lib (lib.id)}
+              <Select.Item value={lib.id}>{lib.title}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
+        {#if selectedLibraryId}
+          <Button size="sm" variant="ghost" onclick={() => applyBulkLibrary(selectedLibraryId)}>
+            Apply
+          </Button>
+        {/if}
+      </div>
+      <Button size="sm" variant="destructive" onclick={handleBulkDelete}>Delete</Button>
+      <Button size="sm" variant="ghost" onclick={() => (selectedIds = new SvelteSet())}>
+        Clear
+      </Button>
+    {/if}
+    <div class="flex-1"></div>
     <Button variant="outline" onclick={() => (uploadOpen = !uploadOpen)}>
       <UploadIcon class="size-4" />
       Upload Files
@@ -515,35 +577,6 @@
     </div>
   {/if}
 
-  <!-- Bulk action bar -->
-  {#if selectedIds.size > 0}
-    <div class="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 px-4 py-2">
-      <span class="text-sm text-muted-foreground">{selectedIds.size} selected</span>
-      <Button size="sm" onclick={openBulkEdit}>Bulk Edit</Button>
-      <div class="flex">
-        <Select.Root type="single" bind:value={selectedLibraryId}>
-          <Select.Trigger class="h-8">
-            {selectedLibraryTitle}
-          </Select.Trigger>
-          <Select.Content>
-            {#each librariesState.items as lib (lib.id)}
-              <Select.Item value={lib.id}>{lib.title}</Select.Item>
-            {/each}
-          </Select.Content>
-        </Select.Root>
-        {#if selectedLibraryId}
-          <Button size="sm" variant="ghost" onclick={() => applyBulkLibrary(selectedLibraryId)}>
-            Apply
-          </Button>
-        {/if}
-      </div>
-      <Button size="sm" variant="destructive" onclick={handleBulkDelete}>Delete</Button>
-      <Button size="sm" variant="ghost" onclick={() => (selectedIds = new SvelteSet())}>
-        Clear
-      </Button>
-    </div>
-  {/if}
-
   {#if isLoading}
     <div class="flex min-h-100 items-center justify-center">
       <p class="text-muted-foreground">Loading…</p>
@@ -552,14 +585,21 @@
     <!-- Mobile card list -->
     <div class="flex flex-col gap-2 md:hidden">
       {#each stagedBooks as book (book.id)}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div
-          class="flex items-center gap-3 rounded-lg border bg-card px-3 py-2 {selectedIds.has(
+          class="flex cursor-pointer items-center gap-3 rounded-lg border bg-card px-3 py-2 {selectedIds.has(
             book.id
           )
             ? 'ring-1 ring-primary'
             : ''}"
+          onclick={() => toggleOne(book.id)}
         >
-          <Checkbox checked={selectedIds.has(book.id)} onCheckedChange={() => toggleOne(book.id)} />
+          <Checkbox
+            checked={selectedIds.has(book.id)}
+            onclick={(e) => e.stopPropagation()}
+            onCheckedChange={() => toggleOne(book.id)}
+          />
           {#if book.hasCover}
             <img
               src={coverUrl(book.id)}
@@ -593,12 +633,22 @@
             </Select.Root>
           </div>
           <div class="flex shrink-0 flex-col gap-1">
-            <Button size="sm" variant="ghost" onclick={() => openEdit(book)}>Edit</Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onclick={(e) => {
+                e.stopPropagation();
+                openEdit(book);
+              }}>Edit</Button
+            >
             <Button
               size="sm"
               variant="ghost"
               class="text-destructive hover:text-destructive"
-              onclick={() => handleDelete(book)}>✕</Button
+              onclick={(e) => {
+                e.stopPropagation();
+                handleDelete(book);
+              }}>✕</Button
             >
           </div>
         </div>
@@ -637,14 +687,18 @@
         </thead>
         <tbody>
           {#each stagedBooks as book (book.id)}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
             <tr
-              class="border-b transition-colors last:border-0 hover:bg-muted/30 {selectedIds.has(
+              class="cursor-pointer border-b transition-colors last:border-0 hover:bg-muted/30 {selectedIds.has(
                 book.id
               )
                 ? 'bg-muted/20'
                 : ''}"
+              onclick={() => toggleOne(book.id)}
             >
-              <td class="px-4 py-3">
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <td class="px-4 py-3" onclick={(e) => e.stopPropagation()}>
                 <Checkbox
                   checked={selectedIds.has(book.id)}
                   onCheckedChange={() => toggleOne(book.id)}
@@ -667,7 +721,8 @@
               <td class="max-w-xs truncate px-4 py-3 text-muted-foreground" title={book.fileName}>
                 {book.fileName}
               </td>
-              <td class="px-4 py-3">
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <td class="px-4 py-3" onclick={(e) => e.stopPropagation()}>
                 <div class="flex justify-end gap-1">
                   <Select.Root
                     type="single"
@@ -686,12 +741,12 @@
                       {/each}
                     </Select.Content>
                   </Select.Root>
-                  <Button size="sm" variant="ghost" onclick={() => openEdit(book)}>Edit</Button>
+                  <Button size="sm" variant="ghost" onclick={(e) => { e.stopPropagation(); openEdit(book); }}>Edit</Button>
                   <Button
                     size="sm"
                     variant="ghost"
                     class="text-destructive hover:text-destructive"
-                    onclick={() => handleDelete(book)}
+                    onclick={(e) => { e.stopPropagation(); handleDelete(book); }}
                   >
                     ✕
                   </Button>
@@ -870,6 +925,8 @@
       editPageCount = '';
       editRating = '';
       isSaving = false;
+      editQueue = [];
+      editQueueIndex = 0;
     }
   }}
 >
@@ -906,6 +963,19 @@
           />
         </div>
         <Sheet.Footer>
+          {#if editQueue.length > 0}
+            <div class="mr-4 flex items-center gap-0.5 text-muted-foreground">
+              <Button size="icon" variant="outline" onclick={queuePrev} title="Previous book">
+                <ChevronLeftIcon class="size-4" />
+              </Button>
+              <span class="min-w-10 text-center text-xs tabular-nums">
+                {editQueueIndex + 1}&nbsp;/&nbsp;{editQueue.length}
+              </span>
+              <Button size="icon" variant="outline" onclick={queueNext} title="Next book">
+                <ChevronRightIcon class="size-4" />
+              </Button>
+            </div>
+          {/if}
           {#if dirty}
             <Button variant="outline" onclick={revertEdit}>
               <RotateCcwIcon class="size-4" />
@@ -918,7 +988,13 @@
             {/snippet}
           </Sheet.Close>
           <Button onclick={saveEdit} disabled={isSaving || !editTitle.trim()}>
-            {isSaving ? 'Saving…' : 'Save'}
+            {#if isSaving}
+              Saving…
+            {:else if editQueue.length > 0 && editQueueIndex !== editQueue.length - 1}
+              Save & Next
+            {:else}
+              Save
+            {/if}
           </Button>
         </Sheet.Footer>
       {/if}
