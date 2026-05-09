@@ -9,7 +9,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o api ./cmd/api/main.go
 # ── SvelteKit builder ────────────────────────────────────────────────────────────
 FROM node:22-alpine AS node-builder
 WORKDIR /app
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY frontend/ ./
