@@ -5,7 +5,6 @@
   import { Label } from '$lib/components/ui/label';
   import IconPicker from '$lib/components/icon-picker.svelte';
   import FolderPicker from '$lib/components/folder-picker.svelte';
-  import PlusIcon from '@lucide/svelte/icons/plus';
   import FolderOpenIcon from '@lucide/svelte/icons/folder-open';
   import FolderIcon from '@lucide/svelte/icons/folder';
   import XIcon from '@lucide/svelte/icons/x';
@@ -14,7 +13,8 @@
   import { goto } from '$app/navigation';
   import { dev } from '$app/environment';
 
-  let open = $state(false);
+  let { open = $bindable(false) }: { open?: boolean } = $props();
+
   let folderDialogOpen = $state(false);
   let name = $state('');
   let icon = $state('');
@@ -22,6 +22,17 @@
   let fileNamingPattern = $state('');
   let loading = $state(false);
   let errorMessage = $state('');
+
+  $effect(() => {
+    if (!open) {
+      name = '';
+      icon = '';
+      folder = dev ? '/' : '/books';
+      fileNamingPattern = '';
+      errorMessage = '';
+      loading = false;
+    }
+  });
 
   async function handleSubmit() {
     if (!name.trim() || !folder.trim()) return;
@@ -35,10 +46,6 @@
         fileNamingPattern.trim() || undefined
       );
       open = false;
-      name = '';
-      icon = '';
-      folder = '';
-      fileNamingPattern = '';
       toast.success('Library created. Scanning for books...');
       await librariesState.scan(id);
       toast.success('Scan complete.');
@@ -53,12 +60,6 @@
 </script>
 
 <Dialog.Root bind:open>
-  <Dialog.Trigger
-    type="button"
-    class="mx-auto flex items-center justify-center hover:cursor-pointer hover:text-foreground/80"
-  >
-    <PlusIcon class="size-4" />
-  </Dialog.Trigger>
   <Dialog.Content class="sm:max-w-xl">
     <Dialog.Header>
       <Dialog.Title>New Library</Dialog.Title>
@@ -123,9 +124,7 @@
       </div>
 
       {#if errorMessage}
-        <div
-          class="col-span-2 rounded-md bg-destructive/10 p-3 text-sm font-medium text-destructive"
-        >
+        <div class="col-span-2 rounded-md bg-destructive/10 p-3 text-sm font-medium text-destructive">
           {errorMessage}
         </div>
       {/if}

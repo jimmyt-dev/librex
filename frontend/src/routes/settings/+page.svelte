@@ -1,34 +1,29 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { headerState } from '$lib/state/header.svelte';
-  import { settingsState } from '$lib/api/settings.svelte';
-  import { Input } from '$lib/components/ui/input';
-  import { Button } from '$lib/components/ui/button';
-  import { Separator } from '$lib/components/ui/separator';
-  import { Checkbox } from '$lib/components/ui/checkbox';
-  import { toast } from 'svelte-sonner';
-  import { setMode, userPrefersMode } from 'mode-watcher';
-  import SunIcon from '@lucide/svelte/icons/sun';
-  import MoonIcon from '@lucide/svelte/icons/moon';
-  import MonitorIcon from '@lucide/svelte/icons/monitor';
-  import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
-  import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
-  import FolderOpenIcon from '@lucide/svelte/icons/folder-open';
-  import FolderIcon from '@lucide/svelte/icons/folder';
-  import FolderPicker from '$lib/components/folder-picker.svelte';
-  import * as Dialog from '$lib/components/ui/dialog';
-  import { buttonVariants } from '$lib/components/ui/button';
-  import { librariesState } from '$lib/api/libraries.svelte';
-  import { goto } from '$app/navigation';
-  import PlusIcon from '@lucide/svelte/icons/plus';
-  import Trash2Icon from '@lucide/svelte/icons/trash-2';
-  import PencilIcon from '@lucide/svelte/icons/pencil';
-  import LibraryIcon from '@lucide/svelte/icons/library';
-  import { browser, dev } from '$app/environment';
-  import { Label } from '$lib/components/ui/label';
-  import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import EditLibraryDialog from '$lib/components/edit-library-dialog.svelte';
+  import { browser } from '$app/environment';
   import type { Library } from '$lib/api/libraries.svelte';
+  import { librariesState } from '$lib/api/libraries.svelte';
+  import { settingsState } from '$lib/api/settings.svelte';
+  import CreateLibrary from '$lib/components/create-library.svelte';
+  import EditLibraryDialog from '$lib/components/edit-library-dialog.svelte';
+  import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import { Button } from '$lib/components/ui/button';
+  import { Checkbox } from '$lib/components/ui/checkbox';
+  import { Input } from '$lib/components/ui/input';
+  import { Label } from '$lib/components/ui/label';
+  import { Separator } from '$lib/components/ui/separator';
+  import { headerState } from '$lib/state/header.svelte';
+  import { PlusIcon } from '@lucide/svelte';
+  import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
+  import LibraryIcon from '@lucide/svelte/icons/library';
+  import MonitorIcon from '@lucide/svelte/icons/monitor';
+  import MoonIcon from '@lucide/svelte/icons/moon';
+  import PencilIcon from '@lucide/svelte/icons/pencil';
+  import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+  import SunIcon from '@lucide/svelte/icons/sun';
+  import Trash2Icon from '@lucide/svelte/icons/trash-2';
+  import { setMode, userPrefersMode } from 'mode-watcher';
+  import { onMount } from 'svelte';
+  import { toast } from 'svelte-sonner';
 
   const DEFAULT_PATTERN = '{authors}/{title}{ext}';
 
@@ -50,11 +45,6 @@
 
   // Libraries
   let addLibOpen = $state(false);
-  let addLibFolderOpen = $state(false);
-  let newLibName = $state('');
-  let newLibFolder = $state(dev ? '/' : '/books');
-  let newLibPattern = $state('');
-  let addingLib = $state(false);
   let deletingLibId = $state<string | null>(null);
   let deleteConfirmLib = $state<Library | null>(null);
   let editingLib = $state<Library | null>(null);
@@ -164,30 +154,6 @@
     });
     librariesState.fetchAll();
   });
-
-  async function addLibrary() {
-    if (!newLibName.trim() || !newLibFolder) return;
-    addingLib = true;
-    try {
-      const id = await librariesState.create(
-        newLibName.trim(),
-        newLibFolder,
-        undefined,
-        newLibPattern.trim() || undefined
-      );
-      addLibOpen = false;
-      newLibName = '';
-      newLibFolder = '/books';
-      newLibPattern = '';
-      toast.success('Library added. Scanning for books...');
-      await librariesState.scan(id);
-      toast.success('Scan complete.');
-      goto(`/library/${id}`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to add library.');
-    }
-    addingLib = false;
-  }
 
   async function confirmDeleteLibrary() {
     if (!deleteConfirmLib) return;
@@ -541,74 +507,4 @@
   </AlertDialog.Content>
 </AlertDialog.Root>
 
-<!-- Add Library dialog -->
-<Dialog.Root bind:open={addLibOpen}>
-  <Dialog.Content class="sm:max-w-lg">
-    <Dialog.Header>
-      <Dialog.Title>Add Library</Dialog.Title>
-      <Dialog.Description>Give your library a name and choose its root folder.</Dialog.Description>
-    </Dialog.Header>
-    <div class="flex flex-col gap-4 py-2">
-      <div class="flex flex-col gap-1.5">
-        <Label class="text-sm font-medium" for="lib-name">Name</Label>
-        <Input id="lib-name" bind:value={newLibName} placeholder="My Library" />
-      </div>
-      <div class="flex flex-col gap-1.5">
-        <Label class="text-sm font-medium">Folder</Label>
-        <Button
-          type="button"
-          variant="outline"
-          class="w-full justify-start gap-2 font-normal {!newLibFolder
-            ? 'text-muted-foreground'
-            : ''}"
-          onclick={() => (addLibFolderOpen = true)}
-        >
-          {#if newLibFolder}
-            <FolderOpenIcon class="size-4 shrink-0" />
-            <span class="truncate">{newLibFolder}</span>
-          {:else}
-            <FolderIcon class="size-4 shrink-0" />
-            Select folder...
-          {/if}
-        </Button>
-      </div>
-      <div class="flex flex-col gap-1.5">
-        <Label class="text-sm font-medium" for="lib-pattern">
-          Naming Pattern <span class="font-normal text-muted-foreground">(optional)</span>
-        </Label>
-        <Input
-          id="lib-pattern"
-          bind:value={newLibPattern}
-          placeholder="Leave empty to use default"
-          class="font-mono text-sm"
-        />
-      </div>
-    </div>
-    <Dialog.Footer>
-      <Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cancel</Dialog.Close>
-      <Button onclick={addLibrary} disabled={addingLib || !newLibName.trim() || !newLibFolder}>
-        {addingLib ? 'Adding...' : 'Add Library'}
-      </Button>
-    </Dialog.Footer>
-  </Dialog.Content>
-</Dialog.Root>
-
-<!-- Add Library folder picker dialog -->
-<Dialog.Root bind:open={addLibFolderOpen}>
-  <Dialog.Content class="sm:max-w-2xl">
-    <Dialog.Header>
-      <Dialog.Title>Select Library Folder</Dialog.Title>
-      <Dialog.Description>Choose the root folder for this library.</Dialog.Description>
-    </Dialog.Header>
-    {#key addLibFolderOpen}
-      <FolderPicker bind:value={newLibFolder} />
-    {/key}
-    <Dialog.Footer>
-      <Dialog.Close class={buttonVariants({ variant: 'outline' })}>Cancel</Dialog.Close>
-      <Button onclick={() => (addLibFolderOpen = false)} disabled={!newLibFolder}>
-        <FolderOpenIcon class="size-4" />
-        Select Folder
-      </Button>
-    </Dialog.Footer>
-  </Dialog.Content>
-</Dialog.Root>
+<CreateLibrary bind:open={addLibOpen} />

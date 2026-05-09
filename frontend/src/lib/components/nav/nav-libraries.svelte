@@ -5,9 +5,11 @@
   import NavLibraryItem from './nav-library-item.svelte';
   import { useSidebar } from '$lib/components/ui/sidebar';
   import CreateLibrary from '../create-library.svelte';
+  import PlusIcon from '@lucide/svelte/icons/plus';
 
   const sidebar = useSidebar();
 
+  let createOpen = $state(false);
   let userOpen = $state(true);
   let open = $derived(sidebar.state === 'collapsed' || userOpen);
 
@@ -30,8 +32,16 @@
     >
       <span class="flex items-center justify-center gap-1">
         Libraries
-        <CreateLibrary />
+        <button
+          type="button"
+          class="flex items-center justify-center hover:cursor-pointer hover:text-foreground/80"
+          onclick={() => (createOpen = true)}
+          aria-label="Create library"
+        >
+          <PlusIcon class="size-4" />
+        </button>
       </span>
+      <CreateLibrary bind:open={createOpen} />
       {#if links.length > 0}
         <Collapsible.Trigger>
           <ChevronRightIcon
