@@ -135,11 +135,11 @@ func UpdateOPDSSettings(w http.ResponseWriter, r *http.Request) {
 	// Get current settings
 	var currentUsername string
 	var currentEnabled bool
-	err := db.DB.QueryRow(r.Context(),
+	lookupErr := db.DB.QueryRow(r.Context(),
 		"SELECT username, enabled FROM opds_credentials WHERE user_id = $1",
 		userID).Scan(&currentUsername, &currentEnabled)
 
-	hasSettings := err == nil
+	hasSettings := lookupErr == nil
 
 	username := currentUsername
 	if body.Username != nil {
@@ -151,9 +151,10 @@ func UpdateOPDSSettings(w http.ResponseWriter, r *http.Request) {
 		enabled = *body.Enabled
 	}
 
+	var err error
 	if body.Password != nil && *body.Password != "" {
-		hash, err := bcrypt.GenerateFromPassword([]byte(*body.Password), bcrypt.DefaultCost)
-		if err != nil {
+		hash, hashErr := bcrypt.GenerateFromPassword([]byte(*body.Password), bcrypt.DefaultCost)
+		if hashErr != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}

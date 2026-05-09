@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -244,7 +245,7 @@ func GetOPDSSeries(w http.ResponseWriter, r *http.Request) {
 		rows.Scan(&name)
 		feed.Entries = append(feed.Entries, OPDSEntry{
 			ID: "series:" + name, Title: name, Updated: feed.Updated,
-			Links: []OPDSLink{{Rel: "subsection", Href: fmt.Sprintf("%s/opds/series/%s.xml", baseURL, name), Type: "application/atom+xml;profile=opds-catalog;kind=acquisition"}},
+			Links: []OPDSLink{{Rel: "subsection", Href: fmt.Sprintf("%s/opds/series/%s.xml", baseURL, url.PathEscape(name)), Type: "application/atom+xml;profile=opds-catalog;kind=acquisition"}},
 		})
 	}
 	w.Header().Set("Content-Type", "application/atom+xml; charset=utf-8")
