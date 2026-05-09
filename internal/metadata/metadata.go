@@ -213,7 +213,7 @@ func extractEPUB(filePath string) BookMeta {
 	m := pkg.Metadata
 	meta := BookMeta{
 		Title:       first(m.Title),
-		Creator:     first(m.Creator),
+		Creator:     joinAll(m.Creator),
 		Subject:     joinAll(m.Subject),
 		Description: first(m.Description),
 		Publisher:   first(m.Publisher),

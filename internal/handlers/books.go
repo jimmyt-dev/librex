@@ -1135,6 +1135,7 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 		"SELECT write_metadata_to_file FROM user_settings WHERE user_id = $1",
 		userID).Scan(&writeToFile)
 	if writeToFile {
+		var booksToWrite []models.Book
 		for _, res := range results {
 			if res.Error != "" {
 				continue
@@ -1144,30 +1145,39 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				continue
 			}
-			// Only write the fields that were actually in the bulk-edit request.
-			// Leaving a WriteMeta field nil means "don't touch that element in the file."
-			wm := metadata.WriteMeta{}
-			if body.Publisher != nil {
-				wm.Publisher = book.Metadata.Publisher
-			}
-			if body.Language != nil {
-				wm.Language = book.Metadata.Language
-			}
-			if body.Authors != nil {
-				names := make([]string, len(book.Authors))
-				for i, a := range book.Authors {
-					names[i] = a.Name
+			booksToWrite = append(booksToWrite, book)
+		}
+		// Batch-load authors/genres so the EPUB write has real data.
+		// bookQuery+scanBook does not join these tables, so without this
+		// Authors and Genres would be empty slices, erasing them from the file.
+		if len(booksToWrite) > 0 {
+			_ = attachBookRelations(r, booksToWrite)
+			for _, book := range booksToWrite {
+				// Only write the fields that were actually in the bulk-edit request.
+				// Leaving a WriteMeta field nil means "don't touch that element in the file."
+				wm := metadata.WriteMeta{}
+				if body.Publisher != nil {
+					wm.Publisher = book.Metadata.Publisher
 				}
-				wm.Authors = &names
-			}
-			if body.Genres != nil {
-				genres := make([]string, len(book.Genres))
-				for i, g := range book.Genres {
-					genres[i] = g.Name
+				if body.Language != nil {
+					wm.Language = book.Metadata.Language
 				}
-				wm.Subjects = &genres
+				if body.Authors != nil {
+					names := make([]string, len(book.Authors))
+					for i, a := range book.Authors {
+						names[i] = a.Name
+					}
+					wm.Authors = &names
+				}
+				if body.Genres != nil {
+					genres := make([]string, len(book.Genres))
+					for i, g := range book.Genres {
+						genres[i] = g.Name
+					}
+					wm.Subjects = &genres
+				}
+				_ = metadata.Write(book.FilePath, wm)
 			}
-			_ = metadata.Write(book.FilePath, wm)
 		}
 	}
 
