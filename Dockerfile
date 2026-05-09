@@ -16,7 +16,7 @@ COPY frontend/ ./
 # BETTER_AUTH_SECRET must exist at build time because SvelteKit runs server code
 # during vite build. This placeholder is never used at runtime.
 ARG BETTER_AUTH_SECRET=build-time-placeholder-not-used-at-runtime
-RUN BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET pnpm build
+RUN BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET ./node_modules/.bin/vite build
 
 # ── Runtime ───────────────────────────────────────────────────────────────────────
 FROM node:22-alpine
