@@ -121,7 +121,7 @@
         if (suggestions.length > 0) showSuggestions = true;
       }}
       onblur={() => {
-        // Delay to allow click on suggestion
+        if (inputValue.trim()) addValues(inputValue);
         setTimeout(() => {
           showSuggestions = false;
         }, 150);
