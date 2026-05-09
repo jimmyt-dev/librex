@@ -623,6 +623,11 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var writeToFile bool
+	_ = db.DB.QueryRow(r.Context(),
+		"SELECT write_metadata_to_file FROM user_settings WHERE user_id = $1",
+		userID).Scan(&writeToFile)
+
 	results := make([]importResult, 0, len(items))
 
 	for _, item := range items {
@@ -784,6 +789,28 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			res.Error = fmt.Sprintf("db error: %v", err)
 			results = append(results, res)
 			continue
+		}
+
+		// Write staged metadata back to the imported file if enabled.
+		if writeToFile {
+			authorNames := make([]string, len(authors))
+			for i, a := range authors {
+				authorNames[i] = a.Name
+			}
+			genreNames := make([]string, len(genres))
+			for i, g := range genres {
+				genreNames[i] = g.Name
+			}
+			wm := metadata.WriteMeta{
+				Title:       book.Title,
+				Authors:     &authorNames,
+				Description: book.Description,
+				Publisher:   book.Publisher,
+				Date:        book.Date,
+				Language:    book.Language,
+				Subjects:    &genreNames,
+			}
+			_ = metadata.Write(destPath, wm)
 		}
 
 		// Success! Remove the original file from Bookdrop.
