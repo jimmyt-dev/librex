@@ -231,6 +231,7 @@ func replaceDCField(inner, name string, values []string) string {
 			sb.WriteString(name)
 			sb.WriteString(">")
 		}
+		sb.WriteString("\n")
 		return inner + sb.String()
 	}
 
@@ -258,24 +259,20 @@ func replaceDCField(inner, name string, values []string) string {
 		lastEnd = m[1]
 
 		// If this was the last original tag but we have more values to write,
-		// append them immediately after it, copying the style of the last match.
+		// append them immediately after it, each on its own line.
 		if i == len(matches)-1 && len(cleanValues) > len(matches) {
 			indent := inner[m[2]:m[3]]
 			nameWithPrefix := inner[m[4]:m[5]]
 			closeTag := inner[m[8]:m[9]]
-			newline := inner[m[10]:m[11]]
-			if newline == "" {
-				newline = "\n"
-			}
 
 			for j := len(matches); j < len(cleanValues); j++ {
+				sb.WriteString("\n")
 				sb.WriteString(indent)
 				sb.WriteString("<")
 				sb.WriteString(nameWithPrefix)
 				sb.WriteString(">")
 				xmlEscapeText(&sb, cleanValues[j])
 				sb.WriteString(closeTag)
-				sb.WriteString(newline)
 			}
 		}
 	}
