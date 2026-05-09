@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { Book } from '$lib/api/books.svelte';
-  import { filterState, type FilterMode, type ItemState } from '$lib/state/filter.svelte';
   import { Button } from '$lib/components/ui/button';
-  import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+  import { filterState, type FilterMode, type ItemState } from '$lib/state/filter.svelte';
   import CheckIcon from '@lucide/svelte/icons/check';
+  import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
   import StarIcon from '@lucide/svelte/icons/star';
   import XIcon from '@lucide/svelte/icons/x';
   import { SvelteSet } from 'svelte/reactivity';
@@ -28,6 +28,12 @@
     return [...names].sort((a, b) => a.localeCompare(b));
   });
 
+  let availablePublishers = $derived.by(() => {
+    const names = new SvelteSet<string>();
+    for (const b of books) if (b.metadata.publisher) names.add(b.metadata.publisher);
+    return [...names].sort((a, b) => a.localeCompare(b));
+  });
+
   let availableLanguages = $derived.by(() => {
     const langs = new SvelteSet<string>();
     for (const b of books) if (b.metadata.language) langs.add(b.metadata.language);
@@ -49,6 +55,7 @@
     status: true,
     rating: true,
     authors: true,
+    publisher: true,
     genres: true,
     tags: true,
     language: true
@@ -144,7 +151,7 @@
   this={sheet ? 'div' : 'aside'}
   class={sheet
     ? 'flex flex-1 flex-col overflow-hidden'
-    : 'sticky top-4 flex w-64 shrink-0 flex-col self-start rounded-lg border bg-card'}
+    : 'sticky top-20 flex max-h-[calc(100svh-6rem)] w-64 shrink-0 flex-col self-start rounded-lg border bg-card'}
 >
   <div class="flex items-center justify-between border-b px-4 py-3">
     <span class="text-sm font-semibold">Filters</span>
@@ -249,6 +256,30 @@
               {#each availableAuthors as name (name)}
                 {@render triItem(name, filterState.authorSelections.get(name), () =>
                   filterState.toggleAuthor(name)
+                )}
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </div>
+    {/if}
+
+    <!-- Publisher -->
+    {#if availablePublishers.length > 0}
+      <div class="my-1 border-t"></div>
+      <div>
+        {@render sectionHeader(
+          'Publisher',
+          filterState.publisherSelections.size,
+          sectionOpen.publisher,
+          () => (sectionOpen.publisher = !sectionOpen.publisher)
+        )}
+        {#if sectionOpen.publisher}
+          <div class="max-h-48 overflow-y-auto pb-2">
+            <div class="flex flex-col">
+              {#each availablePublishers as name (name)}
+                {@render triItem(name, filterState.publisherSelections.get(name), () =>
+                  filterState.togglePublisher(name)
                 )}
               {/each}
             </div>

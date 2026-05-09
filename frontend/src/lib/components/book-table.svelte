@@ -109,6 +109,24 @@
     goto('/all-books');
   }
 
+  function filterByPublisher(name: string) {
+    filterState.publisherSelections = new SvelteMap<string, ItemState>([[name, 'include']]);
+    filterState.open = true;
+    goto('/all-books');
+  }
+
+  function filterByStatus(status: string) {
+    filterState.statusSelections = new SvelteMap<string, ItemState>([[status, 'include']]);
+    filterState.open = true;
+    goto('/all-books');
+  }
+
+  function filterByLanguage(lang: string) {
+    filterState.languageSelections = new SvelteMap<string, ItemState>([[lang, 'include']]);
+    filterState.open = true;
+    goto('/all-books');
+  }
+
   let allSelected = $derived(books.length > 0 && books.every((b) => selectedIds.has(b.id)));
 
   function toggleAll() {
@@ -151,7 +169,7 @@
         {#if col('format')}<th class="px-4 py-2.5 text-left font-medium">Format</th>{/if}
         {#if col('addedOn')}<th class="px-4 py-2.5 text-left font-medium">Added</th>{/if}
         <th
-          class="sticky right-0 z-20 w-12 bg-muted/95 px-4 py-2.5 shadow-[-1px_0_0_rgba(0,0,0,0.1)] backdrop-blur-sm"
+          class="sticky right-0 z-40 w-12 bg-muted/95 px-4 py-2.5 shadow-[-1px_0_0_rgba(0,0,0,0.1)]"
         ></th>
       </tr>
     </thead>
@@ -239,14 +257,27 @@
             </td>
 
             {#if col('authors')}
-              <td class="px-4 py-2 text-muted-foreground">
-                <div class="w-36 truncate">{book.authors.map((a) => a.name).join(', ') || '—'}</div>
+              <td class="px-4 py-2 text-muted-foreground" onclick={(e) => e.stopPropagation()}>
+                <div class="w-36 truncate">
+                  {#each book.authors as author, i (author.id)}
+                    {#if i > 0},{' '}{/if}<a href="/authors/{author.id}" class="hover:underline"
+                      >{author.name}</a
+                    >
+                  {:else}—{/each}
+                </div>
               </td>
             {/if}
 
             {#if col('series')}
-              <td class="px-4 py-2 text-muted-foreground">
-                <div class="w-40 truncate">{formatSeries(book)}</div>
+              <td class="px-4 py-2 text-muted-foreground" onclick={(e) => e.stopPropagation()}>
+                <div class="w-40 truncate">
+                  {#if book.metadata.seriesName}
+                    <a
+                      href="/series/{encodeURIComponent(book.metadata.seriesName)}"
+                      class="hover:underline">{formatSeries(book)}</a
+                    >
+                  {:else}—{/if}
+                </div>
               </td>
             {/if}
 
@@ -280,8 +311,14 @@
             {/if}
 
             {#if col('status')}
-              <td class="px-4 py-2 text-muted-foreground">
-                {formatStatus(book.progress?.status)}
+              <td class="px-4 py-2 text-muted-foreground" onclick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  class="hover:underline"
+                  onclick={() => filterByStatus(book.progress?.status ?? 'unread')}
+                >
+                  {formatStatus(book.progress?.status ?? 'unread')}
+                </button>
               </td>
             {/if}
 
@@ -296,8 +333,17 @@
             {/if}
 
             {#if col('publisher')}
-              <td class="px-4 py-2 text-muted-foreground">
-                <div class="w-36 truncate">{book.metadata.publisher ?? '—'}</div>
+              <td class="px-4 py-2 text-muted-foreground" onclick={(e) => e.stopPropagation()}>
+                <div class="w-36 truncate">
+                  {#if book.metadata.publisher}
+                    <button
+                      type="button"
+                      class="hover:underline"
+                      onclick={() => filterByPublisher(book.metadata.publisher!)}
+                      >{book.metadata.publisher}</button
+                    >
+                  {:else}—{/if}
+                </div>
               </td>
             {/if}
 
@@ -314,8 +360,16 @@
             {/if}
 
             {#if col('language')}
-              <td class="px-4 py-2 text-muted-foreground">
-                {book.metadata.language ?? '—'}
+              <td class="px-4 py-2 text-muted-foreground" onclick={(e) => e.stopPropagation()}>
+                {#if book.metadata.language}
+                  <button
+                    type="button"
+                    class="hover:underline"
+                    onclick={() => filterByLanguage(book.metadata.language!)}
+                  >
+                    {book.metadata.language}
+                  </button>
+                {:else}—{/if}
               </td>
             {/if}
 

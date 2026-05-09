@@ -135,7 +135,9 @@
       </div>
     {:else}
       <div class="flex flex-col gap-4" in:fade>
-        <BookViewControls bind:searchQuery />
+        <div class="sticky top-16 z-20 bg-background">
+          <BookViewControls bind:searchQuery />
+        </div>
         {#if sortedBooks.length === 0}
           <div
             class="flex min-h-64 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20"

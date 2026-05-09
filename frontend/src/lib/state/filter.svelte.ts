@@ -41,6 +41,8 @@ class FilterState {
   authorSelections = $state<Map<string, ItemState>>(new Map());
   authorMode = $state<FilterMode>('or');
 
+  publisherSelections = $state<Map<string, ItemState>>(new Map());
+
   genreSelections = $state<Map<string, ItemState>>(new Map());
   genreMode = $state<FilterMode>('or');
 
@@ -56,6 +58,7 @@ class FilterState {
   get activeCount(): number {
     return (
       (this.authorSelections.size > 0 ? 1 : 0) +
+      (this.publisherSelections.size > 0 ? 1 : 0) +
       (this.genreSelections.size > 0 ? 1 : 0) +
       (this.tagSelections.size > 0 ? 1 : 0) +
       (this.statusSelections.size > 0 ? 1 : 0) +
@@ -72,6 +75,14 @@ class FilterState {
           b.authors.map((a) => a.name),
           this.authorSelections,
           this.authorMode
+        )
+      )
+        return false;
+      if (
+        !applyCategory(
+          b.metadata.publisher ? [b.metadata.publisher] : [],
+          this.publisherSelections,
+          'or'
         )
       )
         return false;
@@ -112,6 +123,7 @@ class FilterState {
 
   clear() {
     this.authorSelections = new Map();
+    this.publisherSelections = new Map();
     this.genreSelections = new Map();
     this.tagSelections = new Map();
     this.statusSelections = new Map();
@@ -121,6 +133,9 @@ class FilterState {
 
   toggleAuthor(name: string) {
     this.authorSelections = cycleItem(this.authorSelections, name);
+  }
+  togglePublisher(name: string) {
+    this.publisherSelections = cycleItem(this.publisherSelections, name);
   }
   toggleGenre(name: string) {
     this.genreSelections = cycleItem(this.genreSelections, name);
