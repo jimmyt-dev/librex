@@ -153,6 +153,29 @@ func GetBookAll(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(books)
 }
 
+// GetBookRawMetadata returns the raw <metadata> block from the book's EPUB OPF file.
+func GetBookRawMetadata(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+	id := chi.URLParam(r, "id")
+
+	var filePath string
+	err := db.DB.QueryRow(r.Context(),
+		"SELECT file_path FROM books WHERE id = $1 AND user_id = $2", id, userID).Scan(&filePath)
+	if err != nil {
+		http.Error(w, "book not found", http.StatusNotFound)
+		return
+	}
+
+	raw, err := metadata.ExtractRawOPFMetadata(filePath)
+	if err != nil {
+		http.Error(w, "could not read file metadata: "+err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Write([]byte(raw))
+}
+
 // GetBookCover serves the cover image from disk.
 func GetBookCover(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
@@ -269,7 +292,11 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 
 	// Update authors
 	if body.Authors != nil {
-		authors, err := findOrCreateAuthorsTX(r, tx, *body.Authors, userID)
+		authorInput := *body.Authors
+		if len(authorInput) == 0 {
+			authorInput = []string{"Unknown"}
+		}
+		authors, err := findOrCreateAuthorsTX(r, tx, authorInput, userID)
 		if err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
@@ -333,6 +360,9 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 		authorNames := make([]string, len(existing.Authors))
 		for i, a := range existing.Authors {
 			authorNames[i] = a.Name
+		}
+		if len(authorNames) == 0 {
+			authorNames = []string{"Unknown"}
 		}
 		genreNames := make([]string, len(existing.Genres))
 		for i, g := range existing.Genres {
@@ -977,7 +1007,11 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if body.Authors != nil {
-		newAuthors, err = findOrCreateAuthors(r, *body.Authors, userID)
+		authorInput := *body.Authors
+		if len(authorInput) == 0 {
+			authorInput = []string{"Unknown"}
+		}
+		newAuthors, err = findOrCreateAuthors(r, authorInput, userID)
 		if err != nil {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
@@ -1166,6 +1200,9 @@ func BulkUpdateBooks(w http.ResponseWriter, r *http.Request) {
 					names := make([]string, len(book.Authors))
 					for i, a := range book.Authors {
 						names[i] = a.Name
+					}
+					if len(names) == 0 {
+						names = []string{"Unknown"}
 					}
 					wm.Authors = &names
 				}

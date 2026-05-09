@@ -118,27 +118,30 @@
   let deleting = $state(false);
   let isBulkDelete = $state(false);
 
-  let dirty = $derived.by(() => {
+  let dirtyFields = $derived.by((): Record<string, boolean> => {
     const b = editingBook;
-    if (!b) return false;
-    return (
-      editTitle !== b.title ||
-      editSubtitle !== (b.subtitle ?? '') ||
-      editDescription !== (b.description ?? '') ||
-      editPublisher !== (b.publisher ?? '') ||
-      editDate !== normalizeDate(b.date) ||
-      editIdentifier !== (b.identifier ?? '') ||
-      editLanguage !== (b.language ?? '') ||
-      editPageCount !== (b.pageCount?.toString() ?? '') ||
-      editSeriesName !== (b.seriesName ?? '') ||
-      editSeriesNumber !== (b.seriesNumber?.toString() ?? '') ||
-      editSeriesTotal !== (b.seriesTotal?.toString() ?? '') ||
-      editRating !== (b.rating?.toString() ?? '') ||
-      JSON.stringify(editAuthors) !== JSON.stringify(subjectToTags(b.author)) ||
-      JSON.stringify(editGenres) !== JSON.stringify(subjectToTags(b.subject)) ||
-      JSON.stringify(editTags) !== JSON.stringify(subjectToTags(b.tags))
-    );
+    if (!b) return {};
+    return {
+      title: editTitle !== b.title,
+      subtitle: editSubtitle !== (b.subtitle ?? ''),
+      authors: JSON.stringify(editAuthors) !== JSON.stringify(subjectToTags(b.author)),
+      description: editDescription !== (b.description ?? ''),
+      publisher: editPublisher !== (b.publisher ?? ''),
+      publishedDate: editDate !== normalizeDate(b.date),
+      isbn13: editIdentifier !== (b.identifier ?? ''),
+      language: editLanguage !== (b.language ?? ''),
+      pageCount: editPageCount !== (b.pageCount?.toString() ?? ''),
+      series:
+        editSeriesName !== (b.seriesName ?? '') ||
+        editSeriesNumber !== (b.seriesNumber?.toString() ?? '') ||
+        editSeriesTotal !== (b.seriesTotal?.toString() ?? ''),
+      rating: editRating !== (b.rating?.toString() ?? ''),
+      genres: JSON.stringify(editGenres) !== JSON.stringify(subjectToTags(b.subject)),
+      tags: JSON.stringify(editTags) !== JSON.stringify(subjectToTags(b.tags))
+    };
   });
+
+  let dirty = $derived(Object.values(dirtyFields).some(Boolean));
 
   function revertEdit() {
     if (!editingBook) return;
@@ -899,6 +902,7 @@
             bind:tags={editTags}
             coverSrc={editingBook.hasCover ? coverUrl(editingBook.id) : null}
             showIsbn10={false}
+            {dirtyFields}
           />
         </div>
         <Sheet.Footer>

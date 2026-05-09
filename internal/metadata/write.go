@@ -170,6 +170,7 @@ func patchOPFMetadata(opfData []byte, meta WriteMeta) ([]byte, error) {
 	}
 	if meta.Authors != nil {
 		inner = replaceDCField(inner, "creator", *meta.Authors)
+		inner = removeOrphanedRefines(inner)
 	}
 	if meta.Description != nil {
 		inner = replaceDCField(inner, "description", strSliceIfNotEmpty(*meta.Description))
@@ -305,4 +306,28 @@ func splitTrimmed(s, sep string) []string {
 		}
 	}
 	return out
+}
+
+var elementIDRe = regexp.MustCompile(`\bid="([^"]+)"`)
+var metaRefinesRe = regexp.MustCompile(`(?i)([ \t]*)<meta\s[^>]*\brefines="#([^"]+)"[^>]*/>([ \t]*\n?)`)
+var metaRefinesContentRe = regexp.MustCompile(`(?i)([ \t]*)<meta\s[^>]*\brefines="#([^"]+)"[^>]*>[^<]*</[^>]+>([ \t]*\n?)`)
+
+// removeOrphanedRefines removes <meta refines="#id"> elements whose target id
+// no longer exists in the inner metadata content. This cleans up EPUB3 refinement
+// metadata (role, file-as, etc.) that referenced dc:creator elements which were removed.
+func removeOrphanedRefines(inner string) string {
+	existingIDs := make(map[string]bool)
+	for _, m := range elementIDRe.FindAllStringSubmatch(inner, -1) {
+		existingIDs[m[1]] = true
+	}
+	remove := func(match string, re *regexp.Regexp) string {
+		sub := re.FindStringSubmatch(match)
+		if len(sub) > 2 && !existingIDs[sub[2]] {
+			return ""
+		}
+		return match
+	}
+	inner = metaRefinesRe.ReplaceAllStringFunc(inner, func(m string) string { return remove(m, metaRefinesRe) })
+	inner = metaRefinesContentRe.ReplaceAllStringFunc(inner, func(m string) string { return remove(m, metaRefinesContentRe) })
+	return inner
 }

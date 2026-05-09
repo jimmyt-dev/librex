@@ -3,6 +3,7 @@ package metadata
 import (
 	"archive/zip"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"path"
 	"path/filepath"
@@ -58,6 +59,71 @@ type BookMeta struct {
 	CoverImage []byte // raw cover image bytes (nil if not found)
 	CoverMime  string // e.g. "image/jpeg"
 }
+
+// ExtractRawOPFMetadata returns the raw text content of the <metadata>…</metadata>
+// block from an EPUB's OPF file. Returns an error for non-EPUB files or read failures.
+func ExtractRawOPFMetadata(filePath string) (string, error) {
+	if strings.ToLower(filepath.Ext(filePath)) != ".epub" {
+		return "", fmt.Errorf("not an EPUB file")
+	}
+	r, err := zip.OpenReader(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer r.Close()
+
+	fileIndex := make(map[string]*zip.File, len(r.File))
+	for _, f := range r.File {
+		fileIndex[f.Name] = f
+	}
+
+	opfPath := ""
+	for name := range fileIndex {
+		if strings.EqualFold(name, "META-INF/container.xml") {
+			rc, err := fileIndex[name].Open()
+			if err != nil {
+				break
+			}
+			var c container
+			if err := xml.NewDecoder(io.LimitReader(rc, 1024*1024)).Decode(&c); err == nil && len(c.Rootfile) > 0 {
+				opfPath = c.Rootfile[0].FullPath
+			}
+			rc.Close()
+			break
+		}
+	}
+	if opfPath == "" {
+		return "", fmt.Errorf("no OPF file found")
+	}
+
+	opfFile, ok := fileIndex[opfPath]
+	if !ok {
+		return "", fmt.Errorf("OPF file not found in zip")
+	}
+	rc, err := opfFile.Open()
+	if err != nil {
+		return "", err
+	}
+	data, err := io.ReadAll(io.LimitReader(rc, maxOpfSize))
+	rc.Close()
+	if err != nil {
+		return "", err
+	}
+
+	s := string(data)
+	open := metadataOpenRe.FindStringIndex(s)
+	if open == nil {
+		return "", fmt.Errorf("no <metadata> element found")
+	}
+	close := metadataCloseRe.FindStringIndex(s[open[1]:])
+	if close == nil {
+		return "", fmt.Errorf("no </metadata> closing tag found")
+	}
+	return s[open[0] : open[1]+close[1]], nil
+}
+
+var metadataOpenRe = regexp.MustCompile(`<(?:[a-zA-Z0-9_-]+:)?metadata(?:\s[^>]*)?>`)
+var metadataCloseRe = regexp.MustCompile(`</(?:[a-zA-Z0-9_-]+:)?metadata>`)
 
 // Extract reads metadata from a book file based on its extension.
 func Extract(filePath string) BookMeta {

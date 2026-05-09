@@ -293,29 +293,28 @@ func UpdateStagedBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Always apply fields the client sends — nil means "clear this field".
+	// The edit form always includes all editable fields in the payload.
 	if body.Title != nil {
 		existing.Title = *body.Title
 	}
-	if body.Subtitle != nil {
-		existing.Subtitle = body.Subtitle
-	}
-	if body.Author != nil {
-		existing.Author = body.Author
-	}
-	if body.Subject != nil {
-		existing.Subject = body.Subject
-	}
-	if body.Description != nil {
-		existing.Description = body.Description
-	}
-	if body.Publisher != nil {
-		existing.Publisher = body.Publisher
-	}
+	existing.Subtitle = body.Subtitle
+	existing.Author = body.Author
+	existing.Subject = body.Subject
+	existing.Description = body.Description
+	existing.Publisher = body.Publisher
+	existing.Date = body.Date
+	existing.Identifier = body.Identifier
+	existing.Language = body.Language
+	existing.SeriesName = body.SeriesName
+	existing.SeriesNumber = body.SeriesNumber
+	existing.SeriesTotal = body.SeriesTotal
+	existing.PageCount = body.PageCount
+	existing.Rating = body.Rating
+	existing.Tags = body.Tags
+	// Rarely-edited fields: only update when explicitly provided.
 	if body.Contributor != nil {
 		existing.Contributor = body.Contributor
-	}
-	if body.Date != nil {
-		existing.Date = body.Date
 	}
 	if body.Type != nil {
 		existing.Type = body.Type
@@ -323,38 +322,14 @@ func UpdateStagedBook(w http.ResponseWriter, r *http.Request) {
 	if body.Format != nil {
 		existing.Format = body.Format
 	}
-	if body.Identifier != nil {
-		existing.Identifier = body.Identifier
-	}
 	if body.Source != nil {
 		existing.Source = body.Source
-	}
-	if body.Language != nil {
-		existing.Language = body.Language
 	}
 	if body.Relation != nil {
 		existing.Relation = body.Relation
 	}
 	if body.Coverage != nil {
 		existing.Coverage = body.Coverage
-	}
-	if body.SeriesName != nil {
-		existing.SeriesName = body.SeriesName
-	}
-	if body.SeriesNumber != nil {
-		existing.SeriesNumber = body.SeriesNumber
-	}
-	if body.SeriesTotal != nil {
-		existing.SeriesTotal = body.SeriesTotal
-	}
-	if body.PageCount != nil {
-		existing.PageCount = body.PageCount
-	}
-	if body.Rating != nil {
-		existing.Rating = body.Rating
-	}
-	if body.Tags != nil {
-		existing.Tags = body.Tags
 	}
 
 	_, err = db.DB.Exec(r.Context(),
@@ -684,16 +659,17 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		var authors []models.Author
+		authorInput := []string{"Unknown"}
 		if book.Author != nil && *book.Author != "" {
-			authors, err = findOrCreateAuthorsTX(r, tx, parseAuthorString(*book.Author), userID)
-			if err != nil {
-				tx.Rollback(r.Context())
-				os.Remove(destPath)
-				res.Error = "failed to resolve authors"
-				results = append(results, res)
-				continue
-			}
+			authorInput = parseAuthorString(*book.Author)
+		}
+		authors, err := findOrCreateAuthorsTX(r, tx, authorInput, userID)
+		if err != nil {
+			tx.Rollback(r.Context())
+			os.Remove(destPath)
+			res.Error = "failed to resolve authors"
+			results = append(results, res)
+			continue
 		}
 		var genres []models.Genre
 		if book.Subject != nil && *book.Subject != "" {
@@ -796,6 +772,9 @@ func ImportBooks(w http.ResponseWriter, r *http.Request) {
 			authorNames := make([]string, len(authors))
 			for i, a := range authors {
 				authorNames[i] = a.Name
+			}
+			if len(authorNames) == 0 {
+				authorNames = []string{"Unknown"}
 			}
 			genreNames := make([]string, len(genres))
 			for i, g := range genres {
