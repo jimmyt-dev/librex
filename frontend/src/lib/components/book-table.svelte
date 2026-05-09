@@ -212,6 +212,7 @@
                   src={`/api/books/${book.id}/cover`}
                   alt=""
                   class="h-10 w-7 rounded object-cover shadow-sm"
+                  loading="lazy"
                 />
               {:else}
                 <div

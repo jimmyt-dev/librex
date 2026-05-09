@@ -5,12 +5,6 @@
   headerState.subtitle = null;
   headerState.counts = [];
   import { apiFetch } from '$lib/api/client';
-  import {
-    fetchAuthorSuggestions,
-    fetchGenreSuggestions,
-    fetchTagSuggestions,
-    fetchSeriesSuggestions
-  } from '$lib/api/suggestions';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { librariesState } from '$lib/api/libraries.svelte';
@@ -24,13 +18,16 @@
   import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
   import { Spinner } from '$lib/components/ui/spinner';
   import { Checkbox } from '$lib/components/ui/checkbox';
-  import TagInput from '$lib/components/tag-input.svelte';
   import ArrayField from '$lib/components/array-field.svelte';
-  import StarRating from '$lib/components/star-rating.svelte';
   import { Label } from '$lib/components/ui/label';
-  import { Textarea } from '$lib/components/ui/textarea';
   import { toast } from 'svelte-sonner';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import BookMetaForm from '$lib/components/book-meta-form.svelte';
+  import {
+    fetchAuthorSuggestions,
+    fetchGenreSuggestions,
+    fetchTagSuggestions
+  } from '$lib/api/suggestions';
 
   interface StagedBook {
     id: string;
@@ -120,9 +117,6 @@
   let deleteFile = $state(false);
   let deleting = $state(false);
   let isBulkDelete = $state(false);
-  let seriesSuggestions = $state<string[]>([]);
-  let showSeriesDropdown = $state(false);
-  let seriesHighlightIndex = $state(-1);
 
   let dirty = $derived.by(() => {
     const b = editingBook;
@@ -132,7 +126,7 @@
       editSubtitle !== (b.subtitle ?? '') ||
       editDescription !== (b.description ?? '') ||
       editPublisher !== (b.publisher ?? '') ||
-      editDate !== (b.date ?? '') ||
+      editDate !== normalizeDate(b.date) ||
       editIdentifier !== (b.identifier ?? '') ||
       editLanguage !== (b.language ?? '') ||
       editPageCount !== (b.pageCount?.toString() ?? '') ||
@@ -379,9 +373,6 @@
     editSeriesTotal = book.seriesTotal?.toString() ?? '';
     editPageCount = book.pageCount?.toString() ?? '';
     editRating = book.rating?.toString() ?? '';
-    seriesSuggestions = [];
-    showSeriesDropdown = false;
-    seriesHighlightIndex = -1;
     sheetOpen = true;
   }
 
@@ -889,155 +880,26 @@
             {editingBook.fileName}
           </Sheet.Description>
         </Sheet.Header>
-        <div class="flex flex-col gap-4 overflow-y-auto px-4 py-6">
-          {#if editingBook.hasCover}
-            <img
-              src={coverUrl(editingBook.id)}
-              alt="Cover"
-              class="mx-auto h-48 w-auto rounded object-contain shadow"
-            />
-          {/if}
-          <div class="flex flex-col gap-1.5">
-            <Label for="edit-title" class="text-sm font-medium">Title</Label>
-            <Input id="edit-title" bind:value={editTitle} />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label for="edit-subtitle" class="text-sm font-medium">Subtitle</Label>
-            <Input id="edit-subtitle" bind:value={editSubtitle} />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label class="text-sm font-medium">Authors</Label>
-            <TagInput
-              bind:values={editAuthors}
-              placeholder="Add author…"
-              fetchSuggestions={fetchAuthorSuggestions}
-            />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label for="edit-description" class="text-sm font-medium">Description</Label>
-            <Textarea
-              id="edit-description"
-              bind:value={editDescription}
-              placeholder="Description"
-            />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label for="edit-publisher" class="text-sm font-medium">Publisher</Label>
-            <Input id="edit-publisher" bind:value={editPublisher} />
-          </div>
-          <div class="grid grid-cols-2 gap-4">
-            <div class="flex flex-col gap-1.5">
-              <Label for="edit-date" class="text-sm font-medium">Published Date</Label>
-              <Input id="edit-date" type="date" bind:value={editDate} />
-            </div>
-            <div class="flex flex-col gap-1.5">
-              <Label for="edit-language" class="text-sm font-medium">Language</Label>
-              <Input id="edit-language" bind:value={editLanguage} placeholder="en" />
-            </div>
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label for="edit-identifier" class="text-sm font-medium">ISBN</Label>
-            <Input id="edit-identifier" bind:value={editIdentifier} />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label for="edit-page-count" class="text-sm font-medium">Page Count</Label>
-            <Input id="edit-page-count" type="number" bind:value={editPageCount} />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label class="text-sm font-medium">Series</Label>
-            <div class="grid grid-cols-[1fr_4rem] gap-2">
-              <div class="relative">
-                <Input
-                  bind:value={editSeriesName}
-                  placeholder="Series name"
-                  oninput={async () => {
-                    seriesHighlightIndex = -1;
-                    if (editSeriesName.trim().length < 1) {
-                      seriesSuggestions = [];
-                      showSeriesDropdown = false;
-                      return;
-                    }
-                    seriesSuggestions = await fetchSeriesSuggestions(editSeriesName.trim());
-                    showSeriesDropdown = seriesSuggestions.length > 0;
-                  }}
-                  onkeydown={(e) => {
-                    if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      if (seriesSuggestions.length > 0) {
-                        showSeriesDropdown = true;
-                        seriesHighlightIndex = Math.min(
-                          seriesHighlightIndex + 1,
-                          seriesSuggestions.length - 1
-                        );
-                      }
-                    } else if (e.key === 'ArrowUp') {
-                      e.preventDefault();
-                      seriesHighlightIndex = Math.max(seriesHighlightIndex - 1, -1);
-                    } else if (e.key === 'Enter' && seriesHighlightIndex >= 0) {
-                      e.preventDefault();
-                      editSeriesName = seriesSuggestions[seriesHighlightIndex];
-                      showSeriesDropdown = false;
-                      seriesHighlightIndex = -1;
-                    } else if (e.key === 'Escape') {
-                      showSeriesDropdown = false;
-                      seriesHighlightIndex = -1;
-                    }
-                  }}
-                  onfocus={() => {
-                    if (seriesSuggestions.length > 0) showSeriesDropdown = true;
-                  }}
-                  onblur={() => setTimeout(() => (showSeriesDropdown = false), 150)}
-                />
-                {#if showSeriesDropdown}
-                  <div
-                    class="absolute top-full right-0 left-0 z-50 mt-1 max-h-32 overflow-y-auto rounded-lg border bg-popover shadow-md"
-                  >
-                    {#each seriesSuggestions as s, i (i)}
-                      <button
-                        type="button"
-                        class="w-full px-2.5 py-1.5 text-left text-sm hover:bg-accent {i ===
-                        seriesHighlightIndex
-                          ? 'bg-accent'
-                          : ''}"
-                        onmousedown={() => {
-                          editSeriesName = s;
-                          showSeriesDropdown = false;
-                          seriesHighlightIndex = -1;
-                        }}>{s}</button
-                      >
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-              <Input type="number" bind:value={editSeriesNumber} placeholder="#" />
-            </div>
-            <div class="mt-1 grid grid-cols-2 gap-2">
-              <div class="flex flex-col gap-1">
-                <Label class="text-xs text-muted-foreground">Total Books</Label>
-                <Input type="number" bind:value={editSeriesTotal} placeholder="Total" />
-              </div>
-            </div>
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label class="text-sm font-medium">Rating</Label>
-            <StarRating bind:value={editRating} />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label class="text-sm font-medium">Genres</Label>
-            <TagInput
-              bind:values={editGenres}
-              placeholder="Add genre…"
-              fetchSuggestions={fetchGenreSuggestions}
-            />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label class="text-sm font-medium">Tags</Label>
-            <TagInput
-              bind:values={editTags}
-              placeholder="Add tag…"
-              fetchSuggestions={fetchTagSuggestions}
-            />
-          </div>
+        <div class="overflow-y-auto px-4 py-6">
+          <BookMetaForm
+            bind:title={editTitle}
+            bind:subtitle={editSubtitle}
+            bind:authors={editAuthors}
+            bind:description={editDescription}
+            bind:publisher={editPublisher}
+            bind:publishedDate={editDate}
+            bind:isbn13={editIdentifier}
+            bind:language={editLanguage}
+            bind:pageCount={editPageCount}
+            bind:seriesName={editSeriesName}
+            bind:seriesNumber={editSeriesNumber}
+            bind:seriesTotal={editSeriesTotal}
+            bind:rating={editRating}
+            bind:genres={editGenres}
+            bind:tags={editTags}
+            coverSrc={editingBook.hasCover ? coverUrl(editingBook.id) : null}
+            showIsbn10={false}
+          />
         </div>
         <Sheet.Footer>
           {#if dirty}

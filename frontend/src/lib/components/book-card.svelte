@@ -63,6 +63,7 @@
   class="group relative cursor-default outline-none"
   class:!cursor-pointer={selectMode}
   tabindex="0"
+  style="content-visibility: auto; contain-intrinsic-size: auto 320px;"
   onclick={(e) => handleCardClick(e)}
   transition:fade
   onkeydown={(e) => e.key === 'Enter' && handleCardClick(new MouseEvent('click'))}

@@ -1,25 +1,15 @@
 <script lang="ts">
   import { apiFetch } from '$lib/api/client';
-  import {
-    fetchAuthorSuggestions,
-    fetchGenreSuggestions,
-    fetchTagSuggestions,
-    fetchSeriesSuggestions
-  } from '$lib/api/suggestions';
   import { bookEditState } from '$lib/state/book-edit.svelte';
   import { booksState, type Book } from '$lib/api/books.svelte';
   import { untrack } from 'svelte';
   import * as Sheet from '$lib/components/ui/sheet';
   import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import TagInput from '$lib/components/tag-input.svelte';
-  import StarRating from '$lib/components/star-rating.svelte';
   import { toast } from 'svelte-sonner';
   import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
   import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
-  import { Label } from '$lib/components/ui/label';
-  import { Textarea } from './ui/textarea';
+  import BookMetaForm from '$lib/components/book-meta-form.svelte';
 
   let editTitle = $state('');
   let editSubtitle = $state('');
@@ -37,9 +27,7 @@
   let editRating = $state('');
   let editGenres = $state<string[]>([]);
   let editTags = $state<string[]>([]);
-  let seriesSuggestions = $state<string[]>([]);
-  let showSeriesDropdown = $state(false);
-  let seriesHighlightIndex = $state(-1);
+
   function normalizeDate(d: string | null | undefined): string {
     if (!d) return '';
     if (/^\d{4}$/.test(d)) return `${d}-01-01`;
@@ -96,8 +84,6 @@
     editRating = book.metadata.rating?.toString() ?? '';
     editGenres = book.genres.map((g) => g.name);
     editTags = book.tags.map((t) => t.name);
-    seriesSuggestions = [];
-    showSeriesDropdown = false;
     errorMsg = null;
     userHasEdited = false;
   }
@@ -241,224 +227,33 @@
             {bookEditState.book.filePath.split('/').pop()}
           </Sheet.Description>
         </Sheet.Header>
-        <div
-          class="flex flex-col gap-4 overflow-y-auto px-4 py-6"
-          oninput={() => (userHasEdited = true)}
-        >
-          {#if bookEditState.book.metadata.coverPath}
-            <img
-              src={`/api/books/${bookEditState.book.id}/cover`}
-              alt="Cover"
-              class="mx-auto h-48 w-auto rounded object-contain shadow"
-            />
-          {/if}
+        <div class="overflow-y-auto px-4 py-6">
           {#if errorMsg}
-            <p class="text-sm text-destructive">{errorMsg}</p>
+            <p class="mb-4 text-sm text-destructive">{errorMsg}</p>
           {/if}
-          <div class="flex flex-col gap-1.5">
-            <Label for="edit-title">
-              Title{#if dirtyFields.title}<span
-                  class="inline-block size-1.5 rounded-full bg-primary"
-                ></span>{/if}
-            </Label>
-            <Input id="edit-title" bind:value={editTitle} />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label for="edit-subtitle">
-              Subtitle{#if dirtyFields.subtitle}<span
-                  class="inline-block size-1.5 rounded-full bg-primary"
-                ></span>{/if}
-            </Label>
-            <Input id="edit-subtitle" bind:value={editSubtitle} />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label>
-              Authors{#if dirtyFields.authors}<span
-                  class="inline-block size-1.5 rounded-full bg-primary"
-                ></span>{/if}
-            </Label>
-            <TagInput
-              bind:values={editAuthors}
-              placeholder="Add author..."
-              fetchSuggestions={fetchAuthorSuggestions}
-            />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label for="edit-description">
-              Description{#if dirtyFields.description}<span
-                  class="inline-block size-1.5 rounded-full bg-primary"
-                ></span>{/if}
-            </Label>
-            <Textarea
-              id="edit-description"
-              bind:value={editDescription}
-              placeholder="Description"
-            />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label for="edit-publisher">
-              Publisher{#if dirtyFields.publisher}<span
-                  class="inline-block size-1.5 rounded-full bg-primary"
-                ></span>{/if}
-            </Label>
-            <Input id="edit-publisher" bind:value={editPublisher} />
-          </div>
-          <div class="grid grid-cols-2 gap-4">
-            <div class="flex flex-col gap-1.5">
-              <Label for="edit-date">
-                Published Date{#if dirtyFields.publishedDate}<span
-                    class="inline-block size-1.5 rounded-full bg-primary"
-                  ></span>{/if}
-              </Label>
-              <Input id="edit-date" type="date" bind:value={editPublishedDate} />
-            </div>
-            <div class="flex flex-col gap-1.5">
-              <Label for="edit-language">
-                Language{#if dirtyFields.language}<span
-                    class="inline-block size-1.5 rounded-full bg-primary"
-                  ></span>{/if}
-              </Label>
-              <Input id="edit-language" bind:value={editLanguage} placeholder="en" />
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-4">
-            <div class="flex flex-col gap-1.5">
-              <Label for="edit-isbn13">
-                ISBN-13{#if dirtyFields.isbn13}<span
-                    class="inline-block size-1.5 rounded-full bg-primary"
-                  ></span>{/if}
-              </Label>
-              <Input id="edit-isbn13" bind:value={editISBN13} />
-            </div>
-            <div class="flex flex-col gap-1.5">
-              <Label for="edit-isbn10">
-                ISBN-10{#if dirtyFields.isbn10}<span
-                    class="inline-block size-1.5 rounded-full bg-primary"
-                  ></span>{/if}
-              </Label>
-              <Input id="edit-isbn10" bind:value={editISBN10} />
-            </div>
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label for="edit-page-count">
-              Page Count{#if dirtyFields.pageCount}<span
-                  class="inline-block size-1.5 rounded-full bg-primary"
-                ></span>{/if}
-            </Label>
-            <Input id="edit-page-count" type="number" bind:value={editPageCount} />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label>
-              Series{#if dirtyFields.series}<span
-                  class="inline-block size-1.5 rounded-full bg-primary"
-                ></span>{/if}
-            </Label>
-            <div class="grid grid-cols-[1fr_4rem] gap-2">
-              <div class="relative">
-                <Input
-                  bind:value={editSeriesName}
-                  placeholder="Series name"
-                  oninput={async () => {
-                    seriesHighlightIndex = -1;
-                    if (editSeriesName.trim().length < 1) {
-                      seriesSuggestions = [];
-                      showSeriesDropdown = false;
-                      return;
-                    }
-                    seriesSuggestions = await fetchSeriesSuggestions(editSeriesName.trim());
-                    showSeriesDropdown = seriesSuggestions.length > 0;
-                  }}
-                  onkeydown={(e) => {
-                    if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      if (seriesSuggestions.length > 0) {
-                        showSeriesDropdown = true;
-                        seriesHighlightIndex = Math.min(
-                          seriesHighlightIndex + 1,
-                          seriesSuggestions.length - 1
-                        );
-                      }
-                    } else if (e.key === 'ArrowUp') {
-                      e.preventDefault();
-                      seriesHighlightIndex = Math.max(seriesHighlightIndex - 1, -1);
-                    } else if (e.key === 'Enter' && seriesHighlightIndex >= 0) {
-                      e.preventDefault();
-                      editSeriesName = seriesSuggestions[seriesHighlightIndex];
-                      showSeriesDropdown = false;
-                      seriesHighlightIndex = -1;
-                    } else if (e.key === 'Escape') {
-                      showSeriesDropdown = false;
-                      seriesHighlightIndex = -1;
-                    }
-                  }}
-                  onfocus={() => {
-                    if (seriesSuggestions.length > 0) showSeriesDropdown = true;
-                  }}
-                  onblur={() => setTimeout(() => (showSeriesDropdown = false), 150)}
-                />
-                {#if showSeriesDropdown}
-                  <div
-                    class="absolute top-full right-0 left-0 z-50 mt-1 max-h-32 overflow-y-auto rounded-lg border bg-popover shadow-md"
-                  >
-                    {#each seriesSuggestions as s, i (i)}
-                      <button
-                        type="button"
-                        class="w-full px-2.5 py-1.5 text-left text-sm hover:bg-accent {i ===
-                        seriesHighlightIndex
-                          ? 'bg-accent'
-                          : ''}"
-                        onmousedown={() => {
-                          editSeriesName = s;
-                          showSeriesDropdown = false;
-                          seriesHighlightIndex = -1;
-                        }}
-                      >
-                        {s}
-                      </button>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-              <Input type="number" bind:value={editSeriesNumber} placeholder="#" />
-            </div>
-            <div class="mt-1 grid grid-cols-2 gap-2">
-              <div class="flex flex-col gap-1">
-                <Label class="text-xs font-normal text-muted-foreground">Total Books</Label>
-                <Input type="number" bind:value={editSeriesTotal} placeholder="Total" />
-              </div>
-            </div>
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label>
-              Rating{#if dirtyFields.rating}<span
-                  class="inline-block size-1.5 rounded-full bg-primary"
-                ></span>{/if}
-            </Label>
-            <StarRating bind:value={editRating} />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label>
-              Genres{#if dirtyFields.genres}<span
-                  class="inline-block size-1.5 rounded-full bg-primary"
-                ></span>{/if}
-            </Label>
-            <TagInput
-              bind:values={editGenres}
-              placeholder="Add genre..."
-              fetchSuggestions={fetchGenreSuggestions}
-            />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label>
-              Tags{#if dirtyFields.tags}<span class="inline-block size-1.5 rounded-full bg-primary"
-                ></span>{/if}
-            </Label>
-            <TagInput
-              bind:values={editTags}
-              placeholder="Add tag..."
-              fetchSuggestions={fetchTagSuggestions}
-            />
-          </div>
+          <BookMetaForm
+            bind:title={editTitle}
+            bind:subtitle={editSubtitle}
+            bind:authors={editAuthors}
+            bind:description={editDescription}
+            bind:publisher={editPublisher}
+            bind:publishedDate={editPublishedDate}
+            bind:isbn13={editISBN13}
+            bind:isbn10={editISBN10}
+            bind:language={editLanguage}
+            bind:pageCount={editPageCount}
+            bind:seriesName={editSeriesName}
+            bind:seriesNumber={editSeriesNumber}
+            bind:seriesTotal={editSeriesTotal}
+            bind:rating={editRating}
+            bind:genres={editGenres}
+            bind:tags={editTags}
+            coverSrc={bookEditState.book.metadata.coverPath
+              ? `/api/books/${bookEditState.book.id}/cover`
+              : null}
+            {dirtyFields}
+            oninput={() => (userHasEdited = true)}
+          />
         </div>
         <Sheet.Footer>
           {#if bookEditState.inQueue}
