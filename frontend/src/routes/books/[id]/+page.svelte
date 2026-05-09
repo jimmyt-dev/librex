@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { apiFetch } from '$lib/api/client';
+  import { apiFetch, getToken } from '$lib/api/client';
   import { booksState, type Book } from '$lib/api/books.svelte';
   import { filterState, type ItemState } from '$lib/state/filter.svelte';
   import { SvelteMap } from 'svelte/reactivity';
@@ -22,7 +22,9 @@
   import PencilIcon from '@lucide/svelte/icons/pencil';
   import DownloadIcon from '@lucide/svelte/icons/download';
   import TrashIcon from '@lucide/svelte/icons/trash-2';
+  import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
   import LibraryBigIcon from '@lucide/svelte/icons/library-big';
+  import * as Tabs from '$lib/components/ui/tabs';
 
   let bookId = $derived(page.params.id);
 
@@ -34,6 +36,26 @@
   let deleteFile = $state(false);
   let deleting = $state(false);
   let descExpanded = $state(false);
+  let rawEpubMeta = $state<string | null>(null);
+  let rawEpubLoading = $state(false);
+  let rawEpubError = $state<string | null>(null);
+
+  async function loadRawMeta() {
+    if (!book || rawEpubMeta !== null || rawEpubLoading) return;
+    rawEpubLoading = true;
+    rawEpubError = null;
+    try {
+      const res = await fetch(`/api/books/${book.id}/raw-metadata`, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      if (!res.ok) throw new Error(await res.text());
+      rawEpubMeta = await res.text();
+    } catch (e) {
+      rawEpubError = e instanceof Error ? e.message : 'Failed to load EPUB metadata.';
+    } finally {
+      rawEpubLoading = false;
+    }
+  }
 
   $effect(() => {
     headerState.title = book?.metadata.title ?? 'Book';
@@ -289,80 +311,122 @@
       </div>
     </div>
 
-    <!-- Reading Progress -->
-    <div class="rounded-lg border p-4">
-      <h2 class="mb-4 text-sm font-semibold">Reading Progress</h2>
-      <ReadingProgressControls {book} />
-    </div>
+    <Tabs.Root value="details" onValueChange={(v) => { if (v === 'raw') loadRawMeta(); }}>
+      <Tabs.List>
+        <Tabs.Trigger value="details">Details</Tabs.Trigger>
+        <Tabs.Trigger value="raw">Raw Metadata</Tabs.Trigger>
+      </Tabs.List>
 
-    <!-- Description -->
-    {#if book.metadata.description}
-      <div class="rounded-lg border p-4">
-        <h2 class="mb-2 text-sm font-semibold">Description</h2>
-        <div class="relative">
-          <p
-            class="text-sm leading-relaxed text-muted-foreground {descExpanded
-              ? ''
-              : 'line-clamp-4'}"
-          >
-            {book.metadata.description}
+      <Tabs.Content value="details" class="flex flex-col gap-6 pt-4">
+        <!-- Reading Progress -->
+        <div class="rounded-lg border p-4">
+          <h2 class="mb-4 text-sm font-semibold">Reading Progress</h2>
+          <ReadingProgressControls {book} />
+        </div>
+
+        <!-- Description -->
+        {#if book.metadata.description}
+          <div class="rounded-lg border p-4">
+            <h2 class="mb-2 text-sm font-semibold">Description</h2>
+            <div class="relative">
+              <p
+                class="text-sm leading-relaxed text-muted-foreground {descExpanded
+                  ? ''
+                  : 'line-clamp-4'}"
+              >
+                {book.metadata.description}
+              </p>
+              {#if book.metadata.description.length > 300}
+                <button
+                  type="button"
+                  class="mt-1 text-xs text-primary hover:underline"
+                  onclick={() => (descExpanded = !descExpanded)}
+                >
+                  {descExpanded ? 'Show less' : 'Show more'}
+                </button>
+              {/if}
+            </div>
+          </div>
+        {/if}
+
+        <!-- Shelves -->
+        {#if shelves.length > 0}
+          <div class="rounded-lg border p-4">
+            <h2 class="mb-3 flex items-center gap-1.5 text-sm font-semibold">
+              <LibraryBigIcon class="size-3.5" /> On Shelves
+            </h2>
+            <div class="flex flex-wrap gap-2">
+              {#each shelves as shelf (shelf.id)}
+                <a
+                  href="/shelf/{shelf.id}"
+                  class="rounded-full border bg-muted px-3 py-1 text-sm font-medium hover:bg-muted/80"
+                >
+                  {shelf.title}
+                </a>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <!-- More in series -->
+        {#if seriesBooks.length > 0}
+          <div class="rounded-lg border p-4">
+            <div class="mb-3 flex items-center justify-between">
+              <h2 class="flex items-center gap-1.5 text-sm font-semibold">
+                <BookCopyIcon class="size-3.5" />
+                More in {book.metadata.seriesName}
+              </h2>
+              <a
+                href="/series/{encodeURIComponent(book.metadata.seriesName ?? '')}"
+                class="text-xs text-muted-foreground hover:text-foreground hover:underline"
+              >
+                View all
+              </a>
+            </div>
+            <div class="flex gap-4 overflow-x-auto pb-2">
+              {#each seriesBooks as sb (sb.id)}
+                <div class="w-28 shrink-0">
+                  <BookCard book={sb} checkboxes={false} />
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </Tabs.Content>
+
+      <Tabs.Content value="raw" class="flex flex-col gap-4 pt-4">
+        <div class="rounded-lg border">
+          <p class="border-b px-4 py-2 text-xs font-semibold text-muted-foreground">
+            Librex Metadata
           </p>
-          {#if book.metadata.description.length > 300}
-            <button
-              type="button"
-              class="mt-1 text-xs text-primary hover:underline"
-              onclick={() => (descExpanded = !descExpanded)}
+          <pre class="overflow-x-auto p-4 text-xs">{JSON.stringify(book, null, 2)}</pre>
+        </div>
+        <div class="rounded-lg border">
+          <div class="flex items-center justify-between border-b px-4 py-2">
+            <p class="text-xs font-semibold text-muted-foreground">EPUB Metadata (raw OPF)</p>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="size-6"
+              disabled={rawEpubLoading}
+              onclick={() => { rawEpubMeta = null; loadRawMeta(); }}
+              title="Refresh"
             >
-              {descExpanded ? 'Show less' : 'Show more'}
-            </button>
+              <RefreshCwIcon class="size-3.5" />
+            </Button>
+          </div>
+          {#if rawEpubLoading}
+            <p class="p-4 text-xs text-muted-foreground">Loading…</p>
+          {:else if rawEpubError}
+            <p class="p-4 text-xs text-destructive">{rawEpubError}</p>
+          {:else if rawEpubMeta}
+            <pre class="overflow-x-auto p-4 text-xs">{rawEpubMeta}</pre>
+          {:else}
+            <p class="p-4 text-xs text-muted-foreground">Not available (PDF or non-EPUB format)</p>
           {/if}
         </div>
-      </div>
-    {/if}
-
-    <!-- Shelves -->
-    {#if shelves.length > 0}
-      <div class="rounded-lg border p-4">
-        <h2 class="mb-3 flex items-center gap-1.5 text-sm font-semibold">
-          <LibraryBigIcon class="size-3.5" /> On Shelves
-        </h2>
-        <div class="flex flex-wrap gap-2">
-          {#each shelves as shelf (shelf.id)}
-            <a
-              href="/shelf/{shelf.id}"
-              class="rounded-full border bg-muted px-3 py-1 text-sm font-medium hover:bg-muted/80"
-            >
-              {shelf.title}
-            </a>
-          {/each}
-        </div>
-      </div>
-    {/if}
-
-    <!-- More in series -->
-    {#if seriesBooks.length > 0}
-      <div class="rounded-lg border p-4">
-        <div class="mb-3 flex items-center justify-between">
-          <h2 class="flex items-center gap-1.5 text-sm font-semibold">
-            <BookCopyIcon class="size-3.5" />
-            More in {book.metadata.seriesName}
-          </h2>
-          <a
-            href="/series/{encodeURIComponent(book.metadata.seriesName ?? '')}"
-            class="text-xs text-muted-foreground hover:text-foreground hover:underline"
-          >
-            View all
-          </a>
-        </div>
-        <div class="flex gap-4 overflow-x-auto pb-2">
-          {#each seriesBooks as sb (sb.id)}
-            <div class="w-28 shrink-0">
-              <BookCard book={sb} checkboxes={false} />
-            </div>
-          {/each}
-        </div>
-      </div>
-    {/if}
+      </Tabs.Content>
+    </Tabs.Root>
   {/if}
 </div>
 

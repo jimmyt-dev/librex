@@ -78,6 +78,7 @@ func main() {
 			r.Delete("/{id}/progress", handlers.DeleteReadingProgress)
 			r.Get("/{id}/sessions", handlers.ListReadingSessions)
 			r.Post("/{id}/sessions", handlers.CreateReadingSession)
+			r.Get("/{id}/raw-metadata", handlers.GetBookRawMetadata)
 		})
 
 		r.Route("/api/shelves", func(r chi.Router) {
