@@ -96,6 +96,10 @@ func UpdateReadingProgress(w http.ResponseWriter, r *http.Request) {
 		if dateFinished == nil && *body.Status == "finished" {
 			dateFinished = &now
 		}
+		if *body.Status == "finished" && body.Progress == nil {
+			hundred := 100.0
+			body.Progress = &hundred
+		}
 	}
 
 	// When dates are explicitly provided by the user, always use them (even overwriting existing).
