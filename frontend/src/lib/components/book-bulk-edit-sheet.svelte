@@ -25,6 +25,20 @@
     books: Book[];
   } = $props();
 
+  // Reading status — empty string means "don't change"
+  let status = $state('');
+
+  const STATUSES = [
+    { value: 'unread', label: 'Unread' },
+    { value: 'reading', label: 'Reading' },
+    { value: 're-reading', label: 'Re-Reading' },
+    { value: 'partially-read', label: 'Partially Read' },
+    { value: 'paused', label: 'Paused' },
+    { value: 'finished', label: 'Read' },
+    { value: 'wont-read', label: "Won't Read" },
+    { value: 'abandoned', label: 'Abandoned' }
+  ];
+
   // Text fields — empty string means "don't change"
   let seriesName = $state('');
   let seriesSuggestions = $state<string[]>([]);
@@ -50,6 +64,7 @@
   let errorMsg = $state<string | null>(null);
 
   function reset() {
+    status = '';
     seriesName = '';
     publisher = '';
     language = '';
@@ -70,6 +85,7 @@
 
   function hasChanges() {
     return (
+      status !== '' ||
       seriesName.trim() !== '' ||
       publisher.trim() !== '' ||
       language.trim() !== '' ||
@@ -86,40 +102,37 @@
     saving = true;
     errorMsg = null;
     try {
-      const payload: Record<string, unknown> = {
-        bookIds: [...selectedIds]
-      };
-      if (seriesName.trim() !== '') payload.seriesName = seriesName.trim();
-      if (publisher.trim() !== '') payload.publisher = publisher.trim();
-      if (language.trim() !== '') payload.language = language.trim();
-      if (seriesTotal !== '') payload.seriesTotal = parseInt(seriesTotal);
-      if (rating !== '') payload.rating = parseInt(rating);
+      const calls: Promise<unknown>[] = [];
+
+      const metadataPayload: Record<string, unknown> = { bookIds: [...selectedIds] };
+      if (seriesName.trim() !== '') metadataPayload.seriesName = seriesName.trim();
+      if (publisher.trim() !== '') metadataPayload.publisher = publisher.trim();
+      if (language.trim() !== '') metadataPayload.language = language.trim();
+      if (seriesTotal !== '') metadataPayload.seriesTotal = parseInt(seriesTotal);
+      if (rating !== '') metadataPayload.rating = parseInt(rating);
       if (authors.length > 0) {
-        payload.authors = authors;
-        payload.authorsMode = authorsMode;
+        metadataPayload.authors = authors;
+        metadataPayload.authorsMode = authorsMode;
       }
       if (genres.length > 0) {
-        payload.genres = genres;
-        payload.genresMode = genresMode;
+        metadataPayload.genres = genres;
+        metadataPayload.genresMode = genresMode;
       }
       if (tags.length > 0) {
-        payload.tags = tags;
-        payload.tagsMode = tagsMode;
+        metadataPayload.tags = tags;
+        metadataPayload.tagsMode = tagsMode;
       }
 
-      await apiFetch('/api/books/bulk-update', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      const hasMetadata = Object.keys(metadataPayload).length > 1;
+      if (hasMetadata) {
+        calls.push(apiFetch('/api/books/bulk-update', { method: 'POST', body: JSON.stringify(metadataPayload) }));
+      }
+      if (status !== '') {
+        calls.push(apiFetch('/api/books/bulk-progress', { method: 'POST', body: JSON.stringify({ bookIds: [...selectedIds], status }) }));
+      }
 
-      // Refresh affected books
-      const affectedLibraryIds = new Set(
-        books.filter((b) => selectedIds.has(b.id)).map((b) => b.libraryId)
-      );
+      await Promise.all(calls);
       await booksState.fetchAll();
-      for (const libId of affectedLibraryIds) {
-        booksState.fetchForLibrary(libId);
-      }
 
       open = false;
     } catch {
@@ -146,6 +159,22 @@
         {#if errorMsg}
           <p class="text-sm text-destructive">{errorMsg}</p>
         {/if}
+
+        <!-- Reading Status -->
+        <div class="flex flex-col gap-1.5">
+          <Label class="text-sm font-medium">Reading Status</Label>
+          <select
+            bind:value={status}
+            class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="">— leave unchanged —</option>
+            {#each STATUSES as s (s.value)}
+              <option value={s.value}>{s.label}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="h-px bg-border"></div>
 
         <!-- Text fields -->
         <div class="relative flex flex-col gap-1.5">

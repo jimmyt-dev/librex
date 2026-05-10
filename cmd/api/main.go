@@ -121,6 +121,7 @@ func main() {
 		})
 
 		r.Post("/api/books/bulk-update", handlers.BulkUpdateBooks)
+		r.Post("/api/books/bulk-progress", handlers.BulkUpdateProgress)
 
 		r.Get("/api/series", handlers.ListSeries)
 		r.Get("/api/publishers", handlers.ListPublishers)

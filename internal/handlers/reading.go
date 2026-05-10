@@ -140,6 +140,68 @@ func UpdateReadingProgress(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(p)
 }
 
+type bulkProgressBody struct {
+	BookIDs []string `json:"bookIds"`
+	Status  string   `json:"status"`
+}
+
+// BulkUpdateProgress sets the reading status for multiple books at once.
+func BulkUpdateProgress(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r)
+
+	var body bulkProgressBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.BookIDs) == 0 || body.Status == "" {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	validStatuses := map[string]bool{
+		"unread": true, "reading": true, "re-reading": true,
+		"partially-read": true, "paused": true, "finished": true,
+		"wont-read": true, "abandoned": true,
+	}
+	if !validStatuses[body.Status] {
+		http.Error(w, "invalid status", http.StatusBadRequest)
+		return
+	}
+
+	now := time.Now()
+
+	_, err := db.DB.Exec(r.Context(), `
+		INSERT INTO reading_progress (user_id, book_id, status, progress, last_read_at, date_started, date_finished)
+		SELECT
+			$1, b.id, $2,
+			CASE WHEN $2 = 'finished' THEN 100 ELSE COALESCE(rp.progress, 0) END,
+			$3,
+			CASE
+				WHEN rp.date_started IS NOT NULL THEN rp.date_started
+				WHEN $2 IN ('reading', 'finished') THEN $3
+				ELSE NULL
+			END,
+			CASE
+				WHEN rp.date_finished IS NOT NULL THEN rp.date_finished
+				WHEN $2 = 'finished' THEN $3
+				ELSE NULL
+			END
+		FROM books b
+		LEFT JOIN reading_progress rp ON rp.book_id = b.id AND rp.user_id = $1
+		WHERE b.id = ANY($4) AND b.user_id = $1
+		ON CONFLICT (user_id, book_id) DO UPDATE SET
+			status        = EXCLUDED.status,
+			progress      = EXCLUDED.progress,
+			last_read_at  = EXCLUDED.last_read_at,
+			date_started  = EXCLUDED.date_started,
+			date_finished = EXCLUDED.date_finished`,
+		userID, body.Status, now, body.BookIDs)
+
+	if err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // DeleteReadingProgress removes reading progress for a book.
 func DeleteReadingProgress(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r)
