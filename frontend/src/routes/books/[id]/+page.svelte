@@ -311,7 +311,12 @@
       </div>
     </div>
 
-    <Tabs.Root value="details" onValueChange={(v) => { if (v === 'raw') loadRawMeta(); }}>
+    <Tabs.Root
+      value="details"
+      onValueChange={(v) => {
+        if (v === 'raw') loadRawMeta();
+      }}
+    >
       <Tabs.List>
         <Tabs.Trigger value="details">Details</Tabs.Trigger>
         <Tabs.Trigger value="raw">Raw Metadata</Tabs.Trigger>
@@ -409,7 +414,10 @@
               size="icon"
               class="size-6"
               disabled={rawEpubLoading}
-              onclick={() => { rawEpubMeta = null; loadRawMeta(); }}
+              onclick={() => {
+                rawEpubMeta = null;
+                loadRawMeta();
+              }}
               title="Refresh"
             >
               <RefreshCwIcon class="size-3.5" />

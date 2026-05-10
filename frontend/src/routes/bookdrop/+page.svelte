@@ -741,12 +741,22 @@
                       {/each}
                     </Select.Content>
                   </Select.Root>
-                  <Button size="sm" variant="ghost" onclick={(e) => { e.stopPropagation(); openEdit(book); }}>Edit</Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      openEdit(book);
+                    }}>Edit</Button
+                  >
                   <Button
                     size="sm"
                     variant="ghost"
                     class="text-destructive hover:text-destructive"
-                    onclick={(e) => { e.stopPropagation(); handleDelete(book); }}
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(book);
+                    }}
                   >
                     ✕
                   </Button>

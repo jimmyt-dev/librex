@@ -124,7 +124,9 @@
       </div>
 
       {#if errorMessage}
-        <div class="col-span-2 rounded-md bg-destructive/10 p-3 text-sm font-medium text-destructive">
+        <div
+          class="col-span-2 rounded-md bg-destructive/10 p-3 text-sm font-medium text-destructive"
+        >
           {errorMessage}
         </div>
       {/if}
